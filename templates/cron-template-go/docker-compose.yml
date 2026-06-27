@@ -1,0 +1,18 @@
+# Copy this folder, rename it, edit crontab + job.go, then:  lds app start
+# Scheduled job (CronJob-style) via supercronic — no web port; logs to stdout.
+name: cron-template-go
+
+services:
+  cron:
+    build:
+      context: .
+      dockerfile: LDS.Dockerfile     # local dev image; deploy uses ./Dockerfile
+    container_name: cron-template-go
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

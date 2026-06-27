@@ -1,0 +1,20 @@
+# Copy this folder, rename it, edit crontab + job.js, then:  lds app start
+# Scheduled job (CronJob-style) via supercronic — no web port; logs to stdout.
+name: cron-template-node
+
+services:
+  cron:
+    build:
+      context: .
+      dockerfile: LDS.Dockerfile     # local dev image; deploy uses ./Dockerfile
+    container_name: cron-template-node
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./:/app                      # live-edit crontab / job.js (no rebuild)
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

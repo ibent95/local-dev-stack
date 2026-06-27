@@ -1,0 +1,25 @@
+# React SPA (Vite). Requires the stack proxy:  ../../../scripts/run/up.sh proxy
+# First time, scaffold React into ./src (see README).
+name: web-template-react
+
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    container_name: web-template-react-app
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-web-template-react.test}   # -> http://web-template-react.test
+      VIRTUAL_PORT: "5173"
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./src:/app
+      - /app/node_modules
+    expose:
+      - "5173"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

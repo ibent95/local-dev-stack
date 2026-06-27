@@ -1,0 +1,15 @@
+# Local env — never commit secrets
+.env
+
+# Project folders (mount point for your code) — keep only the sample
+/www/*
+!/www/example
+/www/example/*
+!/www/example/public
+/www/example/public/*
+!/www/example/public/index.php
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.log

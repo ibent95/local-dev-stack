@@ -1,0 +1,38 @@
+# =============================================================================
+# HTTPS opt-in overlay — adds TLS to the edge proxy.
+# -----------------------------------------------------------------------------
+# This file is NOT used on its own. `lds up` reads LDS_ENABLE_HTTPS from .env and,
+# when true (and a proxy/php profile is running), layers it on top of the base
+# file:  docker compose -f docker-compose.yml -f docker-compose.https.yml …
+# Compose MERGES this into the `proxy` service — the extra port, the certs mount,
+# and HTTPS_METHOD are ADDED to the base definition (lists concatenate).
+#
+# First generate the wildcard dev cert (once):   lds certs
+#   -> writes configs/proxy/certs/default.{crt,key}, which nginx-proxy picks up
+#      as its default certificate for every *.test / localhost vhost.
+# =============================================================================
+name: local-dev-stack
+
+services:
+  proxy:
+    ports:
+      # TLS listener. Visit https://<name>.test (or https://localhost:<port>).
+      - "${WEB_HTTPS_PORT:-443}:443"
+    environment:
+      # noredirect = serve BOTH http and https (don't force a redirect), so any
+      # existing http://…​.test workflow keeps working. Set HTTPS_METHOD=redirect
+      # in .env to force http -> https.
+      HTTPS_METHOD: ${HTTPS_METHOD:-noredirect}
+    volumes:
+      # Dev certs minted by `lds certs`. nginx-proxy matches each *.test vhost to
+      # test.crt by stripping the leftmost label (wildcard-parent lookup); our
+      # cert's SANs cover *.test, test, and localhost.
+      - ./configs/proxy/certs:/etc/nginx/certs:ro
+
+  # The php container serves `localhost` + the regex `*.test` catch-all (all PHP
+  # project hosts). Those vhosts have no wildcard-parent cert match, so point
+  # nginx-proxy at test.crt explicitly via CERT_NAME. Harmless when HTTPS is off
+  # (this overlay isn't applied then).
+  php:
+    environment:
+      CERT_NAME: test

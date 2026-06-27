@@ -1,0 +1,2 @@
+# Schedule (supercronic). Times use the container TZ. fields: m h dom mon dow
+*/5 * * * * /app/job

@@ -1,0 +1,5 @@
+# Mongo runs *.js / *.sh files placed here ONCE, on first container init (empty
+# data dir only), as the root user. Use them to create app users/collections.
+# Example create-user.js:
+#   db.getSiblingDB('app').createUser({ user:'app', pwd:'app',
+#     roles:[{ role:'readWrite', db:'app' }] });

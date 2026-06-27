@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Semgrep — SARIF results</title>
+<style>
+  :root { color-scheme: light dark; --b:#8883; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.5 system-ui,Segoe UI,Roboto,sans-serif; }
+  header { padding:14px 18px; border-bottom:1px solid var(--b); display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  h1 { font-size:16px; margin:0; font-weight:600; }
+  .counts { display:flex; gap:8px; }
+  .pill { padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600; border:1px solid var(--b); cursor:pointer; user-select:none; }
+  .pill.off { opacity:.4; }
+  .error { background:#e5484d22; color:#e5484d; }
+  .warning { background:#f5a62322; color:#f5a623; }
+  .note { background:#3b82f622; color:#3b82f6; }
+  input { padding:6px 10px; border:1px solid var(--b); border-radius:6px; background:transparent; color:inherit; min-width:240px; flex:1; }
+  table { border-collapse:collapse; width:100%; }
+  th,td { text-align:left; padding:8px 14px; border-bottom:1px solid var(--b); vertical-align:top; }
+  th { position:sticky; top:0; background:Canvas; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  td.sev { white-space:nowrap; }
+  code { font:12px/1.4 ui-monospace,Consolas,monospace; background:#8881; padding:1px 5px; border-radius:4px; }
+  .msg { max-width:60ch; }
+  .loc { white-space:nowrap; color:#888; }
+  #empty { padding:40px 18px; color:#888; }
+  .wrap { overflow-x:auto; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Semgrep results</h1>
+  <div class="counts" id="counts"></div>
+  <input id="q" type="search" placeholder="filter by rule, file, or message…">
+  <span id="meta" style="color:#888;font-size:12px"></span>
+</header>
+<div class="wrap"><table id="tbl">
+  <thead><tr><th>Severity</th><th>Rule</th><th>Location</th><th>Message</th></tr></thead>
+  <tbody></tbody>
+</table></div>
+<div id="empty" hidden></div>
+
+<script>
+const SEV = { error:0, warning:0, note:0 };
+const off = new Set();
+let rows = [];
+
+function levelOf(r){ return (r.level || 'warning'); }  // SARIF: error|warning|note
+
+async function load(){
+  let data;
+  try {
+    const res = await fetch('report.sarif?_=' + Date.now());
+    if(!res.ok) throw new Error(res.status);
+    data = await res.json();
+  } catch(e){
+    document.getElementById('empty').hidden = false;
+    document.getElementById('empty').textContent =
+      'No report.sarif yet — run `lds tools semgrep [path]` to generate one.';
+    return;
+  }
+  for(const run of (data.runs||[])){
+    const tool = run.tool?.driver?.name || 'semgrep';
+    document.getElementById('meta').textContent = tool;
+    for(const r of (run.results||[])){
+      const lvl = levelOf(r);
+      SEV[lvl] = (SEV[lvl]||0)+1;
+      const loc = r.locations?.[0]?.physicalLocation;
+      rows.push({
+        lvl,
+        rule: r.ruleId || '',
+        file: loc?.artifactLocation?.uri || '',
+        line: loc?.region?.startLine || '',
+        msg: (r.message?.text || '').trim(),
+      });
+    }
+  }
+  renderCounts(); render();
+}
+
+function renderCounts(){
+  const c = document.getElementById('counts');
+  c.innerHTML = '';
+  for(const lvl of ['error','warning','note']){
+    const el = document.createElement('span');
+    el.className = 'pill ' + lvl;
+    el.textContent = lvl + ' ' + (SEV[lvl]||0);
+    el.onclick = () => { off.has(lvl) ? off.delete(lvl) : off.add(lvl); el.classList.toggle('off'); render(); };
+    c.appendChild(el);
+  }
+}
+
+function render(){
+  const q = document.getElementById('q').value.toLowerCase();
+  const tb = document.querySelector('#tbl tbody');
+  tb.innerHTML = '';
+  let n = 0;
+  for(const r of rows){
+    if(off.has(r.lvl)) continue;
+    if(q && !(r.rule+' '+r.file+' '+r.msg).toLowerCase().includes(q)) continue;
+    n++;
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td class="sev"><span class="pill ${r.lvl}">${r.lvl}</span></td>`+
+      `<td><code>${esc(r.rule)}</code></td>`+
+      `<td class="loc">${esc(r.file)}${r.line?':'+r.line:''}</td>`+
+      `<td class="msg">${esc(r.msg)}</td>`;
+    tb.appendChild(tr);
+  }
+  const empty = document.getElementById('empty');
+  empty.hidden = n>0 || rows.length===0;
+  if(n===0 && rows.length>0){ empty.hidden=false; empty.textContent='No findings match the filter.'; }
+}
+
+function esc(s){ return String(s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+document.getElementById('q').addEventListener('input', render);
+load();
+</script>
+</body>
+</html>

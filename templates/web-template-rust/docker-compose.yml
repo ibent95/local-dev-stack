@@ -1,0 +1,29 @@
+# Requires the local-dev-stack proxy to be running:  up.sh proxy
+name: web-template-rust
+
+services:
+  rust:
+    build:
+      context: .
+      target: dev
+    container_name: web-template-rust
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-web-template-rust.test}   # -> http://web-template-rust.test
+      VIRTUAL_PORT: "3000"
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./:/app
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/app/target
+    expose:
+      - "3000"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true
+
+volumes:
+  cargo-cache:
+  target-cache:

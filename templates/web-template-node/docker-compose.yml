@@ -1,0 +1,24 @@
+# Requires the local-dev-stack proxy to be running:  up.sh proxy
+name: web-template-node
+
+services:
+  node:
+    build:
+      context: .
+      target: dev
+    container_name: web-template-node
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-web-template-node.test}   # -> http://web-template-node.test
+      VIRTUAL_PORT: "3000"
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    expose:
+      - "3000"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

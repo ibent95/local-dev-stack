@@ -1,0 +1,27 @@
+# Laravel API — one container, supervisord runs php-fpm + nginx (+ optional
+# queue/scheduler). Requires the stack proxy: ./lds.sh up proxy
+# Scaffold real Laravel into ./src first (see README).
+name: svc-template-laravel
+
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    container_name: svc-template-laravel
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-svc-template-laravel.test}   # -> http://svc-template-laravel.test
+      VIRTUAL_PORT: "80"
+      TZ: ${TZ:-Asia/Jakarta}
+      ENABLE_QUEUE: "${ENABLE_QUEUE:-false}"
+      ENABLE_SCHEDULER: "${ENABLE_SCHEDULER:-false}"
+    volumes:
+      - ./src:/var/www/html
+    expose:
+      - "80"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

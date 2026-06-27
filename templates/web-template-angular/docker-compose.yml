@@ -1,0 +1,25 @@
+# Angular SPA. Requires the stack proxy:  ../../../scripts/run/up.sh proxy
+# First time, scaffold Angular into ./src (see README).
+name: web-template-angular
+
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    container_name: web-template-angular-app
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-web-template-angular.test}   # -> http://web-template-angular.test
+      VIRTUAL_PORT: "4200"
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./src:/app
+      - /app/node_modules
+    expose:
+      - "4200"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

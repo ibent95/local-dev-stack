@@ -1,0 +1,24 @@
+# web-template-webman — single long-running service. Requires the stack proxy: ./lds.sh up proxy
+# Scaffold into ./src first (see README).
+name: web-template-webman
+
+services:
+  webman:
+    build:
+      context: .
+      target: dev
+    container_name: web-template-webman
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-web-template-webman.test}   # -> http://web-template-webman.test
+      VIRTUAL_PORT: "8787"
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./src:/app
+    expose:
+      - "8787"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

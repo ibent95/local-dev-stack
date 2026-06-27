@@ -1,0 +1,24 @@
+# Native Python API (http.server). Requires the stack proxy:
+#   ../../scripts/run/up.sh proxy   (or ./lds.sh up proxy from the stack root)
+name: svc-template-python
+
+services:
+  python:
+    build:
+      context: .
+      target: dev
+    container_name: svc-template-python
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-svc-template-python.test}   # -> http://svc-template-python.test
+      VIRTUAL_PORT: "8000"
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./:/app
+    expose:
+      - "8000"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

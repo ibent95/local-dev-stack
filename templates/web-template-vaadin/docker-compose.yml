@@ -1,0 +1,24 @@
+# web-template-vaadin — single long-running service. Requires the stack proxy: ./lds.sh up proxy
+# Scaffold into ./src first (see README).
+name: web-template-vaadin
+
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    container_name: web-template-vaadin
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-web-template-vaadin.test}   # -> http://web-template-vaadin.test
+      VIRTUAL_PORT: "8080"
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./src:/app
+    expose:
+      - "8080"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

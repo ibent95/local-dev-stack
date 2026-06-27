@@ -1,0 +1,23 @@
+# Flask API. Requires the stack proxy: ./lds.sh up proxy (or ../../scripts/run/up.sh proxy)
+name: web-template-flask
+
+services:
+  flask:
+    build:
+      context: .
+      target: dev
+    container_name: web-template-flask
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-web-template-flask.test}   # -> http://web-template-flask.test
+      VIRTUAL_PORT: "8000"
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./:/app
+    expose:
+      - "8000"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

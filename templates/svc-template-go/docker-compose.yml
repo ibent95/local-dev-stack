@@ -1,0 +1,24 @@
+# Copy this folder, rename it, change APP_HOST, then `docker compose up -d`.
+# Requires the local-dev-stack proxy to be running:  up.sh proxy
+name: svc-template-go
+
+services:
+  go:
+    build:
+      context: .
+      target: dev
+    container_name: svc-template-go
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-svc-template-go.test}   # -> http://svc-template-go.test
+      VIRTUAL_PORT: "8080"
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./:/app
+    expose:
+      - "8080"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

@@ -1,0 +1,27 @@
+# Requires the local-dev-stack proxy to be running:  up.sh proxy
+name: svc-template-springboot
+
+services:
+  java:
+    build:
+      context: .
+      target: dev
+    container_name: svc-template-springboot
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-svc-template-springboot.test}   # -> http://svc-template-springboot.test
+      VIRTUAL_PORT: "8080"
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./:/app
+      - maven-cache:/root/.m2
+    expose:
+      - "8080"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true
+
+volumes:
+  maven-cache:

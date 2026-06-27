@@ -1,0 +1,24 @@
+# web-template-quarkus — single long-running service. Requires the stack proxy: ./lds.sh up proxy
+# Scaffold into ./src first (see README).
+name: web-template-quarkus
+
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    container_name: web-template-quarkus
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-web-template-quarkus.test}   # -> http://web-template-quarkus.test
+      VIRTUAL_PORT: "8080"
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./src:/app
+    expose:
+      - "8080"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

@@ -1,0 +1,23 @@
+# FastAPI. Requires the stack proxy: ./lds.sh up proxy (or ../../scripts/run/up.sh proxy)
+name: web-template-fastapi
+
+services:
+  fastapi:
+    build:
+      context: .
+      target: dev
+    container_name: web-template-fastapi
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-web-template-fastapi.test}   # -> http://web-template-fastapi.test
+      VIRTUAL_PORT: "8000"
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./:/app
+    expose:
+      - "8000"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

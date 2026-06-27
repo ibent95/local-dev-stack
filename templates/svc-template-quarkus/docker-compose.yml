@@ -1,0 +1,24 @@
+# svc-template-quarkus — single long-running service. Requires the stack proxy: ./lds.sh up proxy
+# Scaffold into ./src first (see README).
+name: svc-template-quarkus
+
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    container_name: svc-template-quarkus
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-svc-template-quarkus.test}   # -> http://svc-template-quarkus.test
+      VIRTUAL_PORT: "8080"
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./src:/app
+    expose:
+      - "8080"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

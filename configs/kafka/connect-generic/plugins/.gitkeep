@@ -1,0 +1,5 @@
+# Drop Kafka Connect plugin JARs here, each plugin in its own subfolder, e.g.
+#   plugins/
+#     aiven-jdbc-connector/      (Aiven JDBC connector — Apache 2.0)
+#       *.jar
+# Then restart the connect-generic service.  plugin.path=/opt/kafka/connectors

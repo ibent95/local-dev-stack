@@ -1,0 +1,20 @@
+# Copy this folder, rename it, edit crontab + job.php, then:  lds app start
+# Scheduled job (CronJob-style) via supercronic — no web port; logs to stdout.
+name: cron-template-php
+
+services:
+  cron:
+    build:
+      context: .
+      dockerfile: LDS.Dockerfile     # local dev image; deploy uses ./Dockerfile
+    container_name: cron-template-php
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./:/app                      # live-edit crontab / job.php (no rebuild)
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

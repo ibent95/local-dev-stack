@@ -1,0 +1,24 @@
+# Native Java web (Servlet on Tomcat). Requires the stack proxy:
+#   ../../scripts/run/up.sh proxy
+# Servlets don't hot-reload from source — apply changes with:
+#   docker compose up -d --build
+name: web-template-java
+
+services:
+  java:
+    build:
+      context: .
+      target: dev
+    container_name: web-template-java
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-web-template-java.test}   # -> http://web-template-java.test
+      VIRTUAL_PORT: "8080"
+      TZ: ${TZ:-Asia/Jakarta}
+    expose:
+      - "8080"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

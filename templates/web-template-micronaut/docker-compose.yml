@@ -1,0 +1,24 @@
+# web-template-micronaut — single long-running service. Requires the stack proxy: ./lds.sh up proxy
+# Scaffold into ./src first (see README).
+name: web-template-micronaut
+
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    container_name: web-template-micronaut
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-web-template-micronaut.test}   # -> http://web-template-micronaut.test
+      VIRTUAL_PORT: "8080"
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./src:/app
+    expose:
+      - "8080"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

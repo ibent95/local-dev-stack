@@ -1,0 +1,25 @@
+# svc-template-slim — one container, supervisord runs php-fpm + nginx (global configs).
+# Requires the stack proxy: ./lds.sh up proxy   (needs the lds/php base)
+# Scaffold the framework into ./src first (see README).
+name: svc-template-slim
+
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    container_name: svc-template-slim
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-svc-template-slim.test}   # -> http://svc-template-slim.test
+      VIRTUAL_PORT: "80"
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./src:/var/www/html
+    expose:
+      - "80"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

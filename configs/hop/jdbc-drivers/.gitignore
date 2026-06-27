@@ -1,0 +1,4 @@
+# Don't commit JDBC driver jars (license / size). Fetch per README.md.
+*.jar
+!.gitignore
+!README.md

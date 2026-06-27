@@ -1,0 +1,4 @@
+# Dev TLS certs minted by `lds certs` — NEVER commit (contains a private key).
+# This folder is the nginx-proxy certs mount when LDS_ENABLE_HTTPS=true.
+*
+!.gitignore

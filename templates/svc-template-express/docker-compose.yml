@@ -1,0 +1,24 @@
+# Requires the local-dev-stack proxy to be running:  up.sh proxy
+name: svc-template-express
+
+services:
+  node:
+    build:
+      context: .
+      target: dev
+    container_name: svc-template-express
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${APP_HOST:-svc-template-express.test}   # -> http://svc-template-express.test
+      VIRTUAL_PORT: "3000"
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    expose:
+      - "3000"
+    networks: [lds-network]
+
+networks:
+  lds-network:
+    external: true

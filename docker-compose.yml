@@ -1,0 +1,814 @@
+# =============================================================================
+# Local Development Stack — shared infrastructure for all projects
+# -----------------------------------------------------------------------------
+# Every service group is gated behind a Compose PROFILE so you only start what
+# you need. All services join the shared external network ${NETWORK_NAME}
+# (default: lds-network) so your application projects can attach to it too.
+#
+#   Start a group:   docker compose --profile mysql --profile redis up -d
+#   Start Kafka:     docker compose --profile kafka up -d
+#   Everything:      docker compose --profile all up -d
+#   Stop:            docker compose --profile '*' down      (or use scripts/run)
+#
+# Services are ordered by importance of usage: web foundation → databases →
+# admin UIs → data tools → realtime brokers → Kafka (heaviest, off by default).
+# Profiles: proxy | php | mysql | postgres | mongo | redis | memcached |
+#           phpcacheadmin | dbgate | drawdb | hop | superset | semgrep |
+#           soketi | centrifugo | emqx | kafka | all
+#   Data tools (drawdb/hop/superset/semgrep) + the http://localhost control panel:
+#   see docs/en/15-data-tools.md.
+# =============================================================================
+
+name: local-dev-stack
+
+# -----------------------------------------------------------------------------
+# Reusable anchors
+# -----------------------------------------------------------------------------
+x-restart: &restart unless-stopped
+
+services:
+
+  # ===========================================================================
+  # Web — Devilbox-style multi-project hosting  (profile: php, all)
+  #   php : ONE container running supervisord -> php-fpm + nginx (base lds/php).
+  #         Mass virtual hosting — every folder in ${PHP_PROJECTS_PATH} is served at
+  #         <folder>.test (docroot auto-detected: public/ > htdocs/ > root),
+  #         via the mounted mass-vhost nginx config (overrides the baked default).
+  #   proxy : edge router (nginx-proxy) — see below.
+  #   dns : dnsmasq resolving *.test -> 127.0.0.1 so new folders are instantly
+  #         reachable with no hosts-file edits.
+  # ===========================================================================
+  php:
+    # Single base image lds/php = php-fpm + nginx + supervisor (./lds.sh build-bases).
+    image: lds/php:${PHP_VERSION:-8.4}
+    container_name: lds-php
+    profiles: [php, all]
+    restart: *restart
+    # Catch-all host; app containers with an exact VIRTUAL_HOST win at the proxy.
+    # `localhost` (and any unmatched host) lands on the __dashboard control panel.
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      VIRTUAL_HOST: "localhost,~^.+\\.test$$"
+      VIRTUAL_PORT: "80"
+      ENABLE_PHP: "true"
+      ENABLE_NGINX: "true"
+    # Bound DNS retries: the __dashboard control panel probes every service, and a
+    # DOWN service's name resolution (Docker embedded DNS forwarding upstream) can
+    # otherwise take ~4s. timeout:1/attempts:1 caps that to ~1s so probes stay
+    # snappy (the dashboard also time-budgets probing as the hard 504 guarantee).
+    dns_opt:
+      - timeout:1
+      - attempts:1
+    expose:
+      - "80"
+    volumes:
+      - ${PHP_PROJECTS_PATH:-./www}:/var/www
+      # Control panel for http://localhost. Mounted OUTSIDE /var/www so it isn't a
+      # fake project (no __dashboard.test) and never shows up in the project list.
+      - ./configs/web/dashboard:/var/lds-dashboard:ro
+      - ./configs/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./configs/php/php.ini:/usr/local/etc/php/conf.d/zz-custom.ini:ro
+      - ./configs/php/opcache.ini:/usr/local/etc/php/conf.d/zz-opcache.ini:ro
+    healthcheck:
+      # Use 127.0.0.1 (NOT localhost): localhost also resolves to ::1 and busybox
+      # wget tries IPv6 first, but nginx listens IPv4-only -> refused. Hit the cheap
+      # /?health=1 path (no service probing) so health reflects the web server being
+      # up, not the dashboard's probe latency.
+      test: ["CMD-SHELL", "wget -qO- 'http://127.0.0.1/?health=1' >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [lds-network]
+
+  # Edge reverse proxy (profile: proxy, php, all)
+  #   Routes <name>.test -> any container that sets VIRTUAL_HOST. This is how
+  #   Go / Rust / Java / Node apps get a hostname. PHP projects fall through to
+  #   the mass-vhost php container above (its regex VIRTUAL_HOST is the catch-all).
+  proxy:
+    image: nginxproxy/nginx-proxy:1.6
+    container_name: lds-proxy
+    profiles: [proxy, php, all]
+    restart: *restart
+    ports:
+      - "${WEB_HOST_PORT:-80}:80"
+    environment:
+      DEFAULT_HOST: localhost
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    networks: [lds-network]
+
+  dns:
+    build:
+      context: configs/dns
+      args:
+        DHI_REGISTRY: ${DHI_REGISTRY:-dhi.io}
+    image: ${REGISTRY:-local}/local-dev-stack/dns:latest
+    pull_policy: build        # built locally — never pull (the local/ tag has no registry)
+    container_name: lds-dns
+    profiles: [proxy, php, all]
+    restart: *restart
+    ports:
+      - "${DNS_HOST_PORT:-53}:53/udp"
+      - "${DNS_HOST_PORT:-53}:53/tcp"
+    networks: [lds-network]
+
+  # ===========================================================================
+  # MySQL  (profile: mysql, all)
+  #   binlog enabled in ROW format so Debezium CDC works out of the box.
+  # ===========================================================================
+  mysql:
+    image: ${DHI_REGISTRY:-dhi.io}/mysql:${MYSQL_VERSION:-8.4-debian13}
+    container_name: lds-mysql
+    profiles: [mysql, all]
+    restart: *restart
+    # DHI mysql only enters "mysqld mode" when argv[0] is `mysqld` (the official
+    # image auto-prepends it; DHI does not), so pass it explicitly.
+    command:
+      - mysqld
+      - --log-bin=mysql-bin
+      - --binlog-format=ROW
+      - --binlog-row-image=FULL
+      - --server-id=${MYSQL_SERVER_ID:-1}
+      - --gtid-mode=ON
+      - --enforce-gtid-consistency=ON
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE:      ${MYSQL_DATABASE:-app}
+      MYSQL_USER:          ${MYSQL_USER:-app}
+      MYSQL_PASSWORD:      ${MYSQL_PASSWORD:-app}
+      TZ:                  ${TZ:-Asia/Jakarta}
+    ports:
+      - "${MYSQL_HOST_PORT:-4400}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./configs/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p${MYSQL_ROOT_PASSWORD:-root} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [lds-network]
+
+  # ===========================================================================
+  # PostgreSQL  (profile: postgres, all)
+  #   wal_level=logical so Debezium CDC works out of the box.
+  # ===========================================================================
+  postgres:
+    image: ${DHI_REGISTRY:-dhi.io}/postgres:${POSTGRES_VERSION:-18.4-alpine3.24}
+    container_name: lds-postgres
+    profiles: [postgres, all]
+    restart: *restart
+    # DHI postgres entrypoint already runs `exec postgres "$@"`, so pass ONLY the
+    # flags (no leading `postgres`, unlike the official image).
+    command:
+      - "-c"
+      - "wal_level=logical"
+      - "-c"
+      - "max_wal_senders=10"
+      - "-c"
+      - "max_replication_slots=10"
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-app}
+      POSTGRES_USER:     ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+      TZ:                ${TZ:-Asia/Jakarta}
+    ports:
+      - "${POSTGRES_HOST_PORT:-4401}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./configs/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app} -d ${POSTGRES_DB:-app}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks: [lds-network]
+
+  # ===========================================================================
+  # MongoDB  (profile: mongo, all)
+  #   Single-node REPLICA SET (rs0) so change streams / Debezium CDC work, WITH
+  #   auth (root + app users, like mysql/postgres). Replica set + auth mandates a
+  #   keyfile (internal auth); it's auto-generated into the mongo-config volume on
+  #   first boot. Uses the DHI `-dev` flavor for the shell (keyfile gen) + mongosh
+  #   (mongo-init creates the users + the healthcheck). The official
+  #   docker-entrypoint.sh isn't on DHI, so we exec mongod directly (the image
+  #   defaults to root, so the keyfile chmod/chown works). Users are created by
+  #   scripts/run/mongo-init.* (auto-run by `lds up`), NOT MONGO_INITDB_*.
+  # ===========================================================================
+  mongo:
+    image: ${DHI_REGISTRY:-dhi.io}/mongodb:${MONGO_VERSION:-8.3-debian13-dev}
+    container_name: lds-mongo
+    profiles: [mongo, all]
+    restart: *restart
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+    entrypoint:
+      - bash
+      - -c
+      - |
+        KF=/etc/mongo/keyfile
+        mkdir -p /etc/mongo
+        [ -s "$$KF" ] || head -c 756 /dev/urandom | base64 | tr -d '\n' > "$$KF"
+        chmod 400 "$$KF"
+        exec mongod --replSet rs0 --keyFile "$$KF" --bind_ip_all
+    ports:
+      - "${MONGO_HOST_PORT:-4402}:27017"
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/etc/mongo
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Redis  (profile: redis, all)
+  # ===========================================================================
+  redis:
+    image: ${DHI_REGISTRY:-dhi.io}/redis:${REDIS_VERSION:-8.8-alpine3.24}
+    container_name: lds-redis
+    profiles: [redis, all]
+    restart: *restart
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+    ports:
+      - "${REDIS_HOST_PORT:-4403}:6379"
+    volumes:
+      - redis-data:/data
+      - ./configs/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Memcached  (profile: memcached, all)
+  # ===========================================================================
+  memcached:
+    image: ${DHI_REGISTRY:-dhi.io}/memcached:${MEMCACHED_VERSION:-1.6-debian13}
+    container_name: lds-memcached
+    profiles: [memcached, all]
+    restart: *restart
+    command: ["memcached", "-m", "${MEMCACHED_MEMORY:-64}", "-p", "11211"]
+    ports:
+      - "${MEMCACHED_HOST_PORT:-4404}:11211"
+    healthcheck:
+      test: ["CMD-SHELL", "echo stats | timeout 2 nc -w 1 127.0.0.1 11211 | grep -q uptime"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Admin tools — web UIs for the backing services. Each has its OWN profile
+  # (phpcacheadmin | dbgate) so you can turn them on independently; both also
+  # join `all`. Reachable via the proxy (*.test) AND a direct host port. They
+  # show data only when the matching profile is also up (redis/memcached,
+  # mysql/postgres).
+  # ===========================================================================
+  # phpCacheAdmin — Redis + Memcached + OPcache/APCu browser.  (profile: phpcacheadmin, all)
+  phpcacheadmin:
+    image: robinn/phpcacheadmin:${PHPCACHEADMIN_VERSION:-2.5.1}
+    container_name: lds-phpcacheadmin
+    profiles: [phpcacheadmin, all]
+    restart: *restart
+    environment:
+      VIRTUAL_HOST: ${CACHE_ADMIN_HOST:-cache.test}
+      VIRTUAL_PORT: "80"
+      PCA_REDIS_0_NAME: "LDS Redis"
+      PCA_REDIS_0_HOST: redis
+      PCA_REDIS_0_PORT: "6379"
+      PCA_MEMCACHED_0_NAME: "LDS Memcached"
+      PCA_MEMCACHED_0_HOST: memcached
+      PCA_MEMCACHED_0_PORT: "11211"
+    expose:
+      - "80"
+    ports:
+      - "${CACHE_ADMIN_HOST_PORT:-4421}:80"
+    networks: [lds-network]
+
+  # DBGate — web DB client, pre-connected to MySQL + Postgres.  (profile: dbgate, all)
+  dbgate:
+    image: dbgate/dbgate:${DBGATE_VERSION:-7.2.0}
+    container_name: lds-dbgate
+    profiles: [dbgate, all]
+    restart: *restart
+    environment:
+      VIRTUAL_HOST: ${DB_ADMIN_HOST:-db.test}
+      VIRTUAL_PORT: "3000"
+      # Full Community feature set. We intentionally do NOT predefine CONNECTIONS:
+      # doing so locks the UI into read-only "preconfigured" mode and disables
+      # "Add connection". Left unset, DBGate runs fully open — add/edit/delete
+      # connections in the UI (persisted via the dbgate-data volume below).
+      SHELL_CONNECTION: "true"     # connections definable from shell
+      SHELL_SCRIPTING: "true"      # enable custom JavaScript shell scripts
+    expose:
+      - "3000"
+    ports:
+      - "${DB_ADMIN_HOST_PORT:-4422}:3000"
+    volumes:
+      # Persist UI-created connections + app state (the MySQL/Postgres entries
+      # above are predefined/read-only; anything you add yourself lives here).
+      - dbgate-data:/root/.dbgate
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Database design — ER diagrams / schema modelling.  (profile: drawdb, all)
+  # ===========================================================================
+  # DrawDB — browser-based database schema designer / ER diagrammer.
+  # A static SPA (diagrams persist in your browser, no server DB). Upstream image
+  # (not on DHI). Lightweight — single container. NOTE: open it at
+  # http://localhost:4423, NOT drawdb.test — it calls crypto.randomUUID(), which
+  # browsers expose only in a secure context (localhost or HTTPS).
+  drawdb:
+    image: ${DRAWDB_IMAGE:-ghcr.io/drawdb-io/drawdb}:${DRAWDB_VERSION:-v1.7.0}
+    container_name: lds-drawdb
+    profiles: [drawdb, all]
+    restart: *restart
+    environment:
+      VIRTUAL_HOST: ${DRAWDB_HOST:-drawdb.test}
+      VIRTUAL_PORT: "80"
+    expose:
+      - "80"
+    ports:
+      - "${DRAWDB_HOST_PORT:-4423}:80"
+    mem_limit: ${DRAWDB_MEM_LIMIT:-128m}
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Data warehouse & BI — ETL + reporting.  (profiles: hop | superset, all)
+  #   hop      : Apache Hop Web — design/run data-integration pipelines (ETL).
+  #   superset : Apache Superset — BI dashboards & reporting over your DBs.
+  # Hop is an upstream image; Superset is a Docker Hardened Image. Both off by
+  # default. They connect to the stack DBs (postgres/mysql) as data sources —
+  # add those connections in-app.
+  # ===========================================================================
+  # Apache Hop — Hop Web, the browser-based ETL/DW pipeline designer.  (profile: hop, all)
+  # Uses apache/hop-web (Tomcat), NOT apache/hop (that one is the headless
+  # hop-server, which forces Basic auth). Hop Web needs no login. The app serves
+  # under /ui and redirects / -> /ui itself (using the request Host), so hop.test
+  # opens straight into the designer. NB: /ui has NO trailing slash (/ui/ is a 404).
+  hop:
+    image: ${HOP_IMAGE:-apache/hop-web}:${HOP_VERSION:-2.18.1}
+    container_name: lds-hop
+    profiles: [hop, all]
+    restart: *restart
+    # "No session" timeout: Hop Web (Eclipse RAP) ties its UI state to the HTTP
+    # session, which inherits Tomcat's 30-min conf/web.xml timeout — so after idle
+    # you'd get "session timed out" and lose the canvas. We flip that to never
+    # expire (<=0) before launching the stock startup script (image CMD). Regex
+    # match survives a different default in future image versions.
+    command:
+      - /bin/bash
+      - -c
+      - |
+        sed -i -E 's#<session-timeout>[0-9]+</session-timeout>#<session-timeout>-1</session-timeout>#' /usr/local/tomcat/conf/web.xml
+        exec /bin/bash /tmp/run-web.sh
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      VIRTUAL_HOST: ${HOP_HOST:-hop.test}
+      VIRTUAL_PORT: "8080"
+    expose:
+      - "8080"
+    ports:
+      - "${HOP_HOST_PORT:-4424}:8080"
+    volumes:
+      # MySQL Connector/J isn't bundled (GPL — Hop ships the MySQL *dialect*
+      # plugin but not the driver jar). Single-FILE mount so we add the driver
+      # to Hop's shared jdbc folder without shadowing the bundled drivers
+      # (postgres, mssql, …). Fetch the jar into ./configs/hop/jdbc-drivers/
+      # (see the README there). Bump both the filename and ${HOP_MYSQL_DRIVER} together.
+      - ./configs/hop/jdbc-drivers/${HOP_MYSQL_DRIVER:-mysql-connector-j-9.7.0.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_MYSQL_DRIVER:-mysql-connector-j-9.7.0.jar}:ro
+    mem_limit: ${HOP_MEM_LIMIT:-1g}
+    networks: [lds-network]
+
+  # Apache Superset — BI dashboards & reporting.  (profile: superset, all)
+  # Docker Hardened Image, non-dev runtime variant: nonroot (UID 65532) and no
+  # shell. Since the hardened image has no shell we can't `sh -c` the multi-step
+  # self-init — but it's a Python app, so we drive init from the image's venv
+  # python (/app/.venv/bin) and exec into gunicorn. Self-inits on start (db
+  # upgrade + admin user + init); metadata in a local SQLite under
+  # /app/superset_home (the named volume below; must be writable by UID 65532 —
+  # an empty named volume inherits the image dir's ownership, so this is fine).
+  # Visualize the stack DBs — add them as Superset "Database" connections
+  # (e.g. postgresql://app:app@postgres:5432/app).
+  superset:
+    image: ${DHI_REGISTRY:-dhi.io}/superset:${SUPERSET_VERSION:-6.1-debian13}
+    container_name: lds-superset
+    profiles: [superset, all]
+    restart: *restart
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      VIRTUAL_HOST: ${SUPERSET_HOST:-superset.test}
+      VIRTUAL_PORT: "8088"
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-lds-dev-secret-change-me}
+      SQLALCHEMY_DATABASE_URI: sqlite:////app/superset_home/superset.db
+      SUPERSET_LOAD_EXAMPLES: "no"
+      SUPERSET_ADMIN: ${SUPERSET_ADMIN:-admin}
+      SUPERSET_PASSWORD: ${SUPERSET_PASSWORD:-admin}
+    entrypoint:
+      - /app/.venv/bin/python
+      - -c
+      - |
+        import os, subprocess
+        bin = "/app/.venv/bin"
+        subprocess.run([bin + "/superset", "db", "upgrade"], check=True)
+        subprocess.run([bin + "/superset", "fab", "create-admin",
+            "--username", os.environ.get("SUPERSET_ADMIN", "admin"),
+            "--firstname", "Admin", "--lastname", "User", "--email", "admin@local",
+            "--password", os.environ.get("SUPERSET_PASSWORD", "admin")], check=False)
+        subprocess.run([bin + "/superset", "init"], check=True)
+        os.execv(bin + "/gunicorn", ["gunicorn", "-w", "1", "-k", "gthread",
+            "--threads", "4", "--timeout", "120", "-b", "0.0.0.0:8088",
+            "superset.app:create_app()"])
+    expose:
+      - "8088"
+    ports:
+      - "${SUPERSET_HOST_PORT:-4425}:8088"
+    volumes:
+      - superset-home:/app/superset_home
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8088/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 90s
+    mem_limit: ${SUPERSET_MEM_LIMIT:-2g}
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Code quality — static analysis (SAST).  (profiles: semgrep | semgrep-scan)
+  #   semgrep      : the VIEWER — a tiny nginx serving the SARIF report + UI at
+  #                  semgrep.test. Long-running; this is what `lds up semgrep` starts.
+  #   semgrep-scan : the SCANNER — the real semgrep/semgrep CLI image, pinned and
+  #                  declared here so it's versioned + pre-pullable as part of the
+  #                  stack. It is a ONE-SHOT (runs, writes report.sarif, exits), so
+  #                  it lives in its OWN profile and is NOT in `all` — it never
+  #                  auto-starts on `lds up` (which would leave an Exited container,
+  #                  like the old kafka-init). Invoke it via `lds tools semgrep
+  #                  [path]`, which runs `docker compose run --rm semgrep-scan`.
+  # ===========================================================================
+  semgrep:
+    image: nginx:${NGINX_VERSION:-1.27-alpine}
+    container_name: lds-semgrep
+    profiles: [semgrep, all]
+    restart: *restart
+    environment:
+      VIRTUAL_HOST: ${SEMGREP_HOST:-semgrep.test}
+      VIRTUAL_PORT: "80"
+    expose:
+      - "80"
+    ports:
+      - "${SEMGREP_HOST_PORT:-4426}:80"
+    volumes:
+      - ./configs/semgrep/reports:/usr/share/nginx/html:ro
+    mem_limit: ${SEMGREP_MEM_LIMIT:-64m}
+    networks: [lds-network]
+
+  # Semgrep scanner (one-shot, run-only — see the note above). `lds tools semgrep
+  # [path]` adds `-v <path>:/src -w /src` and the scan args at run time; this
+  # service fixes the image + the /out mount (the viewer's report dir).
+  semgrep-scan:
+    image: ${SEMGREP_IMAGE:-semgrep/semgrep}:${SEMGREP_VERSION:-1.167.0}
+    profiles: [semgrep-scan]
+    volumes:
+      - ./configs/semgrep/reports:/out
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Realtime / pub-sub brokers (profiles: soketi | centrifugo | emqx, all)
+  #   OFF BY DEFAULT — their LDS_ENABLE_* toggles are false. Turn one on explicitly:
+  #     lds up soketi      Pusher protocol — Laravel Reverb/Echo compatible
+  #     lds up centrifugo  raw WebSocket channels + built-in admin UI
+  #     lds up emqx        MQTT + MQTT-over-WebSocket + dashboard
+  #   A "channel"/"topic" is just a name: ONE broker handles unlimited channels,
+  #   you never run a second one per channel. Pick the broker whose CLIENT
+  #   protocol matches your app — the three speak DIFFERENT protocols over the
+  #   WebSocket and are NOT interchangeable on the client side.
+  #   All three are STATELESS (no data volume → nothing to grow on disk) and
+  #   carry mem/cpu caps so they stay light even when running.
+  # ===========================================================================
+
+  # Soketi — Pusher-protocol WebSocket server. Drop-in for Laravel broadcasting
+  # (BROADCAST_DRIVER=pusher/reverb) + Laravel Echo / pusher-js on the client:
+  # point them at this host/port with the app key/secret below. Headless (no UI).
+  soketi:
+    image: quay.io/soketi/soketi:${SOKETI_VERSION:-1.6-16-alpine}
+    container_name: lds-soketi
+    profiles: [soketi, all]
+    restart: *restart
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      SOKETI_DEBUG: "${SOKETI_DEBUG:-0}"
+      # Dev-only default app credentials — override in .env for anything shared.
+      SOKETI_DEFAULT_APP_ID: ${SOKETI_APP_ID:-app-id}
+      SOKETI_DEFAULT_APP_KEY: ${SOKETI_APP_KEY:-app-key}
+      SOKETI_DEFAULT_APP_SECRET: ${SOKETI_APP_SECRET:-app-secret}
+      SOKETI_DEFAULT_APP_ENABLE_CLIENT_MESSAGES: "true"
+      # Reachable at ws.test when the proxy profile is up (WS upgrade is handled).
+      VIRTUAL_HOST: ${SOKETI_HOST:-ws.test}
+      VIRTUAL_PORT: "6001"
+    expose:
+      - "6001"
+    ports:
+      - "${SOKETI_HOST_PORT:-4430}:6001"
+    healthcheck:
+      # curl-less image — use the bundled node to confirm the port accepts TCP.
+      test: ["CMD-SHELL", "node -e \"require('net').connect(6001,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    mem_limit: ${SOKETI_MEM_LIMIT:-256m}
+    cpus: ${SOKETI_CPUS:-0.50}
+    networks: [lds-network]
+
+  # Centrifugo — language-agnostic real-time server (raw WebSocket + SSE).
+  # Clients use the Centrifuge JS SDK (NOT Laravel Echo). Ships an admin UI at
+  # http://centrifugo.test (or :4431). Runs in dev "insecure" mode so you can
+  # publish/subscribe without minting JWTs; flip the flags off for auth.
+  centrifugo:
+    image: centrifugo/centrifugo:${CENTRIFUGO_VERSION:-v5}
+    container_name: lds-centrifugo
+    profiles: [centrifugo, all]
+    restart: *restart
+    command: centrifugo --admin --admin_insecure --client_insecure --api_insecure --health
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      CENTRIFUGO_ALLOWED_ORIGINS: ${CENTRIFUGO_ALLOWED_ORIGINS:-*}
+      CENTRIFUGO_API_KEY: ${CENTRIFUGO_API_KEY:-api-key}
+      CENTRIFUGO_TOKEN_HMAC_SECRET_KEY: ${CENTRIFUGO_TOKEN_HMAC_SECRET_KEY:-token-secret}
+      CENTRIFUGO_ADMIN_PASSWORD: ${CENTRIFUGO_ADMIN_PASSWORD:-admin}
+      CENTRIFUGO_ADMIN_SECRET: ${CENTRIFUGO_ADMIN_SECRET:-admin-secret}
+      VIRTUAL_HOST: ${CENTRIFUGO_HOST:-centrifugo.test}
+      VIRTUAL_PORT: "8000"
+    expose:
+      - "8000"
+    ports:
+      - "${CENTRIFUGO_HOST_PORT:-4431}:8000"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test: ["CMD-SHELL", "wget -nv -t1 --spider http://127.0.0.1:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    mem_limit: ${CENTRIFUGO_MEM_LIMIT:-256m}
+    cpus: ${CENTRIFUGO_CPUS:-0.50}
+    networks: [lds-network]
+
+  # MQTT — Eclipse Mosquitto broker + MQTTX Web client. (profile: mqtt, all)
+  # Replaces EMQX: lightweight, fully anonymous, and the web UI needs NO login.
+  # MQTT->Kafka is NOT a broker feature here (EMQX's Kafka bridge is Enterprise-
+  # only anyway) — it's done in the generic Kafka Connect worker via the Stream
+  # Reactor MQTT connector (`lds kafka connect-plugin --generic <mqtt-url>`), which
+  # subscribes to the broker (mosquitto:1883) and produces to Kafka. See
+  # docs/en/15-data-tools.md.
+  mosquitto:
+    image: eclipse-mosquitto:${MOSQUITTO_VERSION:-2.0.22}
+    container_name: lds-mosquitto
+    profiles: [mqtt, all]
+    restart: *restart
+    command: ["mosquitto", "-c", "/mosquitto/config/mosquitto.conf"]
+    ports:
+      - "${MQTT_HOST_PORT:-4432}:1883"      # native MQTT (backends/devices, in-net: mosquitto:1883)
+      - "${MQTT_WS_HOST_PORT:-4433}:9001"   # MQTT over WebSocket (browser clients)
+    volumes:
+      - ./configs/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+    healthcheck:
+      # pub a message — succeeds only if the broker is up and accepting connections.
+      test: ["CMD-SHELL", "mosquitto_pub -h localhost -t healthcheck -m ping >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    mem_limit: ${MOSQUITTO_MEM_LIMIT:-128m}
+    networks: [lds-network]
+
+  # MQTTX Web — browser MQTT client (subscribe / publish / watch live). NO login.
+  # Point it at the broker over WebSocket: New Connection → Host `localhost`,
+  # Port `${MQTT_WS_HOST_PORT}` (4433), Path `/`. (Connections are saved in your
+  # browser.) It's a CLIENT, not a broker admin dashboard.
+  mqttx:
+    image: emqx/mqttx-web:${MQTTX_VERSION:-v1.13.0}
+    container_name: lds-mqttx
+    profiles: [mqtt, all]
+    restart: *restart
+    environment:
+      VIRTUAL_HOST: ${MQTT_HOST:-mqtt.test}
+      VIRTUAL_PORT: "80"
+    expose:
+      - "80"
+    ports:
+      - "${MQTTX_HOST_PORT:-4434}:80"
+    mem_limit: ${MQTTX_MEM_LIMIT:-128m}
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Kafka — KRaft mode (profile: kafka, all)
+  #   Dedicated controller + broker, Schema Registry (Apicurio), two Connect
+  #   workers (Debezium + generic), and kafka-ui. Topics are provisioned by
+  #   `lds up`/`lds kafka-topics`, not a container.
+  # ===========================================================================
+  # DHI kafka (4.3) ignores KAFKA_* env and reads /opt/kafka/config/server.properties
+  # (mounted from configs/kafka/{controller,broker}.properties); its entrypoint
+  # auto-formats KRaft storage using KAFKA_CLUSTER_ID (which MUST match across
+  # both nodes). Runs as root so it can write the data volume — via the NUMERIC
+  # `user: "0:0"`, not `user: root`: the hardened image's /etc/passwd has no
+  # `root` entry, so a name would fail ("unable to find user root").
+  kafka-controller:
+    image: ${DHI_REGISTRY:-dhi.io}/kafka:${KAFKA_VERSION:-4.3-debian13}
+    container_name: lds-kafka-controller
+    profiles: [kafka, all]
+    restart: *restart
+    user: "0:0"
+    environment:
+      KAFKA_CLUSTER_ID: ${KAFKA_CLUSTER_ID:-MkU3OEVBNTcwNTJENDM2Qk}
+    volumes:
+      - ./configs/kafka/controller.properties:/opt/kafka/config/server.properties:ro
+      - kafka-controller-data:/var/lib/kafka/data
+    networks: [lds-network]
+
+  kafka-broker:
+    image: ${DHI_REGISTRY:-dhi.io}/kafka:${KAFKA_VERSION:-4.3-debian13}
+    container_name: lds-kafka-broker
+    profiles: [kafka, all]
+    restart: *restart
+    user: "0:0"
+    depends_on: [kafka-controller]
+    environment:
+      KAFKA_CLUSTER_ID: ${KAFKA_CLUSTER_ID:-MkU3OEVBNTcwNTJENDM2Qk}
+    ports:
+      - "${KAFKA_HOST_PORT:-4410}:29092"
+    volumes:
+      - ./configs/kafka/broker.properties:/opt/kafka/config/server.properties:ro
+      - kafka-broker-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    networks: [lds-network]
+
+  # Apicurio Registry (Apache 2.0) — replaces Confluent's cp-schema-registry.
+  # In-memory store (dev only: schemas reset on restart; the Avro converter
+  # re-registers them via auto-register). Listens on 8080. REST API base is
+  # /apis/registry/v2; the Confluent-compatible API is at /apis/ccompat/v7.
+  schema-registry:
+    image: apicurio/apicurio-registry-mem:${APICURIO_VERSION:-2.6.13.Final}
+    container_name: lds-kafka-schema-registry
+    profiles: [kafka, all]
+    restart: *restart
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+    ports:
+      - "${SCHEMA_REGISTRY_HOST_PORT:-4411}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks: [lds-network]
+
+  # Kafka Connect powered by Debezium — ships MySQL & Postgres CDC connectors.
+  connect-debezium:
+    image: quay.io/debezium/connect:${DEBEZIUM_VERSION:-3.0}
+    container_name: lds-kafka-connect-debezium
+    profiles: [kafka, all]
+    restart: *restart
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+      schema-registry:
+        condition: service_started
+    environment:
+      BOOTSTRAP_SERVERS: kafka-broker:9092
+      GROUP_ID: ${CONNECT_GROUP_ID:-connect-cluster}
+      CONFIG_STORAGE_TOPIC: ${CONNECT_CONFIG_TOPIC:-_connect_configs}
+      OFFSET_STORAGE_TOPIC: ${CONNECT_OFFSET_TOPIC:-_connect_offsets}
+      STATUS_STORAGE_TOPIC: ${CONNECT_STATUS_TOPIC:-_connect_status}
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      # Avro via Apicurio Registry (Apache 2.0). ENABLE_APICURIO_CONVERTERS adds
+      # the Apicurio converter JARs to the image; the per-connector value.converter
+      # config (incl. the dashed `auto-register` prop) lives in the
+      # *-connector.json files. Worker defaults stay JSON; keys are JSON.
+      ENABLE_APICURIO_CONVERTERS: "true"
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      # Like the generic worker, allow dropping EXTRA connector plugins (the ones
+      # Debezium doesn't bundle) into a host-mounted dir. /kafka/connect keeps the
+      # bundled CDC connectors; /kafka/connect-extra is our add-on dir below.
+      # (The debezium image maps CONNECT_* env -> worker properties, so this sets
+      # plugin.path.) Install with `lds kafka connect-plugin --debezium <name>`.
+      CONNECT_PLUGIN_PATH: /kafka/connect,/kafka/connect-extra
+    ports:
+      - "${CONNECT_HOST_PORT:-4413}:8083"
+    volumes:
+      - ./configs/kafka/connect-debezium:/debezium/connectors-config:ro
+      - ./configs/kafka/connect-debezium/plugins:/kafka/connect-extra
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8083/connectors >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    networks: [lds-network]
+
+  # Generic Kafka Connect — vanilla apache/kafka image (same Connect runtime as
+  # the Debezium worker above, but no bundled connectors). For non-CDC plugins
+  # (JDBC/S3/Elasticsearch/HTTP sinks, etc.): drop JARs into the mounted
+  # plugins dir. Uses its own group + state topics so it won't clash with
+  # `connect-debezium`. REST on host ${CONNECT_GENERIC_HOST_PORT:-4412}.
+  connect-generic:
+    image: ${DHI_REGISTRY:-dhi.io}/kafka:${KAFKA_VERSION:-4.3-debian13}
+    container_name: lds-kafka-connect-generic
+    profiles: [kafka, all]
+    restart: *restart
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+    entrypoint: ["/opt/kafka/bin/connect-distributed.sh"]
+    command: ["/etc/kafka-connect/connect-distributed.properties"]
+    volumes:
+      - ./configs/kafka/connect-generic/connect-distributed.properties:/etc/kafka-connect/connect-distributed.properties:ro
+      - ./configs/kafka/connect-generic/plugins:/opt/kafka/connectors
+    ports:
+      - "${CONNECT_GENERIC_HOST_PORT:-4412}:8083"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8083' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    networks: [lds-network]
+
+  kafka-ui:
+    image: ${KAFKA_UI_IMAGE:-ghcr.io/kafbat/kafka-ui}:${KAFKA_UI_VERSION:-v1.5.0}
+    container_name: lds-kafka-ui
+    profiles: [kafka, all]
+    restart: *restart
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-broker:9092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8080/apis/ccompat/v7
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: debezium
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://connect-debezium:8083
+      KAFKA_CLUSTERS_0_KAFKACONNECT_1_NAME: generic
+      KAFKA_CLUSTERS_0_KAFKACONNECT_1_ADDRESS: http://connect-generic:8083
+      DYNAMIC_CONFIG_ENABLED: "true"
+    ports:
+      - "${KAFKA_UI_HOST_PORT:-4420}:8080"
+    networks: [lds-network]
+
+  # NOTE: topic provisioning used to be a one-shot `kafka-init` service (it
+  # lingered as an Exited container). It now lives in scripts/run/kafka-topics.*
+  # (run by `lds up` for the kafka profile, or manually via `lds kafka-topics`).
+
+# -----------------------------------------------------------------------------
+# Shared network — INDEPENDENT (external). Create it once, ever:
+#   docker network create lds-network      (or run scripts/run/init.sh | init.bat)
+# Nothing owns its lifecycle, so `docker compose down` never destroys it and
+# projects never hit "network not found". This stack and all projects attach
+# to it as equals. Projects declare the same:
+#   networks:
+#     lds-network:
+#       external: true
+# -----------------------------------------------------------------------------
+networks:
+  lds-network:
+    name: ${NETWORK_NAME:-lds-network}
+    external: true
+
+volumes:
+  mysql-data:
+  postgres-data:
+  mongo-data:
+  mongo-config:
+  redis-data:
+  kafka-controller-data:
+  kafka-broker-data:
+  dbgate-data:
+  superset-home:
+  mosquitto-data:

@@ -1,0 +1,14 @@
+{
+  "name": "mqtt-source-demo",
+  "config": {
+    "connector.class": "io.lenses.streamreactor.connect.mqtt.source.MqttSourceConnector",
+    "tasks.max": "1",
+    "connect.mqtt.hosts": "tcp://mosquitto:1883",
+    "connect.mqtt.client.id": "lds-connect-mqtt-source",
+    "connect.mqtt.clean": "true",
+    "connect.mqtt.service.quality": "1",
+    "connect.mqtt.kcql": "INSERT INTO mqtt.sensors SELECT * FROM `sensors/#`",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.converters.ByteArrayConverter"
+  }
+}

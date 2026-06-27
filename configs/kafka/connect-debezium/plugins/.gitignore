@@ -1,0 +1,6 @@
+# Downloaded connector plugins are build artifacts — don't commit them.
+# Keep only the placeholders + docs.
+*
+!.gitignore
+!.gitkeep
+!README.md
