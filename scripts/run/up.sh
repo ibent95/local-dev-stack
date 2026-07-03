@@ -108,3 +108,10 @@ case " ${profiles[*]} " in
     docker compose "${compose_files[@]}" --profile semgrep-scan pull semgrep-scan || true
     subdone ;;
 esac
+
+# Register Hop projects (folder-per-project) into hop-config.json via hop-conf.
+case " ${profiles[*]} " in
+  *" hop "*|*" all "*) sub "hop-register"; "$ROOT/scripts/run/hop-register.sh" || true; subdone ;;
+esac
+
+

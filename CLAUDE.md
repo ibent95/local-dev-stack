@@ -24,6 +24,12 @@ gated behind **profiles** and share one external network `lds-network`.
   + `plugins/`),
   `proxy/certs/` (git-ignored dev TLS certs minted by `lds certs`; mounted into
   nginx-proxy only by the HTTPS overlay).
+-  `data/` — bind-mounted user data for tools (git-ignored; each developer has
+  their own): `hop/{config,audit,projects}` (Hop pipelines, workflows, connections,
+  plus folder-per-project under `projects/`),
+  `superset/` (Superset metadata — SQLite DB, dashboards, connections; data lives
+  directly on disk, read/written by the app),
+  `dbgate/` (DBGate UI-created connections + app state).
 - `www/` — example PHP project folders (parent dir set by `PHP_PROJECTS_PATH`,
   default `./www`); each `<folder>` is served at
   `<folder>.test`, docroot auto-detected (public/ > htdocs/ > root). Sample in
@@ -87,8 +93,10 @@ gated behind **profiles** and share one external network `lds-network`.
   container via `docker compose exec` — pass the service name), `app`
   (`start|stop|restart|logs|ps [dir]` — manage a svc/web project via its own
   compose; `start` ensures proxy+dns+network then `up --build -d`; leaves shared
-  LDS running), `new` (scaffold a project: `php` = plain mass-vhost
-  folder under `PHP_PROJECTS_PATH`; everything else copies
+  LDS running),  `new` (scaffold a project: `php` = plain mass-vhost
+  folder under `PHP_PROJECTS_PATH`; `hop` = ETL project folder under
+  `HOP_PROJECTS_PATH` with project-config.json + metadata/pipelines/workflows dirs;
+  everything else copies
   `templates/<role>-template-<tech>` into that tech's `*_PROJECTS_PATH` and
   rewrites name/container_name/host), `up`, `down` (removes containers), `stop`
   (`compose stop` — keeps containers for fast resume), `rm`, `start`, `logs`,
@@ -102,6 +110,12 @@ gated behind **profiles** and share one external network `lds-network`.
   idempotent), `dbgate-seed` (writes `configs/dbgate/connections.seed.jsonl` into
   DBGate's volume so the stack DBs are auto-listed without the UI-locking
   `CONNECTIONS` env; idempotent, auto-run by `up` for dbgate/all),
+  `hop-register` (registers all folders under `HOP_PROJECTS_PATH` as Hop projects
+  in `hop-config.json` via `hop-conf` inside the running container; idempotent,
+  auto-run by `up` for hop/all),
+  `hop-register` (registers all folders under `HOP_PROJECTS_PATH` as Hop projects
+  in `hop-config.json` via `hop-conf` inside the running container; idempotent,
+  auto-run by `up` for hop/all),
   `certs` (mints the wildcard `*.test` dev TLS cert into `configs/proxy/certs/`
   via mkcert, else self-signed openssl; auto-run by `up` when `LDS_ENABLE_HTTPS`
   is on and the cert is missing; idempotent unless `--force`),
@@ -132,6 +146,20 @@ gated behind **profiles** and share one external network `lds-network`.
   into the project as `bin/supercronic` and the cloud `Dockerfile` COPYs it. The
   `LDS.Dockerfile` gets supercronic from the lds/* base (all dev bases now ship
   it) — except `cron-shell` (Alpine), which still vendors it.
+  ETL role — `cron-template-hop` and `cron-template-pdi`: Data project
+  folders for Apache Hop and Pentaho Data Integration (PDI). Scaffold via
+  `lds new cron-hop <name>` or `lds new cron-pdi <name>` (also bare `hop`/`pdi`);
+  lands in `HOP_PROJECTS_PATH`. Contains `project-config.json` + `metadata/`,
+  `pipelines/`, `workflows/`, `datasets/` subdirectories. These are DATA folders
+  (not cron jobs) — no supercronic, no Dockerfiles. Hop projects are registered
+  automatically via `hop-conf` on `lds up hop`; PDI projects are just data folders
+  (PDI reads from disk directly).
+  BI role — `web-template-superset` and `web-template-powerbi`: BI dashboard
+  project folders. Scaffold via `lds new web-superset <name>` or
+  `lds new web-powerbi <name>` (also bare `superset`/`powerbi`); lands in
+  `SUPERSET_PROJECTS_PATH` (default `data/superset/`). Superset data lives
+  directly on disk (SQLite at `data/superset/superset.db`) — the app reads
+  and writes to the bind-mounted directory, so no export/import is needed.
   PHP-fpm frameworks put
   the fpm `app` on a per-project `internal` network and nginx bridges to
   `lds-network` (avoids `app` alias collisions). Java Servlet templates don't
@@ -140,9 +168,7 @@ gated behind **profiles** and share one external network `lds-network`.
 - `docs/en`, `docs/id` — bilingual docs, modular numbered files
   (`01-overview.md` … `10-databases.md`) with a `README.md` index in each.
 
-## Profiles
-
-`proxy` `php` `mysql` `postgres` `mongo` `redis` `memcached` `kafka`
+## Profiles`proxy` `php` `mysql` `postgres` `mongo` `redis` `memcached` `kafka`
 `phpcacheadmin` `dbgate` `drawdb` `hop` `superset` `semgrep` `soketi` `centrifugo` `emqx` `all`
 
 `phpcacheadmin` and `dbgate` are the two web admin UIs, each on its OWN profile
@@ -166,9 +192,14 @@ designer (`drawdb`, :4423 — open at `localhost:4423`, NOT `drawdb.test`: it ne
 `crypto.randomUUID` which requires a secure context). **Apache Hop** = ETL designer
 (`hop`, `hop.test` / :4424, image `apache/hop-web` Tomcat — NOT `apache/hop`
 hop-server; no login, served at `/ui`; session timeout disabled; MySQL Connector/J
-added via `configs/hop/jdbc-drivers/` single-file mount since it's not bundled).
+added via `configs/hop/jdbc-drivers/` single-file mount since it's not bundled;
+project data bind-mounted to `data/hop/` so pipelines/workflows are
+accessible on disk; folder-per-project via `HOP_PROJECTS_PATH` — each subfolder
+is a Hop project registered automatically via `hop-conf` on `lds up hop`).
 **Apache Superset** = BI (`superset`, `superset.test` / :4425, DHI image, nonroot,
-self-init via venv python, admin/admin, SQLite metadata in `superset-home`).
+self-init via venv python, admin/admin, SQLite metadata in `data/superset/`).
+Data lives directly on disk via bind mount — no export/import needed; Superset
+reads and writes to `data/superset/` directly (like Hop's project mechanism).
 **Semgrep** = SAST, two services: `semgrep` (nginx SARIF viewer, `semgrep.test` /
 :4426) + `semgrep-scan` (pinned `semgrep/semgrep` CLI, its own run-only profile so
 it never auto-starts). `lds tools semgrep [path]` scans via `docker compose run

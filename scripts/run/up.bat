@@ -118,6 +118,14 @@ if not errorlevel 1 (
   call :subdone
 )
 
+REM Register Hop projects (folder-per-project) into hop-config.json via hop-conf.
+echo %PROFILES% | findstr /I /C:"hop" /C:"all" >nul
+if not errorlevel 1 (
+  call :sub "hop-register"
+  call "%~dp0hop-register.bat"
+  call :subdone
+)
+
 popd
 endlocal
 exit /b 0

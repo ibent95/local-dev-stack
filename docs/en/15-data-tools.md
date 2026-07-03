@@ -64,9 +64,23 @@ Browser-based **ETL / data-integration pipeline designer** (Hop Web).
 - **No session timeout.** Hop Web (Eclipse RAP) ties its canvas to the HTTP
   session; we flip Tomcat's default 30-min timeout to *never* so you don't get
   "session timed out" mid-work (a `command` wrapper on the service).
-- **Persistence:** projects/config live **inside** the container
-  (`/usr/local/tomcat/webapps/ROOT/...`) and are lost on recreate; the bundled
-  `default` and `samples` projects are always present.
+- **Persistence:** two bind-mounted host directories (`data/hop/config`
+  and `data/hop/audit`) persist projects, connections, and user
+  preferences across container restarts and recreates. Your pipelines and
+  workflows live directly on disk — browse, edit, or version-control them
+  without touching the container. Only the user-data subdirectories are
+  mounted — the Hop application itself always comes from the image, so image
+  upgrades work cleanly. Use `down -v` to wipe the directories and start fresh.
+- **Folder-per-project.** Scaffold a new Hop project with:
+  ```sh
+  lds new hop my-etl-project
+  ```
+  This creates a directory under `HOP_PROJECTS_PATH` (default `data/hop/projects/`)
+  with a `project-config.json`, plus `metadata/`, `pipelines/`, `workflows/`, and
+  `datasets/` subdirectories. When `lds up hop` runs, the `hop-register` script
+  (auto-run post-up) registers each project folder in Hop's `hop-config.json`
+  via `hop-conf` inside the container. Your pipelines and workflows live on disk
+  — version-control them with git directly.
 
 ### Apache Superset — `superset.test`
 
@@ -76,10 +90,13 @@ Browser-based **ETL / data-integration pipeline designer** (Hop Web).
   nonroot (UID 65532) runtime variant.
 - **Self-initialises on start** (db upgrade → create-admin → init → gunicorn),
   driven from the image's venv Python since the hardened image has no shell.
-- **Metadata** is SQLite in the `superset-home` volume — fine for dev. If you
-  recreate it from a pre-DHI (UID 1000) volume and the boot fails with
-  *"attempt to write a readonly database"*, the volume's owner is stale; reset it
-  (`docker volume rm local-dev-stack_superset-home`) or `chown` it to `65532`.
+- **Metadata** is SQLite in a bind-mounted host directory (`data/superset/`)
+  — fine for dev. On Linux, the host dir must be writable by UID 65532 (the DHI
+  nonroot user); if you hit *"attempt to write a readonly database"*, fix with
+  `chown 65532:65532 data/superset` (on Windows Docker Desktop this is a
+  non-issue). Login **`admin` / `admin`**. Data lives directly on disk via
+  bind mount — like Hop's project mechanism, no export/import needed. Superset
+  reads and writes to `data/superset/` directly.
 
 ## Code quality — Semgrep
 

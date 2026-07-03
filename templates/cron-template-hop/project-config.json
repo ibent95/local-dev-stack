@@ -1,0 +1,9 @@
+{
+  "projectName": "cron-template-hop",
+  "description": "Apache Hop ETL project scaffolded by local-dev-stack",
+  "configFilename": "project-config.json",
+  "metadataBaseFolder": "${PROJECT_HOME}/metadata",
+  "unitTestsBasePath": "${PROJECT_HOME}",
+  "dataSetsCsvFolder": "${PROJECT_HOME}/datasets",
+  "parentProjectName": ""
+}

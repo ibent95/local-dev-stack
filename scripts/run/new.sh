@@ -16,6 +16,7 @@ cd "$ROOT"
 # Load .env so the *_PROJECTS_PATH vars are available (shell env still wins).
 if [ -f .env ]; then
   while IFS='=' read -r k v; do
+    k="${k%$'\r'}"; v="${v%$'\r'}"   # strip \r from Windows line endings
     case "$k" in ''|'#'*) continue ;; esac
     [ -z "${!k:-}" ] && export "$k=$v"
   done < .env
@@ -30,6 +31,8 @@ Usage: lds new <type> <name> [host]
                 springboot micronaut quarkus vaadin angular react
           cron (scheduled job; lands in the tech's path — cron-shell -> JOBS_PROJECTS_PATH):
                 cron-shell cron-python cron-node cron-go cron-php  (bare 'cron' = shell)
+                cron-hop cron-pdi           (ETL jobs → HOP_PROJECTS_PATH)
+                web-superset web-powerbi web-metabase web-grafana (BI dashboards)
   <name>  project folder name (also the *.test hostname for web/svc)
   [host]  optional VIRTUAL_HOST (default <name>.test)
 
@@ -38,6 +41,10 @@ Examples:
   lds new svc-python rates
   lds new web-laravel shop shop.test
   lds new cron-python nightly-report
+  lds new cron-hop my-etl-project
+  lds new cron-pdi my-pdi-project
+  lds new web-superset my-bi-dashboard
+  lds new web-grafana my-metrics
 EOF
 }
 
@@ -51,6 +58,8 @@ path_var_for() {
     java|springboot|micronaut|quarkus|vaadin) echo JAVA_PROJECTS_PATH ;;
     php|laravel|symfony|slim|webman|codeigniter|cakephp) echo PHP_PROJECTS_PATH ;;
     shell)                                echo JOBS_PROJECTS_PATH ;;   # cron-shell: no language home
+    hop|pdi)                              echo HOP_PROJECTS_PATH ;;
+    superset|powerbi|metabase|grafana)    echo SUPERSET_PROJECTS_PATH ;;
     *)                                    echo "" ;;
   esac
 }
@@ -81,6 +90,12 @@ case "$type" in
   web-*)  role=web;  tech="${type#web-}" ;;
   cron-*) role=cron; tech="${type#cron-}" ;;
   cron)   role=cron; tech=shell ;;            # bare 'cron' = shell cron job
+  hop)    role=cron; tech=hop ;;              # bare 'hop' → cron-template-hop
+  pdi)    role=cron; tech=pdi ;;              # bare 'pdi' → cron-template-pdi
+  superset)  role=web; tech=superset ;;       # bare 'superset' → web-template-superset
+  powerbi)   role=web; tech=powerbi ;;        # bare 'powerbi' → web-template-powerbi
+  metabase)  role=web; tech=metabase ;;       # bare 'metabase' → web-template-metabase
+  grafana)   role=web; tech=grafana ;;        # bare 'grafana' → web-template-grafana
   *)      tech="$type"; role=web
           [ -d "templates/web-template-$tech" ] || role=svc ;;
 esac
@@ -110,7 +125,8 @@ done
 
 # Cron projects vendor the supercronic binary (no network at build/deploy).
 # Copied AFTER the rename above so it's never touched by sed.
-if [ "$role" = "cron" ]; then
+# Exclude ETL data projects (hop, pdi) — they're just config files, not cron jobs.
+if [ "$role" = "cron" ] && [ "$tech" != "hop" ] && [ "$tech" != "pdi" ]; then
   mkdir -p "$dest/bin"
   cp "$ROOT/assets/supersonic/v0.2.46/supercronic-linux-amd64" "$dest/bin/supercronic"
 fi

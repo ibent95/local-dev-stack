@@ -36,7 +36,13 @@ if /I "%TYPE:~0,4%"=="svc-"  ( set "ROLE=svc"  & set "TECH=%TYPE:svc-=%" )
 if /I "%TYPE:~0,4%"=="web-"  ( set "ROLE=web"  & set "TECH=%TYPE:web-=%" )
 if /I "%TYPE:~0,5%"=="cron-" ( set "ROLE=cron" & set "TECH=%TYPE:cron-=%" )
 if /I "%TYPE%"=="cron"       ( set "ROLE=cron" & set "TECH=shell" )
-if /I not "%TYPE:~0,4%"=="svc-" if /I not "%TYPE:~0,4%"=="web-" if /I not "%TYPE:~0,5%"=="cron-" if /I not "%TYPE%"=="cron" (
+if /I "%TYPE%"=="hop"        ( set "ROLE=cron" & set "TECH=hop" )
+if /I "%TYPE%"=="pdi"        ( set "ROLE=cron" & set "TECH=pdi" )
+if /I "%TYPE%"=="superset"   ( set "ROLE=web"  & set "TECH=superset" )
+if /I "%TYPE%"=="powerbi"    ( set "ROLE=web"  & set "TECH=powerbi" )
+if /I "%TYPE%"=="metabase"   ( set "ROLE=web"  & set "TECH=metabase" )
+if /I "%TYPE%"=="grafana"    ( set "ROLE=web"  & set "TECH=grafana" )
+if /I not "%TYPE:~0,4%"=="svc-" if /I not "%TYPE:~0,4%"=="web-" if /I not "%TYPE:~0,5%"=="cron-" if /I not "%TYPE%"=="cron" if /I not "%TYPE%"=="hop" if /I not "%TYPE%"=="pdi" if /I not "%TYPE%"=="superset" if /I not "%TYPE%"=="powerbi" if /I not "%TYPE%"=="metabase" if /I not "%TYPE%"=="grafana" (
   if not exist "templates\web-template-%TECH%" set "ROLE=svc"
 )
 
@@ -63,7 +69,8 @@ REM Rewrite template identifier -> project name across all copied files.
 powershell -NoProfile -Command "Get-ChildItem -LiteralPath '%DEST%' -Recurse -File | ForEach-Object { $c = Get-Content -LiteralPath $_.FullName -Raw; if ($c -match [regex]::Escape('%TPL%')) { ($c -replace [regex]::Escape('%TPL%'), '%NAME%') | Set-Content -LiteralPath $_.FullName -NoNewline } }"
 
 REM Cron projects vendor the supercronic binary (no network at build/deploy).
-if /I "%ROLE%"=="cron" (
+REM Only for actual cron jobs (shell/python/node/go/php), NOT for ETL data projects.
+if /I "%ROLE%"=="cron" if not "%TECH%"=="hop" if not "%TECH%"=="pdi" (
   if not exist "%DEST%\bin" mkdir "%DEST%\bin"
   copy /y "assets\supersonic\v0.2.46\supercronic-linux-amd64" "%DEST%\bin\supercronic" >nul
 )
@@ -105,6 +112,12 @@ if /I "%~1"=="webman" set "PVAR=PHP_PROJECTS_PATH"
 if /I "%~1"=="codeigniter" set "PVAR=PHP_PROJECTS_PATH"
 if /I "%~1"=="cakephp" set "PVAR=PHP_PROJECTS_PATH"
 if /I "%~1"=="shell" set "PVAR=JOBS_PROJECTS_PATH"
+if /I "%~1"=="hop" set "PVAR=HOP_PROJECTS_PATH"
+if /I "%~1"=="pdi" set "PVAR=HOP_PROJECTS_PATH"
+if /I "%~1"=="superset" set "PVAR=SUPERSET_PROJECTS_PATH"
+if /I "%~1"=="powerbi" set "PVAR=SUPERSET_PROJECTS_PATH"
+if /I "%~1"=="metabase" set "PVAR=SUPERSET_PROJECTS_PATH"
+if /I "%~1"=="grafana" set "PVAR=SUPERSET_PROJECTS_PATH"
 exit /b
 
 :usage
@@ -114,10 +127,14 @@ echo   tech: go rust node python java express flask fastapi django
 echo         laravel symfony slim webman codeigniter cakephp
 echo         springboot micronaut quarkus vaadin angular react
 echo   cron (scheduled job): cron-shell cron-python cron-node cron-go cron-php
+echo   cron-hop cron-pdi (ETL jobs)
+echo   web-superset web-powerbi web-metabase web-grafana (BI dashboards)
 echo Examples:
 echo   lds new svc-python rates
 echo   lds new web-laravel shop shop.test
 echo   lds new cron-python nightly-report
+echo   lds new cron-hop my-etl-project
+echo   lds new web-superset my-bi-dashboard
 goto end
 
 :end

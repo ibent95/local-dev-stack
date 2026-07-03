@@ -71,11 +71,15 @@ bind-mounted, so changes are live (no restart).
   isn't bundled (GPL) — it's single-file-mounted from `configs/hop/jdbc-drivers/`
   (`HOP_MYSQL_DRIVER` in `.env`; see the README there to fetch the jar). Postgres
   is bundled; Kafka uses bundled *transforms*; Mongo/Redis have no JDBC driver.
-  The session timeout is set to never expire via a `command` wrapper.
-- **Superset 502 / "readonly database"** → the `superset-home` volume is owned by
-  a stale UID (e.g. 1000 from the old upstream image); the DHI image runs as
-  65532. Fix: `docker volume rm local-dev-stack_superset-home` (or chown it to
-  65532), then recreate. Login `admin`/`admin`.
+  The session timeout is set to never expire via a `command` wrapper. Folder-per-project:
+  `lds new hop <name>` scaffolds under `HOP_PROJECTS_PATH` (default `data/hop/projects/`),
+  and `hop-register` (auto-run by `lds up hop`) registers each folder in hop-config.json
+  via `hop-conf`.  Edit pipelines/workflows on disk — changes are live in Hop.
+- **Superset 502 / "readonly database"** → the bind-mounted `data/superset/`
+  directory must be writable by UID 65532 (the DHI nonroot user). On Linux, fix
+  with `chown 65532:65532 data/superset` then recreate. On Windows Docker
+  Desktop this is a non-issue. Login `admin`/`admin`. Data lives directly on
+  disk (like Hop's project mechanism) — no export/import needed.
 - **Semgrep** = two services: `semgrep` (nginx viewer at `semgrep.test`, serving
   `configs/semgrep/reports/`) and `semgrep-scan` (pinned `semgrep/semgrep` CLI in
   its own run-only profile — never auto-starts). `lds tools semgrep [path]` runs

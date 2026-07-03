@@ -213,7 +213,7 @@ default** (turn it on when you run `redis`/`memcached`).
 - Runs fully open (add/edit/delete connections in the UI); the stack's MySQL +
   Postgres are auto-listed via `scripts/run/dbgate-seed.*` (auto-run by `lds up`
   for the `dbgate`/`all` profile). UI-created connections persist in the
-  `dbgate-data` volume.
+  bind-mounted `data/dbgate/` directory.
 
 ## Realtime / pub-sub brokers — `soketi`, `centrifugo`, `emqx`
 

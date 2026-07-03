@@ -1,0 +1,9 @@
+{
+  "name": "cron-template-pdi",
+  "description": "Pentaho Data Integration (Kettle) ETL project scaffolded by local-dev-stack",
+  "databases": [],
+  "connections": [],
+  "steps": [],
+  "transformations": [],
+  "jobs": []
+}

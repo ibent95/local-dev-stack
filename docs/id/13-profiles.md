@@ -222,8 +222,8 @@ default.**
   `${DB_ADMIN_HOST_PORT}` (default `4422`).
 - Berjalan terbuka penuh (tambah/edit/hapus koneksi di UI); MySQL + Postgres stack
   otomatis terdaftar via `scripts/run/dbgate-seed.*` (otomatis dijalankan `lds up`
-  untuk profile `dbgate`/`all`). Koneksi buatan UI tersimpan di volume
-  `dbgate-data`.
+  untuk profile `dbgate`/`all`). Koneksi buatan UI tersimpan di direktori
+  bind-mount `data/dbgate/`.
 
 ## Broker realtime / pub-sub — `soketi`, `centrifugo`, `emqx`
 

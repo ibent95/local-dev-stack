@@ -64,9 +64,23 @@ jaringan pakai nama container (`lds-postgres:5432`, `lds-mysql:3306`).
 - **Tanpa timeout sesi.** Hop Web (Eclipse RAP) mengikat kanvas ke sesi HTTP;
   kami ubah timeout default 30 menit Tomcat menjadi *tak pernah* agar Anda tak
   kena "session timed out" di tengah kerja (wrapper `command` pada service).
-- **Persistensi:** proyek/konfigurasi berada **di dalam** container
-  (`/usr/local/tomcat/webapps/ROOT/...`) dan hilang saat container dibuat ulang;
-  proyek bawaan `default` dan `samples` selalu ada.
+- **Persistensi:** dua direktori host yang di-mount (`data/hop/config`
+  dan `data/hop/audit`) menyimpan proyek, koneksi, dan preferensi
+  pengguna lintas restart dan recreate container. Pipeline dan workflow Anda
+  berada langsung di disk — telusuri, edit, atau version-control tanpa menyentuh
+  container. Hanya subdirektori data pengguna yang di-mount — aplikasi Hop itu
+  sendiri selalu berasal dari image, jadi upgrade image berjalan bersih. Gunakan
+  `down -v` untuk menghapus direktori dan mulai dari awal.
+- **Folder-per-project.** Buat proyek Hop baru dengan:
+  ```sh
+  lds new hop my-etl-project
+  ```
+  Ini membuat direktori di bawah `HOP_PROJECTS_PATH` (default `data/hop/projects/`)
+  dengan `project-config.json`, plus subdirektori `metadata/`, `pipelines/`,
+  `workflows/`, dan `datasets/`. Saat `lds up hop` berjalan, script `hop-register`
+  (otomatis dijalankan post-up) mendaftarkan setiap folder proyek di `hop-config.json`
+  Hop via `hop-conf` di dalam container. Pipeline dan workflow Anda berada di disk
+  — version-control dengan git langsung.
 
 ### Apache Superset — `superset.test`
 
@@ -76,10 +90,13 @@ jaringan pakai nama container (`lds-postgres:5432`, `lds-mysql:3306`).
   non-dev, nonroot (UID 65532).
 - **Inisialisasi sendiri saat start** (db upgrade → buat admin → init → gunicorn),
   dijalankan dari Python venv image karena image hardened tak punya shell.
-- **Metadata** berupa SQLite di volume `superset-home` — cukup untuk dev. Jika
-  Anda membuatnya ulang dari volume pra-DHI (UID 1000) dan boot gagal dengan
-  *"attempt to write a readonly database"*, kepemilikan volume usang; reset
-  (`docker volume rm local-dev-stack_superset-home`) atau `chown` ke `65532`.
+- **Metadata** berupa SQLite di direktori host yang di-mount (`data/superset/`)
+  — cukup untuk dev. Di Linux, direktori host harus dapat ditulis oleh UID 65532
+  (user nonroot DHI); jika Anda kena *"attempt to write a readonly database"*,
+  perbaiki dengan `chown 65532:65532 data/superset` (di Windows Docker
+  Desktop ini bukan masalah). Login **`admin` / `admin`**. Data hidup langsung
+  di disk via bind mount — seperti mekanisme proyek Hop, tanpa perlu
+  export/import. Superset membaca dan menulis ke `data/superset/` langsung.
 
 ## Code quality — Semgrep
 
