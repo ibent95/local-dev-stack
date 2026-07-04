@@ -15,16 +15,21 @@ set "CTR_NAME=lds-hop"
 REM Ensure the host project directory exists.
 if not exist "%HOP_PROJECTS_PATH%" mkdir "%HOP_PROJECTS_PATH%"
 
-REM Check the hop container is running.
+REM Check the hop container is running. Use findstr to check if "true" appears.
 docker inspect --format="{{.State.Running}}" "%CTR_NAME%" 2>nul | findstr /C:"true" >nul
 if errorlevel 1 (
-  echo Hop container (%CTR_NAME%) is not running - skipping project registration.
+  echo Hop container ^(%CTR_NAME%^) is not running - skipping project registration.
   goto end
 )
 
 REM Get list of already-registered projects from hop-config.json inside the container.
 set "REGISTERED="
-for /f "tokens=*" %%r in ('docker exec "%CTR_NAME%" sh -c "cfg=/usr/local/tomcat/webapps/ROOT/config/hop-config.json; [ -f ^!cfg ] && cat ^!cfg ^| tr ',' '\n' ^| grep 'projectName' ^| sed 's/.*\"projectName\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/'" 2^>nul') do set "REGISTERED=!REGISTERED! %%r"
+set "TMPREG=%TEMP%\lds-hop-reg-%RANDOM%.txt"
+docker exec "%CTR_NAME%" sh -c "cfg=/usr/local/tomcat/webapps/ROOT/config/hop-config.json; [ -f \"\$cfg\" ] && cat \"\$cfg\" | tr ',' '\n' | grep -E '\"projectName\"[[:space:]]*:' | sed 's/.*\"//;s/\".*//' 2>nul" > "%TMPREG%"
+if exist "%TMPREG%" (
+  for /f "usebackq tokens=*" %%r in ("%TMPREG%") do set "REGISTERED=!REGISTERED! %%r"
+  del "%TMPREG%" 2>nul
+)
 
 set COUNT=0
 for /d %%D in ("%HOP_PROJECTS_PATH%\*") do (
@@ -41,7 +46,7 @@ for /d %%D in ("%HOP_PROJECTS_PATH%\*") do (
 )
 
 if %COUNT% gtr 0 (
-  echo Registered %COUNT% new Hop project(s).
+  echo Registered %COUNT% new Hop project^(s^).
 ) else (
   echo All Hop projects already registered ^(or none found in %HOP_PROJECTS_PATH%^).
 )

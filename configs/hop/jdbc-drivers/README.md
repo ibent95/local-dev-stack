@@ -7,7 +7,9 @@ restrictive redistribution terms:
 | Driver | Why not bundled | Driver class |
 |--------|----------------|---------------|
 | **MySQL Connector/J** | GPL | `com.mysql.cj.jdbc.Driver` |
+| **MariaDB JDBC** | LGPL | `org.mariadb.jdbc.Driver` |
 | **Oracle JDBC (ojdbc11)** | Oracle Free Use Terms | `oracle.jdbc.OracleDriver` |
+| **Microsoft SQL Server JDBC** | Microsoft EULA | `com.microsoft.sqlserver.jdbc.SQLServerDriver` |
 
 Hop ships the MySQL *dialect* plugin, so the database type appears in the UI,
 but connecting fails with:
@@ -31,6 +33,15 @@ curl -fsSL -o configs/hop/jdbc-drivers/mysql-connector-j-9.7.0.jar \
 
 Env var: `HOP_MYSQL_DRIVER` (default: `mysql-connector-j-9.7.0.jar`).
 
+### MariaDB JDBC
+
+```bash
+curl -fsSL -o configs/hop/jdbc-drivers/mariadb-java-client-3.5.9.jar \
+  https://repo1.maven.org/maven2/org/mariadb/jdbc/mariadb-java-client/3.5.9/mariadb-java-client-3.5.9.jar
+```
+
+Env var: `HOP_MARIADB_DRIVER` (default: `mariadb-java-client-3.5.9.jar`).
+
 ### Oracle JDBC (ojdbc11)
 
 ```bash
@@ -40,6 +51,24 @@ curl -fsSL -o configs/hop/jdbc-drivers/ojdbc11-23.26.2.0.0.jar \
 
 Env var: `HOP_ORACLE_DRIVER` (default: `ojdbc11-23.26.2.0.0.jar`).
 
+### Microsoft SQL Server JDBC
+
+```bash
+curl -fsSL -o configs/hop/jdbc-drivers/mssql-jdbc-12.8.1.jre11.jar \
+  https://repo1.maven.org/maven2/com/microsoft/sqlserver/mssql-jdbc/12.8.1.jre11/mssql-jdbc-12.8.1.jre11.jar
+```
+
+Env var: `HOP_MSSQL_DRIVER` (default: `mssql-jdbc-12.8.1.jre11.jar`).
+
+### PostgreSQL JDBC
+
+```bash
+curl -fsSL -o configs/hop/jdbc-drivers/postgresql-42.7.4.jar \
+  https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.4/postgresql-42.7.4.jar
+```
+
+Env var: `HOP_POSTGRESQL_DRIVER` (default: `postgresql-42.7.4.jar`).
+
 ### Recreate Hop after downloading
 
 ```bash
@@ -47,7 +76,8 @@ docker compose --profile hop up -d --force-recreate hop
 ```
 
 To use a different version, change the filename **and** the matching env var
-(`HOP_MYSQL_DRIVER` or `HOP_ORACLE_DRIVER`) in `.env`.
+(`HOP_MYSQL_DRIVER`, `HOP_MARIADB_DRIVER`, `HOP_ORACLE_DRIVER`, `HOP_MSSQL_DRIVER`,
+or `HOP_POSTGRESQL_DRIVER`) in `.env`.
 
 ### Adding more drivers
 

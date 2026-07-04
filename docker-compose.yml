@@ -27,7 +27,6 @@ name: local-dev-stack
 x-restart: &restart unless-stopped
 
 services:
-
   # ===========================================================================
   # Web — Devilbox-style multi-project hosting  (profile: php, all)
   #   php : ONE container running supervisord -> php-fpm + nginx (base lds/php).
@@ -74,7 +73,11 @@ services:
       # wget tries IPv6 first, but nginx listens IPv4-only -> refused. Hit the cheap
       # /?health=1 path (no service probing) so health reflects the web server being
       # up, not the dashboard's probe latency.
-      test: ["CMD-SHELL", "wget -qO- 'http://127.0.0.1/?health=1' >/dev/null 2>&1 || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- 'http://127.0.0.1/?health=1' >/dev/null 2>&1 || exit 1",
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -103,7 +106,7 @@ services:
       args:
         DHI_REGISTRY: ${DHI_REGISTRY:-dhi.io}
     image: ${REGISTRY:-local}/local-dev-stack/dns:latest
-    pull_policy: build        # built locally — never pull (the local/ tag has no registry)
+    pull_policy: build # built locally — never pull (the local/ tag has no registry)
     container_name: lds-dns
     profiles: [proxy, php, all]
     restart: *restart
@@ -133,17 +136,21 @@ services:
       - --enforce-gtid-consistency=ON
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE:      ${MYSQL_DATABASE:-app}
-      MYSQL_USER:          ${MYSQL_USER:-app}
-      MYSQL_PASSWORD:      ${MYSQL_PASSWORD:-app}
-      TZ:                  ${TZ:-Asia/Jakarta}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-app}
+      MYSQL_USER: ${MYSQL_USER:-app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app}
+      TZ: ${TZ:-Asia/Jakarta}
     ports:
       - "${MYSQL_HOST_PORT:-4400}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       - ./configs/mysql/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p${MYSQL_ROOT_PASSWORD:-root} --silent"]
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h localhost -uroot -p${MYSQL_ROOT_PASSWORD:-root} --silent",
+        ]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -169,17 +176,21 @@ services:
       - "-c"
       - "max_replication_slots=10"
     environment:
-      POSTGRES_DB:       ${POSTGRES_DB:-app}
-      POSTGRES_USER:     ${POSTGRES_USER:-app}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
-      TZ:                ${TZ:-Asia/Jakarta}
+      TZ: ${TZ:-Asia/Jakarta}
     ports:
       - "${POSTGRES_HOST_PORT:-4401}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./configs/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app} -d ${POSTGRES_DB:-app}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-app} -d ${POSTGRES_DB:-app}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -219,7 +230,8 @@ services:
       - mongo-data:/data/db
       - mongo-config:/etc/mongo
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      test:
+        ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -261,7 +273,11 @@ services:
     ports:
       - "${MEMCACHED_HOST_PORT:-4404}:11211"
     healthcheck:
-      test: ["CMD-SHELL", "echo stats | timeout 2 nc -w 1 127.0.0.1 11211 | grep -q uptime"]
+      test:
+        [
+          "CMD-SHELL",
+          "echo stats | timeout 2 nc -w 1 127.0.0.1 11211 | grep -q uptime",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -310,8 +326,8 @@ services:
       # doing so locks the UI into read-only "preconfigured" mode and disables
       # "Add connection". Left unset, DBGate runs fully open — add/edit/delete
       # connections in the UI (persisted in the bind-mounted data/dbgate/ dir).
-      SHELL_CONNECTION: "true"     # connections definable from shell
-      SHELL_SCRIPTING: "true"      # enable custom JavaScript shell scripts
+      SHELL_CONNECTION: "true" # connections definable from shell
+      SHELL_SCRIPTING: "true" # enable custom JavaScript shell scripts
     expose:
       - "3000"
     ports:
@@ -388,15 +404,21 @@ services:
     ports:
       - "${HOP_HOST_PORT:-4424}:8080"
     volumes:
-      # MySQL Connector/J isn't bundled (GPL — Hop ships the MySQL *dialect*
-      # plugin but not the driver jar). Single-FILE mount so we add the driver
-      # to Hop's shared jdbc folder without shadowing the bundled drivers
-      # (postgres, mssql, …). Fetch the jar into ./configs/hop/jdbc-drivers/
-      # (see the README there). Bump both the filename and ${HOP_MYSQL_DRIVER} together.
-      - ./configs/hop/jdbc-drivers/${HOP_MYSQL_DRIVER:-mysql-connector-j-9.7.0.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_MYSQL_DRIVER:-mysql-connector-j-9.7.0.jar}:ro
-      # Oracle JDBC (Oracle Free Use Terms — not bundled in Hop). Same pattern:
-      # single-file mount, version controlled via ${HOP_ORACLE_DRIVER} in .env.
+      # JDBC drivers — Hop ships the PostgreSQL *dialect* plugin but many drivers
+      # are not bundled due to licensing (GPL, EULA, etc.). Single-FILE mounts add
+      # each driver to Hop's shared jdbc folder without shadowing the bundled ones.
+      # Fetch jars into ./configs/hop/jdbc-drivers/ (see the README there).
+      # Bump both the filename and the matching ${HOP_*_DRIVER} in .env together.
+      # MySQL Connector/J (GPL — not bundled).
+      - ./configs/hop/jdbc-drivers/${HOP_MYSQL_DRIVER:-mysql-connector-j-8.4.0.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_MYSQL_DRIVER:-mysql-connector-j-8.4.0.jar}:ro
+      # MariaDB JDBC (LGPL — not bundled).
+      - ./configs/hop/jdbc-drivers/${HOP_MARIADB_DRIVER:-mariadb-java-client-3.5.9.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_MARIADB_DRIVER:-mariadb-java-client-3.5.9.jar}:ro
+      # Oracle JDBC (Oracle Free Use Terms — not bundled).
       - ./configs/hop/jdbc-drivers/${HOP_ORACLE_DRIVER:-ojdbc11-23.26.2.0.0.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_ORACLE_DRIVER:-ojdbc11-23.26.2.0.0.jar}:ro
+      # Microsoft SQL Server JDBC (Microsoft EULA — not bundled).
+      - ./configs/hop/jdbc-drivers/${HOP_MSSQL_DRIVER:-mssql-jdbc-12.8.1.jre11.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_MSSQL_DRIVER:-mssql-jdbc-12.8.1.jre11.jar}:ro
+      # PostgreSQL JDBC (override bundled version if needed).
+      - ./configs/hop/jdbc-drivers/${HOP_POSTGRESQL_DRIVER:-postgresql-42.7.4.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_POSTGRESQL_DRIVER:-postgresql-42.7.4.jar}:ro
       # Persist Hop projects, connections, and config across container recreates.
       # Bind-mounted to the host (data/hop/*) so you can browse, edit, and
       # version-control your pipelines and workflows directly. Mount only the
@@ -406,7 +428,7 @@ services:
       - ./data/hop/audit:/usr/local/tomcat/webapps/ROOT/audit
       # Folder-per-project: each subfolder in HOP_PROJECTS_PATH is a Hop project.
       # Registered automatically via hop-conf on lds up (see scripts/run/hop-register.*).
-      - ${HOP_PROJECTS_PATH:-./data/hop/projects}:${HOP_PROJECTS_CONTAINER_PATH:-/usr/local/tomcat/projects}
+      - ${HOP_PROJECTS_PATH:-./data/hop/projects}:${HOP_PROJECTS_CONTAINER_PATH:-/home/hop}
     mem_limit: ${HOP_MEM_LIMIT:-1g}
     networks: [lds-network]
 
@@ -416,10 +438,13 @@ services:
   # self-init — but it's a Python app, so we drive init from the image's venv
   # python (/app/.venv/bin) and exec into gunicorn. Self-inits on start (db
   # upgrade + admin user + init); metadata in a local SQLite under
-  # /app/superset_home (bind-mounted to data/superset/ on the host —
+  # /app/superset_home (bind-mounted to SUPERSET_HOME on the host —
   # must be writable by UID 65532; see the gotcha below if you hit
-  # "readonly database"). Visualize the stack DBs — add them as Superset
-  # "Database" connections (e.g. postgresql://app:app@postgres:5432/app).
+  # "readonly database"). Folder-per-project: each subfolder in
+  # SUPERSET_PROJECTS_PATH is a dashboard project (YAML exports). Registered
+  # automatically on lds up (see scripts/run/superset-register.*). Visualize
+  # the stack DBs — add them as Superset "Database" connections
+  # (e.g. postgresql://app:app@postgres:5432/app).
   superset:
     image: ${DHI_REGISTRY:-dhi.io}/superset:${SUPERSET_VERSION:-6.1-debian13}
     container_name: lds-superset
@@ -455,13 +480,20 @@ services:
       - "${SUPERSET_HOST_PORT:-4425}:8088"
     volumes:
       # Persist Superset metadata (SQLite DB, dashboards, connections) on disk.
-      # Bind-mounted (data/superset/) so you can inspect/backup the SQLite file
+      # Bind-mounted (SUPERSET_HOME) so you can inspect/backup the SQLite file
       # directly. The host dir must be writable by UID 65532 (the DHI nonroot
-      # user). Superset reads/writes to this folder directly — no export/import
-      # needed. Browse data at data/superset/ or use the UI at superset.test.
-      - ${SUPERSET_PROJECTS_PATH:-./data/superset}:/app/superset_home
+      # user). Superset reads/writes to this folder directly.
+      - ${SUPERSET_HOME:-./data/superset}:/app/superset_home
+      # Folder-per-project: each subfolder in SUPERSET_PROJECTS_PATH is a dashboard
+      # project (YAML exports of dashboards, charts, datasets, databases). Registered
+      # automatically via superset-register on lds up (see scripts/run/superset-register.*).
+      - ${SUPERSET_PROJECTS_PATH:-./data/superset/projects}:${SUPERSET_PROJECTS_CONTAINER_PATH:-/app/superset_projects}
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8088/health >/dev/null || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf http://localhost:8088/health >/dev/null || exit 1",
+        ]
       interval: 15s
       timeout: 5s
       retries: 20
@@ -547,7 +579,11 @@ services:
       - "${SOKETI_HOST_PORT:-4430}:6001"
     healthcheck:
       # curl-less image — use the bundled node to confirm the port accepts TCP.
-      test: ["CMD-SHELL", "node -e \"require('net').connect(6001,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))\""]
+      test:
+        [
+          "CMD-SHELL",
+          'node -e "require(''net'').connect(6001,''127.0.0.1'').on(''connect'',()=>process.exit(0)).on(''error'',()=>process.exit(1))"',
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -584,7 +620,11 @@ services:
         soft: 65536
         hard: 65536
     healthcheck:
-      test: ["CMD-SHELL", "wget -nv -t1 --spider http://127.0.0.1:8000/health || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget -nv -t1 --spider http://127.0.0.1:8000/health || exit 1",
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -607,14 +647,18 @@ services:
     restart: *restart
     command: ["mosquitto", "-c", "/mosquitto/config/mosquitto.conf"]
     ports:
-      - "${MQTT_HOST_PORT:-4432}:1883"      # native MQTT (backends/devices, in-net: mosquitto:1883)
-      - "${MQTT_WS_HOST_PORT:-4433}:9001"   # MQTT over WebSocket (browser clients)
+      - "${MQTT_HOST_PORT:-4432}:1883" # native MQTT (backends/devices, in-net: mosquitto:1883)
+      - "${MQTT_WS_HOST_PORT:-4433}:9001" # MQTT over WebSocket (browser clients)
     volumes:
       - ./configs/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
     healthcheck:
       # pub a message — succeeds only if the broker is up and accepting connections.
-      test: ["CMD-SHELL", "mosquitto_pub -h localhost -t healthcheck -m ping >/dev/null 2>&1 || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "mosquitto_pub -h localhost -t healthcheck -m ping >/dev/null 2>&1 || exit 1",
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -681,7 +725,11 @@ services:
       - ./configs/kafka/broker.properties:/opt/kafka/config/server.properties:ro
       - kafka-broker-data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1 || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1 || exit 1",
+        ]
       interval: 15s
       timeout: 10s
       retries: 12
@@ -751,7 +799,11 @@ services:
       - ./configs/kafka/connect-debezium:/debezium/connectors-config:ro
       - ./configs/kafka/connect-debezium/plugins:/kafka/connect-extra
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8083/connectors >/dev/null || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf http://localhost:8083/connectors >/dev/null || exit 1",
+        ]
       interval: 15s
       timeout: 5s
       retries: 12

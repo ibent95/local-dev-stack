@@ -8,6 +8,7 @@
 !/www/example/public
 /www/example/public/*
 !/www/example/public/index.php
+data/*/*
 
 # OS / editor noise
 .DS_Store
