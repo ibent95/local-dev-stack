@@ -14,7 +14,9 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 </thead>
 <tbody>
 <tr>
-<td colspan="4">**Data** `440x` ----------------------------------------------------------------------------------</td>
+<td colspan="4">
+    <b>Data</b> `440x`
+</td>
 </tr>
 <tr>
 <td></td>
@@ -47,7 +49,9 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 <td>`memcached:11211`</td>
 </tr>
 <tr>
-<td colspan="4">**Kafka** `441x` ---------------------------------------------------------------------------------</td>
+<td colspan="4">
+    <b>Kafka</b> `441x`
+</td>
 </tr>
 <tr>
 <td></td>
@@ -74,7 +78,9 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 <td>`connect-debezium:8083`</td>
 </tr>
 <tr>
-<td colspan="4">**UI Web** `442x+` -------------------------------------------------------------------------------</td>
+<td colspan="4">
+    <b>UI Web</b> `442x` 
+</td>
 </tr>
 <tr>
 <td></td>
@@ -97,7 +103,7 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 <tr>
 <td></td>
 <td>DrawDB</td>
-<td>`localhost:4423` (buka di sini, **bukan** `drawdb.test`)</td>
+<td>`localhost:4423` (buka di sini, <b>bukan</b> `drawdb.test`)</td>
 <td>`drawdb:80`</td>
 </tr>
 <tr>
@@ -143,7 +149,9 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 <td>`werkyn:3000`</td>
 </tr>
 <tr>
-<td colspan="4">**Realtime** `443x` ------------------------------------------------------------------------------</td>
+<td colspan="4">
+    <b>Realtime</b> `443x`
+</td>
 </tr>
 <tr>
 <td></td>
@@ -176,7 +184,9 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 <td>`mqttx:80`</td>
 </tr>
 <tr>
-<td colspan="4">**Infra** ----------------------------------------------------------------------------------------</td>
+<td colspan="4">
+    <b>Infra</b>
+</td>
 </tr>
 <tr>
 <td></td>

@@ -13,11 +13,11 @@ else on your machine. Each one is set by a `*_HOST_PORT` variable in `.env`.
 </tr>
 </thead>
 <tbody>
-    <tr>
-        <td colspan="4">
-            **Data** `440x`
-        </td>
-    </tr>
+<tr>
+<td colspan="4">
+    <b>Data</b> `440x`
+</td>
+</tr>
 <tr>
 <td></td>
 <td>MySQL</td>
@@ -49,10 +49,9 @@ else on your machine. Each one is set by a `*_HOST_PORT` variable in `.env`.
 <td>`memcached:11211`</td>
 </tr>
 <tr>
-<td>**Kafka** `441x` ---------------------------------------------------------------------------------</td>
-<td></td>
-<td></td>
-<td></td>
+<td colspan="4">
+    <b>Kafka</b> `441x`
+</td>
 </tr>
 <tr>
 <td></td>
@@ -79,10 +78,9 @@ else on your machine. Each one is set by a `*_HOST_PORT` variable in `.env`.
 <td>`connect-debezium:8083`</td>
 </tr>
 <tr>
-<td>**Web UIs** `442x+` ------------------------------------------------------------------------------</td>
-<td></td>
-<td></td>
-<td></td>
+<td colspan="4">
+    <b>Web UIs</b> `442x+`
+</td>
 </tr>
 <tr>
 <td></td>
@@ -105,7 +103,7 @@ else on your machine. Each one is set by a `*_HOST_PORT` variable in `.env`.
 <tr>
 <td></td>
 <td>DrawDB</td>
-<td>`localhost:4423` (open here, **not** `drawdb.test`)</td>
+<td>`localhost:4423` (open here, <b>not</b> `drawdb.test`)</td>
 <td>`drawdb:80`</td>
 </tr>
 <tr>
@@ -151,10 +149,9 @@ else on your machine. Each one is set by a `*_HOST_PORT` variable in `.env`.
 <td>`werkyn:3000`</td>
 </tr>
 <tr>
-<td>**Realtime** `443x` ------------------------------------------------------------------------------</td>
-<td></td>
-<td></td>
-<td></td>
+<td colspan="4">
+    <b>Realtime</b> `443x`
+</td>
 </tr>
 <tr>
 <td></td>
@@ -187,10 +184,9 @@ else on your machine. Each one is set by a `*_HOST_PORT` variable in `.env`.
 <td>`mqttx:80`</td>
 </tr>
 <tr>
-<td>**Infra** ----------------------------------------------------------------------------------------</td>
-<td></td>
-<td></td>
-<td></td>
+<td colspan="4">
+    <b>Infra</b>
+</td>
 </tr>
 <tr>
 <td></td>
