@@ -14,10 +14,7 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 </thead>
 <tbody>
 <tr>
-<td>**Data** `440x` ----------------------------------------------------------------------------------</td>
-<td></td>
-<td></td>
-<td></td>
+<td colspan="4">**Data** `440x` ----------------------------------------------------------------------------------</td>
 </tr>
 <tr>
 <td></td>
@@ -50,10 +47,7 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 <td>`memcached:11211`</td>
 </tr>
 <tr>
-<td>**Kafka** `441x` ---------------------------------------------------------------------------------</td>
-<td></td>
-<td></td>
-<td></td>
+<td colspan="4">**Kafka** `441x` ---------------------------------------------------------------------------------</td>
 </tr>
 <tr>
 <td></td>
@@ -80,10 +74,7 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 <td>`connect-debezium:8083`</td>
 </tr>
 <tr>
-<td>**UI Web** `442x+` -------------------------------------------------------------------------------</td>
-<td></td>
-<td></td>
-<td></td>
+<td colspan="4">**UI Web** `442x+` -------------------------------------------------------------------------------</td>
 </tr>
 <tr>
 <td></td>
@@ -152,10 +143,7 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 <td>`werkyn:3000`</td>
 </tr>
 <tr>
-<td>**Realtime** `443x` ------------------------------------------------------------------------------</td>
-<td></td>
-<td></td>
-<td></td>
+<td colspan="4">**Realtime** `443x` ------------------------------------------------------------------------------</td>
 </tr>
 <tr>
 <td></td>
@@ -188,10 +176,7 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 <td>`mqttx:80`</td>
 </tr>
 <tr>
-<td>**Infra** ----------------------------------------------------------------------------------------</td>
-<td></td>
-<td></td>
-<td></td>
+<td colspan="4">**Infra** ----------------------------------------------------------------------------------------</td>
 </tr>
 <tr>
 <td></td>

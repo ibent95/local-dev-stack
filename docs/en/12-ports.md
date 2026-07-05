@@ -13,12 +13,11 @@ else on your machine. Each one is set by a `*_HOST_PORT` variable in `.env`.
 </tr>
 </thead>
 <tbody>
-<tr>
-<td>**Data** `440x` ----------------------------------------------------------------------------------</td>
-<td></td>
-<td></td>
-<td></td>
-</tr>
+    <tr>
+        <td colspan="4">
+            **Data** `440x`
+        </td>
+    </tr>
 <tr>
 <td></td>
 <td>MySQL</td>
