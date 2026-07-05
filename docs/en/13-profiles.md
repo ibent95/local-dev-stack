@@ -31,14 +31,17 @@ when you'd turn it on.
 | `dbgate`     | `LDS_ENABLE_DBGATE`     |   ✅    | `dbgate`                                                        |
 | `soketi`     | `LDS_ENABLE_SOKETI`     |   ❌    | `soketi`                                                         |
 | `centrifugo` | `LDS_ENABLE_CENTRIFUGO` |   ❌    | `centrifugo`                                                     |
-| `emqx`       | `LDS_ENABLE_EMQX`       |   ❌    | `emqx`                                                           |
+| `mqtt`       | `LDS_ENABLE_MQTT`       |   ❌    | `mosquitto`, `mqttx`                                            |
 | `drawdb`     | `LDS_ENABLE_DRAWDB`     |   ❌    | `drawdb` — DB schema designer (open at `localhost:4423`)        |
 | `hop`        | `LDS_ENABLE_HOP`        |   ❌    | `hop` — Apache Hop Web (ETL designer)                           |
 | `superset`   | `LDS_ENABLE_SUPERSET`   |   ❌    | `superset` — Apache Superset (BI)                               |
 | `semgrep`    | `LDS_ENABLE_SEMGREP`    |   ❌    | `semgrep` — SARIF viewer (`lds tools semgrep` runs the scan)    |
+| `insighttrack` | `LDS_ENABLE_INSIGHTTRACK` | ❌   | `insighttrack-backend`, `insighttrack` — self-hosted web analytics |
+| `vaultwarden` | `LDS_ENABLE_VAULTWARDEN` | ❌   | `vaultwarden` — password manager                                 |
+| `werkyn`     | `LDS_ENABLE_WERKYN`     |   ❌    | `werkyn` — project management/collaboration app                  |
 | `all`        | —                       |   —     | every service above                                              |
 
-> **Data tools** (`drawdb`, `hop`, `superset`, `semgrep`) get their own page —
+> **Data tools** (`drawdb`, `hop`, `superset`, `semgrep`, `insighttrack`, `vaultwarden`, `werkyn`) get their own page —
 > see [15 · Dashboard & data tools](15-data-tools.md). The `http://localhost`
 > control panel links them all with live status.
 
@@ -215,7 +218,7 @@ default** (turn it on when you run `redis`/`memcached`).
   for the `dbgate`/`all` profile). UI-created connections persist in the
   bind-mounted `data/dbgate/` directory.
 
-## Realtime / pub-sub brokers — `soketi`, `centrifugo`, `emqx`
+## Realtime / pub-sub brokers — `soketi`, `centrifugo`, `mqtt`
 
 All three are **off by default**, **stateless** (no data volume → no disk creep),
 and **mem/cpu-capped**. They speak **different** client protocols and are **not**
@@ -248,19 +251,55 @@ serves unlimited channels/topics; you never run a second instance per channel.
   `${CENTRIFUGO_TOKEN_HMAC_SECRET_KEY}`, admin `${CENTRIFUGO_ADMIN_PASSWORD}`.
 - Caps: `${CENTRIFUGO_MEM_LIMIT}` (default `256m`), `${CENTRIFUGO_CPUS}` (`0.50`).
 
-### `emqx` — MQTT broker + dashboard
+### `mqtt` — Mosquitto broker + MQTTX web client
 
-**Toggle:** `LDS_ENABLE_EMQX`. Heaviest of the three (Erlang VM) — higher caps.
+**Toggle:** `LDS_ENABLE_MQTT`. Lightweight profile: broker + browser client.
 
-- **Image:** `emqx/emqx:${EMQX_VERSION}`. Three ports: native MQTT host
-  `${EMQX_MQTT_HOST_PORT}` (default `4432`) → `1883`; MQTT-over-WebSocket
-  `${EMQX_WS_HOST_PORT}` (default `4433`) → `8083` (path `/mqtt`); dashboard
-  `${EMQX_DASHBOARD_HOST_PORT}` (default `4434`) → `18083`, also
-  `${EMQX_DASHBOARD_HOST}` (default `mqtt.test`).
+- **Broker image:** `eclipse-mosquitto:${MOSQUITTO_VERSION}`. Ports:
+  `${MQTT_HOST_PORT}` (default `4432`) → `1883` (native MQTT),
+  `${MQTT_WS_HOST_PORT}` (default `4433`) → `9001` (MQTT-over-WebSocket, path `/`).
+- **Web client image:** `emqx/mqttx-web:${MQTTX_VERSION}` at
+  `${MQTT_HOST}` (default `mqtt.test`) / `${MQTTX_HOST_PORT}` (default `4434`).
 - Clients use an **MQTT library** (MQTT.js / Paho in the browser, native MQTT for
-  backends). Anonymous access allowed (dev). Dashboard login `admin` / `public`
-  (change on first login). Wildcard `#` lets the dashboard watch every topic.
-- Caps: `${EMQX_MEM_LIMIT}` (default `512m`), `${EMQX_CPUS}` (default `1.00`).
+  backends). `mqttx` is a client UI (publish/subscribe), not a broker admin dashboard.
+- Caps: `${MOSQUITTO_MEM_LIMIT}` (default `128m`), `${MQTTX_MEM_LIMIT}` (default `128m`).
+
+## `insighttrack` — web analytics (reuses shared Postgres)
+
+**Starts:** `insighttrack-backend`, `insighttrack` (UI), and shared `postgres`.
+**Toggle:** `LDS_ENABLE_INSIGHTTRACK`. **Off by default.**
+
+- **No separate DB container:** the profile reuses `lds-postgres` (service `postgres`).
+- **DuckDB is embedded** in the backend process (persisted in `insighttrack-duckdb-data`).
+- **UI:** `${INSIGHTTRACK_HOST}` (default `insighttrack.test`) and host port
+  `${INSIGHTTRACK_HOST_PORT}` (default `4427`).
+- **API:** host port `${INSIGHTTRACK_API_HOST_PORT}` (default `4428`).
+- **DB bootstrap for the tool:** `lds up insighttrack` auto-runs `insighttrack-init`
+  (delegates to `postgres-init`) so the configured
+  `INSIGHTTRACK_POSTGRES_DB/USER/PASSWORD` exist.
+
+## `vaultwarden` — password manager
+
+**Starts:** `vaultwarden`. **Toggle:** `LDS_ENABLE_VAULTWARDEN`. **Off by default.**
+
+- **Image:** `vaultwarden/server:${VAULTWARDEN_VERSION}`.
+- **UI/API:** `${VAULTWARDEN_HOST}` (default `vaultwarden.test`) and host port
+  `${VAULTWARDEN_HOST_PORT}` (default `4429`).
+- **Storage:** persistent sqlite-backed volume (`vaultwarden-data`).
+- **Defaults:** signups off by default (`VAULTWARDEN_SIGNUPS_ALLOWED=false`);
+  admin panel gated by `VAULTWARDEN_ADMIN_TOKEN`.
+
+## `werkyn` — project management and collaboration
+
+**Starts:** `werkyn` and shared `postgres`. **Toggle:** `LDS_ENABLE_WERKYN`. **Off by default.**
+
+- **No separate DB container:** the profile reuses `lds-postgres` (service `postgres`).
+- **App URL:** `${WERKYN_HOST}` (default `werkyn.test`) and host port
+  `${WERKYN_HOST_PORT}` (default `4435`).
+- **Persistent app data:** named volumes `werkyn-storage` and `werkyn-dex-data`.
+- **DB bootstrap for the tool:** `lds up werkyn` auto-runs `werkyn-init`
+  (delegates to `postgres-init`) so the configured
+  `WERKYN_POSTGRES_DB/USER/PASSWORD` exist.
 
 ## `all` — everything
 

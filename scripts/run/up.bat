@@ -21,7 +21,7 @@ REM case-insensitively).
 set "PROFILES=%*"
 if "%PROFILES%"=="" (
   set "PROFILES="
-  for %%p in (proxy php mysql postgres mongo redis memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep) do (
+  for %%p in (proxy php mysql postgres mongo redis memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep insighttrack vaultwarden werkyn) do (
     set "VAL="
     if exist .env for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do if /I "%%a"=="LDS_ENABLE_%%p" set "VAL=%%b"
     set "VAL=!VAL: =!"
@@ -88,6 +88,30 @@ echo %PROFILES% | findstr /I /C:"mysql" /C:"all" >nul
 if not errorlevel 1 (
   call :sub "mysql-init"
   call "%~dp0mysql-init.bat"
+  call :subdone
+)
+
+REM Ensure the Postgres app database + user and extra tool DB specs.
+echo %PROFILES% | findstr /I /C:"postgres" /C:"insighttrack" /C:"werkyn" /C:"all" >nul
+if not errorlevel 1 (
+  call :sub "postgres-init"
+  call "%~dp0postgres-init.bat"
+  call :subdone
+)
+
+REM Ensure the InsightTrack DB/user spec exists (can differ from default postgres app creds).
+echo %PROFILES% | findstr /I /C:"insighttrack" /C:"all" >nul
+if not errorlevel 1 (
+  call :sub "insighttrack-init"
+  call "%~dp0insighttrack-init.bat"
+  call :subdone
+)
+
+REM Ensure the Werkyn DB/user spec exists (can differ from default postgres app creds).
+echo %PROFILES% | findstr /I /C:"werkyn" /C:"all" >nul
+if not errorlevel 1 (
+  call :sub "werkyn-init"
+  call "%~dp0werkyn-init.bat"
   call :subdone
 )
 

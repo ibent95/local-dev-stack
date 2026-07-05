@@ -30,12 +30,13 @@ case "$cmd" in
       init)
         case "${1:-all}" in
           mysql)  exec "$ROOT/scripts/run/mysql-init.sh" ;;
+          postgres)  exec "$ROOT/scripts/run/postgres-init.sh" ;;
           mongo)  exec "$ROOT/scripts/run/mongo-init.sh" ;;
-          all|"") "$ROOT/scripts/run/mysql-init.sh" || true; exec "$ROOT/scripts/run/mongo-init.sh" ;;
-          *) echo "usage: lds db init [mysql|mongo|all]"; exit 1 ;;
+          all|"") "$ROOT/scripts/run/mysql-init.sh" || true; "$ROOT/scripts/run/postgres-init.sh" || true; exec "$ROOT/scripts/run/mongo-init.sh" ;;
+          *) echo "usage: lds db init [mysql|postgres|mongo|all]"; exit 1 ;;
         esac ;;
       seed)  exec "$ROOT/scripts/run/dbgate-seed.sh" "$@" ;;
-      *) echo "usage: lds db <init [mysql|mongo|all] | seed>"; exit 1 ;;
+      *) echo "usage: lds db <init [mysql|postgres|mongo|all] | seed>"; exit 1 ;;
     esac ;;
   # --- lifecycle / scaffolding (flat) ------------------------------------
   init)                exec "$ROOT/scripts/run/init.sh" "$@" ;;
@@ -59,6 +60,7 @@ case "$cmd" in
   register-connectors) exec "$ROOT/scripts/run/register-connectors.sh" "$@" ;;
   connect-plugin)      exec "$ROOT/scripts/run/connect-plugin.sh" "$@" ;;
   mysql-init)          exec "$ROOT/scripts/run/mysql-init.sh" "$@" ;;
+  postgres-init)       exec "$ROOT/scripts/run/postgres-init.sh" "$@" ;;
   mongo-init)          exec "$ROOT/scripts/run/mongo-init.sh" "$@" ;;
   dbgate-seed)         exec "$ROOT/scripts/run/dbgate-seed.sh" "$@" ;;
   help|-h|--help)
@@ -72,7 +74,7 @@ local-dev-stack — usage: ./lds.sh <command> [args]
   network [status|create|rm|reset]   manage the shared lds-network
   build-bases [--force|--push]  build the lds/* base images
   up [profiles...]              start profiles (default: LDS_ENABLE_* toggles, else all)
-                                  e.g. up proxy | up mysql redis | up kafka | up emqx
+                                  e.g. up proxy | up mysql redis | up kafka | up mqtt
   stop                          stop running containers but KEEP them (fast resume via up)
   down [-v]                     remove containers (-v also wipes data volumes)
   rm [profiles...]              force-remove containers (default: all)
@@ -84,7 +86,7 @@ local-dev-stack — usage: ./lds.sh <command> [args]
 
  kafka <sub>                    topics | connect-plugin [--generic|--debezium] <name>
                                   | register-connectors | init (topics + connectors)
- db <sub>                       init [mysql|mongo|all] | seed (DBGate connections)
+ db <sub>                       init [mysql|postgres|mongo|all] | seed (DBGate connections)
  tools <sub>                    semgrep [path]  (scan; view at semgrep.test via `up semgrep`)
 
   certs [--force]               mint the wildcard *.test dev TLS cert (for LDS_ENABLE_HTTPS)
@@ -92,7 +94,7 @@ local-dev-stack — usage: ./lds.sh <command> [args]
   build-php [--push]            (re)build just the PHP service image
   help                          show this message
 
-  (old flat names — kafka-topics, mongo-init, mysql-init, register-connectors,
+  (old flat names — kafka-topics, mongo-init, postgres-init, mysql-init, register-connectors,
    connect-plugin, dbgate-seed — still work as aliases.)
 EOF
     ;;

@@ -35,6 +35,7 @@ if /I "%CMD%"=="start"               call "%ROOT%scripts\run\start.bat" %REST% &
 if /I "%CMD%"=="logs"                call "%ROOT%scripts\run\logs.bat" %REST% & goto end
 if /I "%CMD%"=="kafka-topics"        call "%ROOT%scripts\run\kafka-topics.bat" %REST% & goto end
 if /I "%CMD%"=="mysql-init"          call "%ROOT%scripts\run\mysql-init.bat" %REST% & goto end
+if /I "%CMD%"=="postgres-init"       call "%ROOT%scripts\run\postgres-init.bat" %REST% & goto end
 if /I "%CMD%"=="mongo-init"          call "%ROOT%scripts\run\mongo-init.bat" %REST% & goto end
 if /I "%CMD%"=="dbgate-seed"         call "%ROOT%scripts\run\dbgate-seed.bat" %REST% & goto end
 if /I "%CMD%"=="certs"               call "%ROOT%scripts\run\certs.bat" %REST% & goto end
@@ -63,11 +64,12 @@ for /f "tokens=1*" %%a in ("%REST%") do ( set "SUB=%%a" & set "SUBREST=%%b" )
 if /I "!SUB!"=="init" (
   set "WHICH=!SUBREST: =!"
   if /I "!WHICH!"=="mysql" ( call "%ROOT%scripts\run\mysql-init.bat" & goto end )
+  if /I "!WHICH!"=="postgres" ( call "%ROOT%scripts\run\postgres-init.bat" & goto end )
   if /I "!WHICH!"=="mongo" ( call "%ROOT%scripts\run\mongo-init.bat" & goto end )
-  call "%ROOT%scripts\run\mysql-init.bat" & call "%ROOT%scripts\run\mongo-init.bat" & goto end
+  call "%ROOT%scripts\run\mysql-init.bat" & call "%ROOT%scripts\run\postgres-init.bat" & call "%ROOT%scripts\run\mongo-init.bat" & goto end
 )
 if /I "!SUB!"=="seed"                ( call "%ROOT%scripts\run\dbgate-seed.bat" & goto end )
-echo usage: lds db ^<init [mysql^|mongo^|all] ^| seed^>
+echo usage: lds db ^<init [mysql^|postgres^|mongo^|all] ^| seed^>
 goto end
 
 :tools
@@ -94,14 +96,14 @@ echo   ps                            status of all services
 echo   exec ^<service^> [cmd...]       run a command (or open a shell) in a service container
 echo.
 echo  kafka ^<sub^>                    topics ^| connect-plugin [--generic^|--debezium] ^<name^> ^| register-connectors ^| init
-echo  db ^<sub^>                       init [mysql^|mongo^|all] ^| seed (DBGate connections)
+echo  db ^<sub^>                       init [mysql^|postgres^|mongo^|all] ^| seed (DBGate connections)
 echo  tools ^<sub^>                    semgrep [path]  (scan; view at semgrep.test via up semgrep)
 echo.
 echo   certs [--force]               mint the wildcard *.test dev TLS cert (for LDS_ENABLE_HTTPS)
 echo   hosts-sync                    write www/ projects into the hosts file
 echo   build-php [--push]            rebuild just the PHP service image
 echo   help                          show this message
-echo   (old flat names still work as aliases: kafka-topics, mongo-init, mysql-init, etc.)
+echo   (old flat names still work as aliases: kafka-topics, mongo-init, postgres-init, mysql-init, etc.)
 goto end
 
 :end

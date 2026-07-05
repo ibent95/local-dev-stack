@@ -3,7 +3,8 @@ name: local-dev-stack
 description: >
   Operate the local-dev-stack shared Docker Compose environment via the `lds`
   CLI — start/stop profiles, manage the bundled tools (DrawDB, Apache Hop,
-  Superset, Semgrep, Kafka, the databases), sync *.test hosts, and apply known
+  Superset, Semgrep, InsightTrack, Vaultwarden, Werkyn, Kafka, the databases),
+  sync *.test hosts, and apply known
   fixes. Use when working in this repo or when the user asks to run, configure,
   or troubleshoot the stack, its tools, or its `<name>.test` URLs.
 ---
@@ -35,7 +36,7 @@ lds stop | down [-v]      stop+keep | remove (-v wipes volumes)
 lds ps | logs [service]   status | tail logs
 lds exec <svc> [cmd…]     shell/command in a container
 lds hosts-sync            write projects + tool hosts into the hosts file (admin)
-lds db init [mysql|mongo|all] | seed     create `app` db/users | DBGate conns
+lds db init [mysql|postgres|mongo|all] | seed     create default db/users (+ optional `*_INIT_SPECS`) | DBGate conns
 lds kafka topics | connect-plugin [--generic] <name> | register-connectors | init
 lds tools semgrep [path]  run a Semgrep scan → configs/semgrep/reports/report.sarif
 lds certs [--force]       mint the wildcard *.test dev TLS cert (LDS_ENABLE_HTTPS)
@@ -49,7 +50,7 @@ Old flat names (`kafka-topics`, `mysql-init`, `mongo-init`, `register-connectors
 `docker-compose.yml` is ordered by importance of usage: **web foundation**
 (proxy, dns, php) → **databases** (mysql, postgres, mongo, redis, memcached) →
 **admin UIs** (phpcacheadmin, dbgate) → **data tools** (drawdb, hop, superset,
-semgrep) → **realtime brokers** (soketi, centrifugo, emqx) → **Kafka** (last,
+semgrep, insighttrack, vaultwarden, werkyn) → **realtime brokers** (soketi, centrifugo, mqtt) → **Kafka** (last,
 heaviest, off by default). Each group has a `# ===` banner. Host ports live in
 the `44xx` block (see `docs/en/12-ports.md`).
 
@@ -87,8 +88,13 @@ bind-mounted, so changes are live (no restart).
   the viewer. (Not `docker compose run` — Compose's -v splits on ':' and chokes on
   Windows `D:\…` paths, leaving /src empty.) Empty viewer = no scan has run yet.
   `lds up semgrep` pre-pulls the scanner image (best-effort).
-- **DB `app` database missing** (DHI mysql/mongo don't honor the usual init env)
-  → `lds db init mysql|mongo|all` (auto-run by `lds up`).
+- **InsightTrack** reuses shared `postgres` (no extra DB container); `insighttrack-init`
+  augments `POSTGRES_INIT_SPECS` and delegates to `postgres-init` so the configured
+  `INSIGHTTRACK_POSTGRES_DB/USER/PASSWORD` exist. UI at `insighttrack.test` / :4427.
+- **Werkyn** reuses shared `postgres`; `werkyn-init` augments `POSTGRES_INIT_SPECS`
+  and delegates to `postgres-init` so `WERKYN_POSTGRES_DB/USER/PASSWORD` exist.
+- **DB `app` database missing** (or tool DB/user not created yet)
+  → `lds db init mysql|postgres|mongo|all` (auto-run by `lds up` when relevant profiles are selected).
 - **`*.test` won't resolve** without the dns container as your resolver → run
   `lds hosts-sync` (admin/sudo) to write the hosts file; `localhost` needs no entry.
 

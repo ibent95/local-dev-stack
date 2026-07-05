@@ -2,8 +2,9 @@
 
 Halaman ini membahas **panel kontrol** di `http://localhost` serta profile tool
 mandiri yang ditambahkan di atas stack inti: **DrawDB** (perancangan skema),
-**Apache Hop** + **Apache Superset** (data warehouse & BI), dan **Semgrep**
-(kualitas kode). Dua browser layanan pendukung, `phpcacheadmin` dan `dbgate`,
+**Apache Hop** + **Apache Superset** (data warehouse & BI), **Semgrep**
+(kualitas kode), **InsightTrack** (web analytics), **Vaultwarden** (password manager),
+dan **Werkyn** (project management). Dua browser layanan pendukung, `phpcacheadmin` dan `dbgate`,
 didokumentasikan di [13 · Profile](13-profiles.md).
 
 ## Panel kontrol — `http://localhost`
@@ -13,8 +14,10 @@ Container PHP melayani panel kontrol sebagai situs default-nya, dapat diakses di
 `configs/web/dashboard/index.php` dan menampilkan, secara langsung:
 
 - **Tool & UI web**, dikelompokkan — *Data tools* (phpCacheAdmin, DBGate),
+  *Security & auth* (Vaultwarden),
   *Database design* (DrawDB), *Data warehouse & BI* (Superset, Hop),
-  *Code quality* (Semgrep), *Realtime* (Centrifugo, EMQX), plus Kafka UI — masing
+  *Code quality* (Semgrep), *Web analytics* (InsightTrack),
+  *Project management* (Werkyn), *Realtime* (Centrifugo, MQTTX), plus Kafka UI — masing
   -masing dengan titik ●/○ status keterjangkauan.
 - **Proyek** — setiap folder di `${PHP_PROJECTS_PATH}`, ditautkan ke host
   `<nama>.test`-nya.
@@ -137,6 +140,42 @@ memilih rules), dan unggahan akhir itu bisa menggantung pada koneksi
 lambat/offline — jadi skrip hanya menyalakan metrics bila Anda set
 `SEMGREP_RULES=auto`. (Pack registry tetap diambil via jaringan saat scan mulai;
 itu waktu muat, bukan macet.)
+
+## Web analytics — InsightTrack
+
+**Profile:** `insighttrack` (`LDS_ENABLE_INSIGHTTRACK`). **Mati secara default.**
+
+Web analytics self-hosted (dashboard + API) yang ditambahkan ringan di atas stack
+inti.
+
+- Reuse **`lds-postgres`** bersama (tanpa container Postgres khusus InsightTrack).
+- Data analitik baca disimpan di **DuckDB embedded** di proses backend
+  (persisten via volume yang dikelola LDS).
+- UI: `http://localhost:4427` / `insighttrack.test`
+- API: `http://localhost:4428`
+- Bootstrap DB otomatis saat profile ini start (`insighttrack-init` →
+  `postgres-init`).
+
+## Security & auth — Vaultwarden
+
+**Profile:** `vaultwarden` (`LDS_ENABLE_VAULTWARDEN`). **Mati secara default.**
+
+Password manager self-hosted (server + web vault kompatibel Bitwarden).
+
+- URL: `http://localhost:4429` / `vaultwarden.test`
+- Storage persisten: volume `vaultwarden-data` (sqlite).
+- Signup default nonaktif (`VAULTWARDEN_SIGNUPS_ALLOWED=false`).
+
+## Project management — Werkyn
+
+**Profile:** `werkyn` (`LDS_ENABLE_WERKYN`). **Mati secara default.**
+
+Aplikasi project management/kolaborasi tim self-hosted (board, task, alur kerja dokumentasi).
+
+- Reuse **`lds-postgres`** bersama (tanpa container Postgres khusus Werkyn).
+- URL: `http://localhost:4435` / `werkyn.test`
+- Data persisten aplikasi: volume `werkyn-storage` dan `werkyn-dex-data`.
+- Bootstrap DB otomatis saat profile ini start (`werkyn-init` → `postgres-init`).
 
 ---
 

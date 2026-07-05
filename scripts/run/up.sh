@@ -21,7 +21,7 @@ if [ $# -gt 0 ]; then
 else
   profiles=()
   # Canonical profile order; each maps to LDS_ENABLE_<UPPER>=true in .env.
-  for p in proxy php mysql postgres mongo redis memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep; do
+  for p in proxy php mysql postgres mongo redis memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep insighttrack vaultwarden werkyn; do
     var="LDS_ENABLE_$(printf '%s' "$p" | tr '[:lower:]' '[:upper:]')"
     val="$(grep -E "^[[:space:]]*${var}=" .env 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/#.*//' | tr -d '[:space:]\r')"
     case "$val" in
@@ -88,6 +88,21 @@ case " ${profiles[*]} " in
   *" mysql "*|*" all "*) sub "mysql-init"; "$ROOT/scripts/run/mysql-init.sh" || true; subdone ;;
 esac
 
+# Ensure the Postgres app database + user and extra tool DB specs.
+case " ${profiles[*]} " in
+  *" postgres "*|*" insighttrack "*|*" werkyn "*|*" all "*) sub "postgres-init"; "$ROOT/scripts/run/postgres-init.sh" || true; subdone ;;
+esac
+
+# Ensure the InsightTrack DB/user spec exists (can differ from default postgres app creds).
+case " ${profiles[*]} " in
+  *" insighttrack "*|*" all "*) sub "insighttrack-init"; "$ROOT/scripts/run/insighttrack-init.sh" || true; subdone ;;
+esac
+
+# Ensure the Werkyn DB/user spec exists (can differ from default postgres app creds).
+case " ${profiles[*]} " in
+  *" werkyn "*|*" all "*) sub "werkyn-init"; "$ROOT/scripts/run/werkyn-init.sh" || true; subdone ;;
+esac
+
 # Initiate the Mongo replica set + users (single-node RS for CDC).
 case " ${profiles[*]} " in
   *" mongo "*|*" all "*) sub "mongo-init"; "$ROOT/scripts/run/mongo-init.sh" || true; subdone ;;
@@ -113,5 +128,3 @@ esac
 case " ${profiles[*]} " in
   *" hop "*|*" all "*) sub "hop-register"; "$ROOT/scripts/run/hop-register.sh" || true; subdone ;;
 esac
-
-
