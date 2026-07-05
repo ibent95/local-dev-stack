@@ -17,29 +17,144 @@ when you'd turn it on.
   `proxy` and `php`, so turning on `php` brings the proxy and DNS along
   automatically.
 
-| Profile      | `.env` toggle           | Default | Services started                                                   |
-|--------------|-------------------------|:-------:|--------------------------------------------------------------------|
-| `proxy`      | `LDS_ENABLE_PROXY`      |   ✅    | `proxy`, `dns`                                                     |
-| `php`        | `LDS_ENABLE_PHP`        |   ✅    | `php`, `proxy`, `dns`                                               |
-| `mysql`      | `LDS_ENABLE_MYSQL`      |   ✅    | `mysql`                                                            |
-| `postgres`   | `LDS_ENABLE_POSTGRES`   |   ❌    | `postgres`                                                        |
-| `mongo`      | `LDS_ENABLE_MONGO`      |   ❌    | `mongo`                                                           |
-| `redis`      | `LDS_ENABLE_REDIS`      |   ❌    | `redis`                                                          |
-| `memcached`  | `LDS_ENABLE_MEMCACHED`  |   ❌    | `memcached`                                                       |
-| `kafka`      | `LDS_ENABLE_KAFKA`      |   ❌    | `kafka-controller`, `kafka-broker`, `schema-registry`, `connect-debezium`, `connect-generic`, `kafka-ui` |
-| `phpcacheadmin` | `LDS_ENABLE_PHPCACHEADMIN` | ❌ | `phpcacheadmin`                                              |
-| `dbgate`     | `LDS_ENABLE_DBGATE`     |   ✅    | `dbgate`                                                        |
-| `soketi`     | `LDS_ENABLE_SOKETI`     |   ❌    | `soketi`                                                         |
-| `centrifugo` | `LDS_ENABLE_CENTRIFUGO` |   ❌    | `centrifugo`                                                     |
-| `mqtt`       | `LDS_ENABLE_MQTT`       |   ❌    | `mosquitto`, `mqttx`                                            |
-| `drawdb`     | `LDS_ENABLE_DRAWDB`     |   ❌    | `drawdb` — DB schema designer (open at `localhost:4423`)        |
-| `hop`        | `LDS_ENABLE_HOP`        |   ❌    | `hop` — Apache Hop Web (ETL designer)                           |
-| `superset`   | `LDS_ENABLE_SUPERSET`   |   ❌    | `superset` — Apache Superset (BI)                               |
-| `semgrep`    | `LDS_ENABLE_SEMGREP`    |   ❌    | `semgrep` — SARIF viewer (`lds tools semgrep` runs the scan)    |
-| `insighttrack` | `LDS_ENABLE_INSIGHTTRACK` | ❌   | `insighttrack-backend`, `insighttrack` — self-hosted web analytics |
-| `vaultwarden` | `LDS_ENABLE_VAULTWARDEN` | ❌   | `vaultwarden` — password manager                                 |
-| `werkyn`     | `LDS_ENABLE_WERKYN`     |   ❌    | `werkyn` — project management/collaboration app                  |
-| `all`        | —                       |   —     | every service above                                              |
+<table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>`.env` toggle</th>
+<th>Default</th>
+<th>Services started</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>`proxy`</td>
+<td>`LDS_ENABLE_PROXY`</td>
+<td>✅</td>
+<td>`proxy`, `dns`</td>
+</tr>
+<tr>
+<td>`php`</td>
+<td>`LDS_ENABLE_PHP`</td>
+<td>✅</td>
+<td>`php`, `proxy`, `dns`</td>
+</tr>
+<tr>
+<td>`mysql`</td>
+<td>`LDS_ENABLE_MYSQL`</td>
+<td>✅</td>
+<td>`mysql`</td>
+</tr>
+<tr>
+<td>`postgres`</td>
+<td>`LDS_ENABLE_POSTGRES`</td>
+<td>❌</td>
+<td>`postgres`</td>
+</tr>
+<tr>
+<td>`mongo`</td>
+<td>`LDS_ENABLE_MONGO`</td>
+<td>❌</td>
+<td>`mongo`</td>
+</tr>
+<tr>
+<td>`redis`</td>
+<td>`LDS_ENABLE_REDIS`</td>
+<td>❌</td>
+<td>`redis`</td>
+</tr>
+<tr>
+<td>`memcached`</td>
+<td>`LDS_ENABLE_MEMCACHED`</td>
+<td>❌</td>
+<td>`memcached`</td>
+</tr>
+<tr>
+<td>`kafka`</td>
+<td>`LDS_ENABLE_KAFKA`</td>
+<td>❌</td>
+<td>`kafka-controller`, `kafka-broker`, `schema-registry`, `connect-debezium`, `connect-generic`, `kafka-ui`</td>
+</tr>
+<tr>
+<td>`phpcacheadmin`</td>
+<td>`LDS_ENABLE_PHPCACHEADMIN`</td>
+<td>❌</td>
+<td>`phpcacheadmin`</td>
+</tr>
+<tr>
+<td>`dbgate`</td>
+<td>`LDS_ENABLE_DBGATE`</td>
+<td>✅</td>
+<td>`dbgate`</td>
+</tr>
+<tr>
+<td>`soketi`</td>
+<td>`LDS_ENABLE_SOKETI`</td>
+<td>❌</td>
+<td>`soketi`</td>
+</tr>
+<tr>
+<td>`centrifugo`</td>
+<td>`LDS_ENABLE_CENTRIFUGO`</td>
+<td>❌</td>
+<td>`centrifugo`</td>
+</tr>
+<tr>
+<td>`mqtt`</td>
+<td>`LDS_ENABLE_MQTT`</td>
+<td>❌</td>
+<td>`mosquitto`, `mqttx`</td>
+</tr>
+<tr>
+<td>`drawdb`</td>
+<td>`LDS_ENABLE_DRAWDB`</td>
+<td>❌</td>
+<td>`drawdb` — DB schema designer (open at `localhost:4423`)</td>
+</tr>
+<tr>
+<td>`hop`</td>
+<td>`LDS_ENABLE_HOP`</td>
+<td>❌</td>
+<td>`hop` — Apache Hop Web (ETL designer)</td>
+</tr>
+<tr>
+<td>`superset`</td>
+<td>`LDS_ENABLE_SUPERSET`</td>
+<td>❌</td>
+<td>`superset` — Apache Superset (BI)</td>
+</tr>
+<tr>
+<td>`semgrep`</td>
+<td>`LDS_ENABLE_SEMGREP`</td>
+<td>❌</td>
+<td>`semgrep` — SARIF viewer (`lds tools semgrep` runs the scan)</td>
+</tr>
+<tr>
+<td>`insighttrack`</td>
+<td>`LDS_ENABLE_INSIGHTTRACK`</td>
+<td>❌</td>
+<td>`insighttrack-backend`, `insighttrack` — self-hosted web analytics</td>
+</tr>
+<tr>
+<td>`vaultwarden`</td>
+<td>`LDS_ENABLE_VAULTWARDEN`</td>
+<td>❌</td>
+<td>`vaultwarden` — password manager</td>
+</tr>
+<tr>
+<td>`werkyn`</td>
+<td>`LDS_ENABLE_WERKYN`</td>
+<td>❌</td>
+<td>`werkyn` — project management/collaboration app</td>
+</tr>
+<tr>
+<td>`all`</td>
+<td>—</td>
+<td>—</td>
+<td>every service above</td>
+</tr>
+</tbody>
+</table>
 
 > **Data tools** (`drawdb`, `hop`, `superset`, `semgrep`, `insighttrack`, `vaultwarden`, `werkyn`) get their own page —
 > see [15 · Dashboard & data tools](15-data-tools.md). The `http://localhost`

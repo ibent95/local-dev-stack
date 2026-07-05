@@ -40,13 +40,42 @@ Karena di `lds-network`, job menjangkau layanan backing lewat nama:
 ### Tech cron yang tersedia (dan cara tiap-tiap dijalankan)
 Pilih role-tech; template menyiapkan base image + perintah crontab untukmu:
 
-| Bahasa | Base Dockerfile | baris crontab |
-|---|---|---|
-| Shell | `alpine` (default) | `*/5 * * * * /app/job.sh` |
-| Python | `python:3.12-slim` | `*/5 * * * * python /app/job.py` |
-| Node | `node:22-alpine` | `*/5 * * * * node /app/job.js` |
-| PHP | `php:8.4-cli` | `*/5 * * * * php /app/job.php` |
-| Go (compiled) | multi-stage → binary di `alpine` | `*/5 * * * * /app/job` |
+<table>
+<thead>
+<tr>
+<th>Bahasa</th>
+<th>Base Dockerfile</th>
+<th>baris crontab</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Shell</td>
+<td>`alpine` (default)</td>
+<td>`*/5 * * * * /app/job.sh`</td>
+</tr>
+<tr>
+<td>Python</td>
+<td>`python:3.12-slim`</td>
+<td>`*/5 * * * * python /app/job.py`</td>
+</tr>
+<tr>
+<td>Node</td>
+<td>`node:22-alpine`</td>
+<td>`*/5 * * * * node /app/job.js`</td>
+</tr>
+<tr>
+<td>PHP</td>
+<td>`php:8.4-cli`</td>
+<td>`*/5 * * * * php /app/job.php`</td>
+</tr>
+<tr>
+<td>Go (compiled)</td>
+<td>multi-stage → binary di `alpine`</td>
+<td>`*/5 * * * * /app/job`</td>
+</tr>
+</tbody>
+</table>
 
 Runtime interpreted (Python/Node/PHP) cukup menjalankan skrip. Yang compiled
 (Go/Rust/Java) di-build dulu jadi artefak, lalu supercronic menjalankan binernya

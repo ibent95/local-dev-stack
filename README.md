@@ -7,25 +7,120 @@ talk to them.
 
 ## Services
 
-| Group       | Profile      | Service(s)                                              | Host port(s)          |
-|-------------|--------------|---------------------------------------------------------|-----------------------|
-| MySQL       | `mysql`      | `mysql` (8.4, binlog ON for CDC)                        | 4400                  |
-| PostgreSQL  | `postgres`   | `postgres` (16, `wal_level=logical` for CDC)           | 4401                  |
-| MongoDB     | `mongo`      | `mongo` (7, single-node replica set `rs0`, CDC-ready)  | 4402                  |
-| Redis       | `redis`      | `redis` (7)                                             | 4403                  |
-| Memcached   | `memcached`  | `memcached` (1.6)                                      | 4404                  |
-| Proxy/DNS   | `proxy`      | `proxy` (nginx-proxy edge router), `dns` (dnsmasq)     | 80 (web), 53 (dns)    |
-| Web (PHP)   | `php`        | `php` — one container, supervisord runs php-fpm + nginx (multi-project) | via proxy   |
-| Apps        | _templates_  | Go / Rust / Java / Node containers (own compose)      | via proxy             |
-| Kafka       | `kafka`      | `kafka-controller`, `kafka-broker`, `schema-registry` (Apicurio), `connect-debezium`, `connect-generic`, `kafka-ui` | 4410–4413, 4420 |
-| Realtime    | `soketi` / `centrifugo` / `mqtt` | WebSocket / MQTT pub-sub brokers — **off by default**, stateless | 4430 / 4431 / 4432–4434 |
-| Admin UIs   | `phpcacheadmin` / `dbgate` | cache browser / web DB client | 4421 / 4422 |
-| DB design   | `drawdb`     | DrawDB — ER diagram designer (open at `localhost:4423`) | 4423 |
-| Warehouse/BI| `hop` / `superset` | Apache Hop (ETL designer) / Apache Superset (BI) | 4424 / 4425 |
-| Code quality| `semgrep`    | Semgrep SARIF viewer (`lds tools semgrep` runs the scan) | 4426 |
-| Security/Auth | `vaultwarden` | Vaultwarden password manager (Bitwarden-compatible) | 4429 |
-| Web analytics | `insighttrack` | InsightTrack dashboard + API (reuses shared `postgres`) | 4427 / 4428 |
-| Project management | `werkyn` | Werkyn team project management/collaboration app (reuses shared `postgres`) | 4435 |
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Profile</th>
+<th>Service(s)</th>
+<th>Host port(s)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MySQL</td>
+<td>`mysql`</td>
+<td>`mysql` (8.4, binlog ON for CDC)</td>
+<td>4400</td>
+</tr>
+<tr>
+<td>PostgreSQL</td>
+<td>`postgres`</td>
+<td>`postgres` (16, `wal_level=logical` for CDC)</td>
+<td>4401</td>
+</tr>
+<tr>
+<td>MongoDB</td>
+<td>`mongo`</td>
+<td>`mongo` (7, single-node replica set `rs0`, CDC-ready)</td>
+<td>4402</td>
+</tr>
+<tr>
+<td>Redis</td>
+<td>`redis`</td>
+<td>`redis` (7)</td>
+<td>4403</td>
+</tr>
+<tr>
+<td>Memcached</td>
+<td>`memcached`</td>
+<td>`memcached` (1.6)</td>
+<td>4404</td>
+</tr>
+<tr>
+<td>Proxy/DNS</td>
+<td>`proxy`</td>
+<td>`proxy` (nginx-proxy edge router), `dns` (dnsmasq)</td>
+<td>80 (web), 53 (dns)</td>
+</tr>
+<tr>
+<td>Web (PHP)</td>
+<td>`php`</td>
+<td>`php` — one container, supervisord runs php-fpm + nginx (multi-project)</td>
+<td>via proxy</td>
+</tr>
+<tr>
+<td>Apps</td>
+<td>_templates_</td>
+<td>Go / Rust / Java / Node containers (own compose)</td>
+<td>via proxy</td>
+</tr>
+<tr>
+<td>Kafka</td>
+<td>`kafka`</td>
+<td>`kafka-controller`, `kafka-broker`, `schema-registry` (Apicurio), `connect-debezium`, `connect-generic`, `kafka-ui`</td>
+<td>4410–4413, 4420</td>
+</tr>
+<tr>
+<td>Realtime</td>
+<td>`soketi` / `centrifugo` / `mqtt`</td>
+<td>WebSocket / MQTT pub-sub brokers — **off by default**, stateless</td>
+<td>4430 / 4431 / 4432–4434</td>
+</tr>
+<tr>
+<td>Admin UIs</td>
+<td>`phpcacheadmin` / `dbgate`</td>
+<td>cache browser / web DB client</td>
+<td>4421 / 4422</td>
+</tr>
+<tr>
+<td>DB design</td>
+<td>`drawdb`</td>
+<td>DrawDB — ER diagram designer (open at `localhost:4423`)</td>
+<td>4423</td>
+</tr>
+<tr>
+<td>Warehouse/BI</td>
+<td>`hop` / `superset`</td>
+<td>Apache Hop (ETL designer) / Apache Superset (BI)</td>
+<td>4424 / 4425</td>
+</tr>
+<tr>
+<td>Code quality</td>
+<td>`semgrep`</td>
+<td>Semgrep SARIF viewer (`lds tools semgrep` runs the scan)</td>
+<td>4426</td>
+</tr>
+<tr>
+<td>Security/Auth</td>
+<td>`vaultwarden`</td>
+<td>Vaultwarden password manager (Bitwarden-compatible)</td>
+<td>4429</td>
+</tr>
+<tr>
+<td>Web analytics</td>
+<td>`insighttrack`</td>
+<td>InsightTrack dashboard + API (reuses shared `postgres`)</td>
+<td>4427 / 4428</td>
+</tr>
+<tr>
+<td>Project management</td>
+<td>`werkyn`</td>
+<td>Werkyn team project management/collaboration app (reuses shared `postgres`)</td>
+<td>4435</td>
+</tr>
+</tbody>
+</table>
 
 > **Realtime brokers** are three independent choices for WebSocket pub/sub, each
 > speaking a *different client protocol* (so pick the one matching your app):
@@ -102,40 +197,210 @@ All host ports live in the **`44xx`** block (set via `*_HOST_PORT` in `.env`).
 From other containers on `lds-network`, use the service name + its internal port
 (right column) instead. Full reference: [docs/en/12-ports.md](docs/en/12-ports.md).
 
-|       Group        |      Service       |           Host + Port           |  From Container + Port  |
-|--------------------|--------------------|---------------------------------|-------------------------|
-| **Data** `440x`    |--------------------------------------------------------------------------------|
-|                    | MySQL              | `localhost:4400`                | `mysql:3306`            |
-|                    | PostgreSQL         | `localhost:4401`                | `postgres:5432`         |
-|                    | MongoDB            | `localhost:4402`                | `mongo:27017`           |
-|                    | Redis              | `localhost:4403`                | `redis:6379`            |
-|                    | Memcached          | `localhost:4404`                | `memcached:11211`       |
-| **Kafka** `441x`   |--------------------------------------------------------------------------------|
-|                    | Broker (bootstrap) | `localhost:4410`                | `kafka-broker:9092`     |
-|                    | Schema Registry    | `localhost:4411`                | `schema-registry:8080`  |
-|                    | Connect — generic  | `localhost:4412`                | `connect-generic:8083`  |
-|                    | Connect — Debezium | `localhost:4413`                | `connect-debezium:8083` |
-| **Web UIs** `442x+` |-------------------------------------------------------------------------------|
-|                    | Kafka UI           | `localhost:4420`                | `kafka-ui:8080`         |
-|                    | phpCacheAdmin      | `localhost:4421` (`cache.test`) | `phpcacheadmin:80`      |
-|                    | DBGate             | `localhost:4422` (`db.test`)    | `dbgate:3000`           |
-|                    | DrawDB             | `localhost:4423` (**not** `drawdb.test`) | `drawdb:80`    |
-|                    | Apache Hop         | `localhost:4424` (`hop.test`)   | `hop:8080`              |
-|                    | Apache Superset    | `localhost:4425` (`superset.test`) | `superset:8088`      |
-|                    | Semgrep viewer     | `localhost:4426` (`semgrep.test`) | `semgrep:80`          |
-|                    | InsightTrack UI    | `localhost:4427` (`insighttrack.test`) | `insighttrack:4173` |
-|                    | InsightTrack API   | `localhost:4428`                | `insighttrack-backend:3001` |
-|                    | Vaultwarden        | `localhost:4429` (`vaultwarden.test`) | `vaultwarden:80`    |
-|                    | Werkyn             | `localhost:4435` (`werkyn.test`) | `werkyn:3000`       |
-| **Realtime** `443x`|--------------------------------------------------------------------------------|
-|                    | Soketi (Pusher)    | `localhost:4430` (`ws.test`)    | `soketi:6001`           |
-|                    | Centrifugo + UI    | `localhost:4431` (`centrifugo.test`) | `centrifugo:8000`  |
-|                    | Mosquitto — MQTT   | `localhost:4432`                | `mosquitto:1883`        |
-|                    | Mosquitto — MQTT/WS | `localhost:4433` (path `/`)     | `mosquitto:9001`        |
-|                    | MQTTX web client   | `localhost:4434` (`mqtt.test`)  | `mqttx:80`              |
-| **Infra**          |--------------------------------------------------------------------------------|
-|                    | Web proxy          | `localhost:80` (`*.test`)       |            —            |
-|                    | DNS                | `localhost:53` (udp + tcp)      |            —            |
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Service</th>
+<th>Host + Port</th>
+<th>From Container + Port</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>**Data** `440x`</td>
+<td>--------------------------------------------------------------------------------</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>MySQL</td>
+<td>`localhost:4400`</td>
+<td>`mysql:3306`</td>
+</tr>
+<tr>
+<td></td>
+<td>PostgreSQL</td>
+<td>`localhost:4401`</td>
+<td>`postgres:5432`</td>
+</tr>
+<tr>
+<td></td>
+<td>MongoDB</td>
+<td>`localhost:4402`</td>
+<td>`mongo:27017`</td>
+</tr>
+<tr>
+<td></td>
+<td>Redis</td>
+<td>`localhost:4403`</td>
+<td>`redis:6379`</td>
+</tr>
+<tr>
+<td></td>
+<td>Memcached</td>
+<td>`localhost:4404`</td>
+<td>`memcached:11211`</td>
+</tr>
+<tr>
+<td>**Kafka** `441x`</td>
+<td>--------------------------------------------------------------------------------</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>Broker (bootstrap)</td>
+<td>`localhost:4410`</td>
+<td>`kafka-broker:9092`</td>
+</tr>
+<tr>
+<td></td>
+<td>Schema Registry</td>
+<td>`localhost:4411`</td>
+<td>`schema-registry:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>Connect — generic</td>
+<td>`localhost:4412`</td>
+<td>`connect-generic:8083`</td>
+</tr>
+<tr>
+<td></td>
+<td>Connect — Debezium</td>
+<td>`localhost:4413`</td>
+<td>`connect-debezium:8083`</td>
+</tr>
+<tr>
+<td>**Web UIs** `442x+`</td>
+<td>-------------------------------------------------------------------------------</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>Kafka UI</td>
+<td>`localhost:4420`</td>
+<td>`kafka-ui:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>phpCacheAdmin</td>
+<td>`localhost:4421` (`cache.test`)</td>
+<td>`phpcacheadmin:80`</td>
+</tr>
+<tr>
+<td></td>
+<td>DBGate</td>
+<td>`localhost:4422` (`db.test`)</td>
+<td>`dbgate:3000`</td>
+</tr>
+<tr>
+<td></td>
+<td>DrawDB</td>
+<td>`localhost:4423` (**not** `drawdb.test`)</td>
+<td>`drawdb:80`</td>
+</tr>
+<tr>
+<td></td>
+<td>Apache Hop</td>
+<td>`localhost:4424` (`hop.test`)</td>
+<td>`hop:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>Apache Superset</td>
+<td>`localhost:4425` (`superset.test`)</td>
+<td>`superset:8088`</td>
+</tr>
+<tr>
+<td></td>
+<td>Semgrep viewer</td>
+<td>`localhost:4426` (`semgrep.test`)</td>
+<td>`semgrep:80`</td>
+</tr>
+<tr>
+<td></td>
+<td>InsightTrack UI</td>
+<td>`localhost:4427` (`insighttrack.test`)</td>
+<td>`insighttrack:4173`</td>
+</tr>
+<tr>
+<td></td>
+<td>InsightTrack API</td>
+<td>`localhost:4428`</td>
+<td>`insighttrack-backend:3001`</td>
+</tr>
+<tr>
+<td></td>
+<td>Vaultwarden</td>
+<td>`localhost:4429` (`vaultwarden.test`)</td>
+<td>`vaultwarden:80`</td>
+</tr>
+<tr>
+<td></td>
+<td>Werkyn</td>
+<td>`localhost:4435` (`werkyn.test`)</td>
+<td>`werkyn:3000`</td>
+</tr>
+<tr>
+<td>**Realtime** `443x`</td>
+<td>--------------------------------------------------------------------------------</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>Soketi (Pusher)</td>
+<td>`localhost:4430` (`ws.test`)</td>
+<td>`soketi:6001`</td>
+</tr>
+<tr>
+<td></td>
+<td>Centrifugo + UI</td>
+<td>`localhost:4431` (`centrifugo.test`)</td>
+<td>`centrifugo:8000`</td>
+</tr>
+<tr>
+<td></td>
+<td>Mosquitto — MQTT</td>
+<td>`localhost:4432`</td>
+<td>`mosquitto:1883`</td>
+</tr>
+<tr>
+<td></td>
+<td>Mosquitto — MQTT/WS</td>
+<td>`localhost:4433` (path `/`)</td>
+<td>`mosquitto:9001`</td>
+</tr>
+<tr>
+<td></td>
+<td>MQTTX web client</td>
+<td>`localhost:4434` (`mqtt.test`)</td>
+<td>`mqttx:80`</td>
+</tr>
+<tr>
+<td>**Infra**</td>
+<td>--------------------------------------------------------------------------------</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>Web proxy</td>
+<td>`localhost:80` (`*.test`)</td>
+<td>—</td>
+</tr>
+<tr>
+<td></td>
+<td>DNS</td>
+<td>`localhost:53` (udp + tcp)</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
 
 ## Hosting your projects (Devilbox-style)
 

@@ -4,12 +4,37 @@
 DuckDB, …) but **not** the following, because they are GPL-licensed or have
 restrictive redistribution terms:
 
-| Driver | Why not bundled | Driver class |
-|--------|----------------|---------------|
-| **MySQL Connector/J** | GPL | `com.mysql.cj.jdbc.Driver` |
-| **MariaDB JDBC** | LGPL | `org.mariadb.jdbc.Driver` |
-| **Oracle JDBC (ojdbc11)** | Oracle Free Use Terms | `oracle.jdbc.OracleDriver` |
-| **Microsoft SQL Server JDBC** | Microsoft EULA | `com.microsoft.sqlserver.jdbc.SQLServerDriver` |
+<table>
+<thead>
+<tr>
+<th>Driver</th>
+<th>Why not bundled</th>
+<th>Driver class</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>**MySQL Connector/J**</td>
+<td>GPL</td>
+<td>`com.mysql.cj.jdbc.Driver`</td>
+</tr>
+<tr>
+<td>**MariaDB JDBC**</td>
+<td>LGPL</td>
+<td>`org.mariadb.jdbc.Driver`</td>
+</tr>
+<tr>
+<td>**Oracle JDBC (ojdbc11)**</td>
+<td>Oracle Free Use Terms</td>
+<td>`oracle.jdbc.OracleDriver`</td>
+</tr>
+<tr>
+<td>**Microsoft SQL Server JDBC**</td>
+<td>Microsoft EULA</td>
+<td>`com.microsoft.sqlserver.jdbc.SQLServerDriver`</td>
+</tr>
+</tbody>
+</table>
 
 Hop ships the MySQL *dialect* plugin, so the database type appears in the UI,
 but connecting fails with:

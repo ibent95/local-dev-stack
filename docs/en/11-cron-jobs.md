@@ -40,13 +40,42 @@ It's on `lds-network`, so the job reaches backing services by name:
 ### Available cron techs (and how each runs)
 Pick the role-tech; the template wires the base image + crontab command for you:
 
-| Language | Dockerfile base | crontab line |
-|---|---|---|
-| Shell | `alpine` (default) | `*/5 * * * * /app/job.sh` |
-| Python | `python:3.12-slim` | `*/5 * * * * python /app/job.py` |
-| Node | `node:22-alpine` | `*/5 * * * * node /app/job.js` |
-| PHP | `php:8.4-cli` | `*/5 * * * * php /app/job.php` |
-| Go (compiled) | multi-stage → binary on `alpine` | `*/5 * * * * /app/job` |
+<table>
+<thead>
+<tr>
+<th>Language</th>
+<th>Dockerfile base</th>
+<th>crontab line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Shell</td>
+<td>`alpine` (default)</td>
+<td>`*/5 * * * * /app/job.sh`</td>
+</tr>
+<tr>
+<td>Python</td>
+<td>`python:3.12-slim`</td>
+<td>`*/5 * * * * python /app/job.py`</td>
+</tr>
+<tr>
+<td>Node</td>
+<td>`node:22-alpine`</td>
+<td>`*/5 * * * * node /app/job.js`</td>
+</tr>
+<tr>
+<td>PHP</td>
+<td>`php:8.4-cli`</td>
+<td>`*/5 * * * * php /app/job.php`</td>
+</tr>
+<tr>
+<td>Go (compiled)</td>
+<td>multi-stage → binary on `alpine`</td>
+<td>`*/5 * * * * /app/job`</td>
+</tr>
+</tbody>
+</table>
 
 Interpreted runtimes (Python/Node/PHP) just run the script. Compiled ones
 (Go/Rust/Java) build the artifact in a build stage, then supercronic runs the

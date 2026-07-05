@@ -41,12 +41,32 @@ of this folder is scanned as a plugin.
 
 ## Known Apache-2.0 connectors
 
-| short | repo |
-|-------|------|
-| `jdbc`       | Aiven-Open/jdbc-connector-for-apache-kafka |
-| `s3`         | Aiven-Open/s3-connector-for-apache-kafka |
-| `http`       | Aiven-Open/http-connector-for-apache-kafka |
-| `opensearch` | Aiven-Open/opensearch-connector-for-apache-kafka |
+<table>
+<thead>
+<tr>
+<th>short</th>
+<th>repo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>`jdbc`</td>
+<td>Aiven-Open/jdbc-connector-for-apache-kafka</td>
+</tr>
+<tr>
+<td>`s3`</td>
+<td>Aiven-Open/s3-connector-for-apache-kafka</td>
+</tr>
+<tr>
+<td>`http`</td>
+<td>Aiven-Open/http-connector-for-apache-kafka</td>
+</tr>
+<tr>
+<td>`opensearch`</td>
+<td>Aiven-Open/opensearch-connector-for-apache-kafka</td>
+</tr>
+</tbody>
+</table>
 
 > Note: everything here except this README and `.gitkeep` is git-ignored — the
 > JARs are downloaded artifacts, not committed.

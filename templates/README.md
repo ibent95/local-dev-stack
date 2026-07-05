@@ -12,52 +12,308 @@ Two naming axes:
 
 ### APIs (`svc-`, return JSON)
 
-| Template                   | Stack (web tech)              | Hot reload  | Default URL                          | Code       |
-|----------------------------|-------------------------------|-------------|--------------------------------------|------------|
-| `svc-template-go`          | Go — `net/http` (native)      | air         | http://svc-template-go.test          | included   |
-| `svc-template-node`        | Node — `http` module (native) | tsx watch   | http://svc-template-node.test        | included   |
-| `svc-template-python`      | Python — `http.server` (native)| watchfiles | http://svc-template-python.test      | included   |
-| `svc-template-java`        | Java — Servlet (native)       | rebuild     | http://svc-template-java.test        | included   |
-| `svc-template-rust`        | Rust — axum                   | cargo-watch | http://svc-template-rust.test        | included   |
-| `svc-template-springboot`  | Java — Spring Boot            | devtools    | http://svc-template-springboot.test  | included   |
-| `svc-template-express`     | Node — Express                | tsx watch   | http://svc-template-express.test     | included   |
-| `svc-template-flask`       | Python — Flask                | flask debug | http://svc-template-flask.test       | included   |
-| `svc-template-fastapi`     | Python — FastAPI              | uvicorn     | http://svc-template-fastapi.test     | included   |
-| `svc-template-django`      | Python — Django + DRF         | runserver   | http://svc-template-django.test      | scaffolded |
-| `svc-template-laravel`     | PHP — Laravel (API-only)      | php-fpm     | http://svc-template-laravel.test     | scaffolded |
-| `svc-template-symfony`     | PHP — Symfony (skeleton)      | php-fpm     | http://svc-template-symfony.test     | scaffolded |
-| `svc-template-slim`        | PHP — Slim (micro)            | php-fpm     | http://svc-template-slim.test        | included   |
-| `svc-template-webman`      | PHP — Webman (workerman)      | restart     | http://svc-template-webman.test      | scaffolded |
-| `svc-template-codeigniter` | PHP — CodeIgniter 4           | php-fpm     | http://svc-template-codeigniter.test | scaffolded |
-| `svc-template-cakephp`     | PHP — CakePHP                 | php-fpm     | http://svc-template-cakephp.test     | scaffolded |
-| `svc-template-micronaut`   | Java — Micronaut              | mn:run      | http://svc-template-micronaut.test   | scaffolded |
-| `svc-template-quarkus`     | Java — Quarkus                | quarkus:dev | http://svc-template-quarkus.test     | scaffolded |
+<table>
+<thead>
+<tr>
+<th>Template</th>
+<th>Stack (web tech)</th>
+<th>Hot reload</th>
+<th>Default URL</th>
+<th>Code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>`svc-template-go`</td>
+<td>Go — `net/http` (native)</td>
+<td>air</td>
+<td>http://svc-template-go.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`svc-template-node`</td>
+<td>Node — `http` module (native)</td>
+<td>tsx watch</td>
+<td>http://svc-template-node.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`svc-template-python`</td>
+<td>Python — `http.server` (native)</td>
+<td>watchfiles</td>
+<td>http://svc-template-python.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`svc-template-java`</td>
+<td>Java — Servlet (native)</td>
+<td>rebuild</td>
+<td>http://svc-template-java.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`svc-template-rust`</td>
+<td>Rust — axum</td>
+<td>cargo-watch</td>
+<td>http://svc-template-rust.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`svc-template-springboot`</td>
+<td>Java — Spring Boot</td>
+<td>devtools</td>
+<td>http://svc-template-springboot.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`svc-template-express`</td>
+<td>Node — Express</td>
+<td>tsx watch</td>
+<td>http://svc-template-express.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`svc-template-flask`</td>
+<td>Python — Flask</td>
+<td>flask debug</td>
+<td>http://svc-template-flask.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`svc-template-fastapi`</td>
+<td>Python — FastAPI</td>
+<td>uvicorn</td>
+<td>http://svc-template-fastapi.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`svc-template-django`</td>
+<td>Python — Django + DRF</td>
+<td>runserver</td>
+<td>http://svc-template-django.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`svc-template-laravel`</td>
+<td>PHP — Laravel (API-only)</td>
+<td>php-fpm</td>
+<td>http://svc-template-laravel.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`svc-template-symfony`</td>
+<td>PHP — Symfony (skeleton)</td>
+<td>php-fpm</td>
+<td>http://svc-template-symfony.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`svc-template-slim`</td>
+<td>PHP — Slim (micro)</td>
+<td>php-fpm</td>
+<td>http://svc-template-slim.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`svc-template-webman`</td>
+<td>PHP — Webman (workerman)</td>
+<td>restart</td>
+<td>http://svc-template-webman.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`svc-template-codeigniter`</td>
+<td>PHP — CodeIgniter 4</td>
+<td>php-fpm</td>
+<td>http://svc-template-codeigniter.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`svc-template-cakephp`</td>
+<td>PHP — CakePHP</td>
+<td>php-fpm</td>
+<td>http://svc-template-cakephp.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`svc-template-micronaut`</td>
+<td>Java — Micronaut</td>
+<td>mn:run</td>
+<td>http://svc-template-micronaut.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`svc-template-quarkus`</td>
+<td>Java — Quarkus</td>
+<td>quarkus:dev</td>
+<td>http://svc-template-quarkus.test</td>
+<td>scaffolded</td>
+</tr>
+</tbody>
+</table>
 
 ### Web apps (`web-`, serve a UI)
 
-| Template                   | Stack (web tech)                 | Hot reload   | Default URL                          | Code       |
-|----------------------------|----------------------------------|--------------|--------------------------------------|------------|
-| `web-template-go`          | Go — `html/template` (native)    | air          | http://web-template-go.test          | included   |
-| `web-template-node`        | Node — `http` module (native)    | tsx watch    | http://web-template-node.test        | included   |
-| `web-template-python`      | Python — `http.server` (native)  | watchfiles   | http://web-template-python.test      | included   |
-| `web-template-java`        | Java — Servlet (native)          | rebuild      | http://web-template-java.test        | included   |
-| `web-template-rust`        | Rust — axum (HTML)               | cargo-watch  | http://web-template-rust.test        | included   |
-| `web-template-springboot`  | Java — Spring Boot + Thymeleaf   | devtools     | http://web-template-springboot.test  | included   |
-| `web-template-express`     | Node — Express (HTML)            | tsx watch    | http://web-template-express.test     | included   |
-| `web-template-flask`       | Python — Flask (HTML)            | flask debug  | http://web-template-flask.test       | included   |
-| `web-template-fastapi`     | Python — FastAPI (HTML)          | uvicorn      | http://web-template-fastapi.test     | included   |
-| `web-template-django`      | Python — Django (templates)      | runserver    | http://web-template-django.test      | scaffolded |
-| `web-template-laravel`     | PHP — Laravel (Blade + Vite)     | php-fpm/vite | http://web-template-laravel.test     | scaffolded |
-| `web-template-symfony`     | PHP — Symfony (webapp/Twig)      | php-fpm      | http://web-template-symfony.test     | scaffolded |
-| `web-template-slim`        | PHP — Slim (HTML)                | php-fpm      | http://web-template-slim.test        | included   |
-| `web-template-webman`      | PHP — Webman (workerman)         | restart      | http://web-template-webman.test      | scaffolded |
-| `web-template-codeigniter` | PHP — CodeIgniter 4 (views)      | php-fpm      | http://web-template-codeigniter.test | scaffolded |
-| `web-template-cakephp`     | PHP — CakePHP (views)            | php-fpm      | http://web-template-cakephp.test     | scaffolded |
-| `web-template-micronaut`   | Java — Micronaut (views)         | mn:run       | http://web-template-micronaut.test   | scaffolded |
-| `web-template-quarkus`     | Java — Quarkus (Qute)            | quarkus:dev  | http://web-template-quarkus.test     | scaffolded |
-| `web-template-vaadin`      | Java — Vaadin (Flow, free core)  | spring-boot  | http://web-template-vaadin.test      | scaffolded |
-| `web-template-angular`     | Angular (SPA)                    | ng/HMR       | http://web-template-angular.test     | scaffolded |
-| `web-template-react`       | React + Vite (SPA)               | vite HMR     | http://web-template-react.test       | scaffolded |
+<table>
+<thead>
+<tr>
+<th>Template</th>
+<th>Stack (web tech)</th>
+<th>Hot reload</th>
+<th>Default URL</th>
+<th>Code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>`web-template-go`</td>
+<td>Go — `html/template` (native)</td>
+<td>air</td>
+<td>http://web-template-go.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`web-template-node`</td>
+<td>Node — `http` module (native)</td>
+<td>tsx watch</td>
+<td>http://web-template-node.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`web-template-python`</td>
+<td>Python — `http.server` (native)</td>
+<td>watchfiles</td>
+<td>http://web-template-python.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`web-template-java`</td>
+<td>Java — Servlet (native)</td>
+<td>rebuild</td>
+<td>http://web-template-java.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`web-template-rust`</td>
+<td>Rust — axum (HTML)</td>
+<td>cargo-watch</td>
+<td>http://web-template-rust.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`web-template-springboot`</td>
+<td>Java — Spring Boot + Thymeleaf</td>
+<td>devtools</td>
+<td>http://web-template-springboot.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`web-template-express`</td>
+<td>Node — Express (HTML)</td>
+<td>tsx watch</td>
+<td>http://web-template-express.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`web-template-flask`</td>
+<td>Python — Flask (HTML)</td>
+<td>flask debug</td>
+<td>http://web-template-flask.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`web-template-fastapi`</td>
+<td>Python — FastAPI (HTML)</td>
+<td>uvicorn</td>
+<td>http://web-template-fastapi.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`web-template-django`</td>
+<td>Python — Django (templates)</td>
+<td>runserver</td>
+<td>http://web-template-django.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`web-template-laravel`</td>
+<td>PHP — Laravel (Blade + Vite)</td>
+<td>php-fpm/vite</td>
+<td>http://web-template-laravel.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`web-template-symfony`</td>
+<td>PHP — Symfony (webapp/Twig)</td>
+<td>php-fpm</td>
+<td>http://web-template-symfony.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`web-template-slim`</td>
+<td>PHP — Slim (HTML)</td>
+<td>php-fpm</td>
+<td>http://web-template-slim.test</td>
+<td>included</td>
+</tr>
+<tr>
+<td>`web-template-webman`</td>
+<td>PHP — Webman (workerman)</td>
+<td>restart</td>
+<td>http://web-template-webman.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`web-template-codeigniter`</td>
+<td>PHP — CodeIgniter 4 (views)</td>
+<td>php-fpm</td>
+<td>http://web-template-codeigniter.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`web-template-cakephp`</td>
+<td>PHP — CakePHP (views)</td>
+<td>php-fpm</td>
+<td>http://web-template-cakephp.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`web-template-micronaut`</td>
+<td>Java — Micronaut (views)</td>
+<td>mn:run</td>
+<td>http://web-template-micronaut.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`web-template-quarkus`</td>
+<td>Java — Quarkus (Qute)</td>
+<td>quarkus:dev</td>
+<td>http://web-template-quarkus.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`web-template-vaadin`</td>
+<td>Java — Vaadin (Flow, free core)</td>
+<td>spring-boot</td>
+<td>http://web-template-vaadin.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`web-template-angular`</td>
+<td>Angular (SPA)</td>
+<td>ng/HMR</td>
+<td>http://web-template-angular.test</td>
+<td>scaffolded</td>
+</tr>
+<tr>
+<td>`web-template-react`</td>
+<td>React + Vite (SPA)</td>
+<td>vite HMR</td>
+<td>http://web-template-react.test</td>
+<td>scaffolded</td>
+</tr>
+</tbody>
+</table>
 
 `go`, `node`, `python`, `java` are **native** (Go `net/http`, Node `http`,
 Python `http.server`, Java Servlet; Rust uses axum as it has no stdlib HTTP
@@ -80,13 +336,42 @@ Scaffold with `lds new cron-<tech> <name>` → lands in that tech's
 `*_PROJECTS_PATH` (cron-python → `PYTHON_PROJECTS_PATH`, etc.); `cron-shell`
 uses `JOBS_PROJECTS_PATH`.
 
-| Template | Language | crontab runs |
-|---|---|---|
-| `cron-template-shell`  | POSIX shell | `/app/job.sh` |
-| `cron-template-python` | Python      | `python /app/job.py` |
-| `cron-template-node`   | Node.js     | `node /app/job.js` |
-| `cron-template-go`     | Go (compiled → binary) | `/app/job` |
-| `cron-template-php`    | PHP (CLI)   | `php /app/job.php` |
+<table>
+<thead>
+<tr>
+<th>Template</th>
+<th>Language</th>
+<th>crontab runs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>`cron-template-shell`</td>
+<td>POSIX shell</td>
+<td>`/app/job.sh`</td>
+</tr>
+<tr>
+<td>`cron-template-python`</td>
+<td>Python</td>
+<td>`python /app/job.py`</td>
+</tr>
+<tr>
+<td>`cron-template-node`</td>
+<td>Node.js</td>
+<td>`node /app/job.js`</td>
+</tr>
+<tr>
+<td>`cron-template-go`</td>
+<td>Go (compiled → binary)</td>
+<td>`/app/job`</td>
+</tr>
+<tr>
+<td>`cron-template-php`</td>
+<td>PHP (CLI)</td>
+<td>`php /app/job.php`</td>
+</tr>
+</tbody>
+</table>
 
 Manage with `lds app start|logs|stop`. See `docs/en/11-cron-jobs.md`.
 

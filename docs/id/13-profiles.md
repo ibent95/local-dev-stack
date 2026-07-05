@@ -17,29 +17,144 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
   **kedua** profile `proxy` dan `php`, jadi mengaktifkan `php` otomatis ikut
   membawa proxy dan DNS.
 
-| Profile      | Toggle `.env`           | Default | Layanan yang dijalankan                                            |
-|--------------|-------------------------|:-------:|--------------------------------------------------------------------|
-| `proxy`      | `LDS_ENABLE_PROXY`      |   ✅    | `proxy`, `dns`                                                     |
-| `php`        | `LDS_ENABLE_PHP`        |   ✅    | `php`, `proxy`, `dns`                                               |
-| `mysql`      | `LDS_ENABLE_MYSQL`      |   ✅    | `mysql`                                                            |
-| `postgres`   | `LDS_ENABLE_POSTGRES`   |   ❌    | `postgres`                                                        |
-| `mongo`      | `LDS_ENABLE_MONGO`      |   ❌    | `mongo`                                                           |
-| `redis`      | `LDS_ENABLE_REDIS`      |   ❌    | `redis`                                                          |
-| `memcached`  | `LDS_ENABLE_MEMCACHED`  |   ❌    | `memcached`                                                       |
-| `kafka`      | `LDS_ENABLE_KAFKA`      |   ❌    | `kafka-controller`, `kafka-broker`, `schema-registry`, `connect-debezium`, `connect-generic`, `kafka-ui` |
-| `phpcacheadmin` | `LDS_ENABLE_PHPCACHEADMIN` | ❌ | `phpcacheadmin`                                              |
-| `dbgate`     | `LDS_ENABLE_DBGATE`     |   ✅    | `dbgate`                                                        |
-| `soketi`     | `LDS_ENABLE_SOKETI`     |   ❌    | `soketi`                                                         |
-| `centrifugo` | `LDS_ENABLE_CENTRIFUGO` |   ❌    | `centrifugo`                                                     |
-| `mqtt`       | `LDS_ENABLE_MQTT`       |   ❌    | `mosquitto`, `mqttx`                                             |
-| `drawdb`     | `LDS_ENABLE_DRAWDB`     |   ❌    | `drawdb` — perancang skema DB (buka di `localhost:4423`)        |
-| `hop`        | `LDS_ENABLE_HOP`        |   ❌    | `hop` — Apache Hop Web (perancang ETL)                          |
-| `superset`   | `LDS_ENABLE_SUPERSET`   |   ❌    | `superset` — Apache Superset (BI)                               |
-| `semgrep`    | `LDS_ENABLE_SEMGREP`    |   ❌    | `semgrep` — viewer SARIF (`lds tools semgrep` menjalankan scan) |
-| `insighttrack` | `LDS_ENABLE_INSIGHTTRACK` | ❌ | `insighttrack-backend`, `insighttrack` — web analytics self-hosted |
-| `vaultwarden` | `LDS_ENABLE_VAULTWARDEN` | ❌ | `vaultwarden` — password manager                                 |
-| `werkyn`     | `LDS_ENABLE_WERKYN`     |   ❌    | `werkyn` — aplikasi project management/kolaborasi                |
-| `all`        | —                       |   —     | semua layanan di atas                                            |
+<table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>Toggle `.env`</th>
+<th>Default</th>
+<th>Layanan yang dijalankan</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>`proxy`</td>
+<td>`LDS_ENABLE_PROXY`</td>
+<td>✅</td>
+<td>`proxy`, `dns`</td>
+</tr>
+<tr>
+<td>`php`</td>
+<td>`LDS_ENABLE_PHP`</td>
+<td>✅</td>
+<td>`php`, `proxy`, `dns`</td>
+</tr>
+<tr>
+<td>`mysql`</td>
+<td>`LDS_ENABLE_MYSQL`</td>
+<td>✅</td>
+<td>`mysql`</td>
+</tr>
+<tr>
+<td>`postgres`</td>
+<td>`LDS_ENABLE_POSTGRES`</td>
+<td>❌</td>
+<td>`postgres`</td>
+</tr>
+<tr>
+<td>`mongo`</td>
+<td>`LDS_ENABLE_MONGO`</td>
+<td>❌</td>
+<td>`mongo`</td>
+</tr>
+<tr>
+<td>`redis`</td>
+<td>`LDS_ENABLE_REDIS`</td>
+<td>❌</td>
+<td>`redis`</td>
+</tr>
+<tr>
+<td>`memcached`</td>
+<td>`LDS_ENABLE_MEMCACHED`</td>
+<td>❌</td>
+<td>`memcached`</td>
+</tr>
+<tr>
+<td>`kafka`</td>
+<td>`LDS_ENABLE_KAFKA`</td>
+<td>❌</td>
+<td>`kafka-controller`, `kafka-broker`, `schema-registry`, `connect-debezium`, `connect-generic`, `kafka-ui`</td>
+</tr>
+<tr>
+<td>`phpcacheadmin`</td>
+<td>`LDS_ENABLE_PHPCACHEADMIN`</td>
+<td>❌</td>
+<td>`phpcacheadmin`</td>
+</tr>
+<tr>
+<td>`dbgate`</td>
+<td>`LDS_ENABLE_DBGATE`</td>
+<td>✅</td>
+<td>`dbgate`</td>
+</tr>
+<tr>
+<td>`soketi`</td>
+<td>`LDS_ENABLE_SOKETI`</td>
+<td>❌</td>
+<td>`soketi`</td>
+</tr>
+<tr>
+<td>`centrifugo`</td>
+<td>`LDS_ENABLE_CENTRIFUGO`</td>
+<td>❌</td>
+<td>`centrifugo`</td>
+</tr>
+<tr>
+<td>`mqtt`</td>
+<td>`LDS_ENABLE_MQTT`</td>
+<td>❌</td>
+<td>`mosquitto`, `mqttx`</td>
+</tr>
+<tr>
+<td>`drawdb`</td>
+<td>`LDS_ENABLE_DRAWDB`</td>
+<td>❌</td>
+<td>`drawdb` — perancang skema DB (buka di `localhost:4423`)</td>
+</tr>
+<tr>
+<td>`hop`</td>
+<td>`LDS_ENABLE_HOP`</td>
+<td>❌</td>
+<td>`hop` — Apache Hop Web (perancang ETL)</td>
+</tr>
+<tr>
+<td>`superset`</td>
+<td>`LDS_ENABLE_SUPERSET`</td>
+<td>❌</td>
+<td>`superset` — Apache Superset (BI)</td>
+</tr>
+<tr>
+<td>`semgrep`</td>
+<td>`LDS_ENABLE_SEMGREP`</td>
+<td>❌</td>
+<td>`semgrep` — viewer SARIF (`lds tools semgrep` menjalankan scan)</td>
+</tr>
+<tr>
+<td>`insighttrack`</td>
+<td>`LDS_ENABLE_INSIGHTTRACK`</td>
+<td>❌</td>
+<td>`insighttrack-backend`, `insighttrack` — web analytics self-hosted</td>
+</tr>
+<tr>
+<td>`vaultwarden`</td>
+<td>`LDS_ENABLE_VAULTWARDEN`</td>
+<td>❌</td>
+<td>`vaultwarden` — password manager</td>
+</tr>
+<tr>
+<td>`werkyn`</td>
+<td>`LDS_ENABLE_WERKYN`</td>
+<td>❌</td>
+<td>`werkyn` — aplikasi project management/kolaborasi</td>
+</tr>
+<tr>
+<td>`all`</td>
+<td>—</td>
+<td>—</td>
+<td>semua layanan di atas</td>
+</tr>
+</tbody>
+</table>
 
 > **Tool data** (`drawdb`, `hop`, `superset`, `semgrep`, `insighttrack`, `vaultwarden`, `werkyn`) punya halaman sendiri —
 > lihat [15 · Dashboard & data tools](15-data-tools.md). Panel kontrol di

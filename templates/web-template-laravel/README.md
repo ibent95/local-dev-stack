@@ -11,13 +11,42 @@ programs (php-fpm + nginx + queue + scheduler + Vite). Routed at
 Each supervisord program starts only if its env var is `true` (defaults set in
 the Dockerfile; override in `.env` or compose):
 
-| Env var | Program | Default |
-|---------|---------|---------|
-| `ENABLE_PHP` | php-fpm | `true` |
-| `ENABLE_NGINX` | nginx (serves `public/`) | `true` |
-| `ENABLE_QUEUE` | `php artisan queue:work` | `false` |
-| `ENABLE_SCHEDULER` | `php artisan schedule:run` loop | `false` |
-| `ENABLE_VITE` | `npm run dev` (HMR) | `false` |
+<table>
+<thead>
+<tr>
+<th>Env var</th>
+<th>Program</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>`ENABLE_PHP`</td>
+<td>php-fpm</td>
+<td>`true`</td>
+</tr>
+<tr>
+<td>`ENABLE_NGINX`</td>
+<td>nginx (serves `public/`)</td>
+<td>`true`</td>
+</tr>
+<tr>
+<td>`ENABLE_QUEUE`</td>
+<td>`php artisan queue:work`</td>
+<td>`false`</td>
+</tr>
+<tr>
+<td>`ENABLE_SCHEDULER`</td>
+<td>`php artisan schedule:run` loop</td>
+<td>`false`</td>
+</tr>
+<tr>
+<td>`ENABLE_VITE`</td>
+<td>`npm run dev` (HMR)</td>
+<td>`false`</td>
+</tr>
+</tbody>
+</table>
 
 ## 1. Scaffold Laravel (once)
 

@@ -9,14 +9,47 @@ All bases build **FROM Docker Hardened Images (DHI)** under
 defaults to a non-root user, so each Dockerfile does `USER root` for its build +
 runtime steps.
 
-| Image | FROM (DHI) | Contents |
-|-------|------------|----------|
-| `lds/php` | `alpine-base:3.24-dev` ¹ | php-fpm + extensions + composer **+ nginx + supervisor**, bakes the global `configs/php-app/*` (the ONE PHP base; supervisord runs php-fpm + nginx) |
-| `lds/go-dev` | `golang:1.26-alpine3.24-dev` | Go + air |
-| `lds/rust-dev` | `rust:1.96-alpine3.24-dev` | Rust + cargo-watch |
-| `lds/node-dev` | `node:26.3-alpine3.24-dev` | pinned Node |
-| `lds/python-dev` | `python:3.14-alpine3.24-dev` | Python + watchfiles |
-| `lds/java-dev` | `eclipse-temurin:25-jdk-alpine3.24-dev` ² | Maven + JDK |
+<table>
+<thead>
+<tr>
+<th>Image</th>
+<th>FROM (DHI)</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>`lds/php`</td>
+<td>`alpine-base:3.24-dev` ¹</td>
+<td>php-fpm + extensions + composer **+ nginx + supervisor**, bakes the global `configs/php-app/*` (the ONE PHP base; supervisord runs php-fpm + nginx)</td>
+</tr>
+<tr>
+<td>`lds/go-dev`</td>
+<td>`golang:1.26-alpine3.24-dev`</td>
+<td>Go + air</td>
+</tr>
+<tr>
+<td>`lds/rust-dev`</td>
+<td>`rust:1.96-alpine3.24-dev`</td>
+<td>Rust + cargo-watch</td>
+</tr>
+<tr>
+<td>`lds/node-dev`</td>
+<td>`node:26.3-alpine3.24-dev`</td>
+<td>pinned Node</td>
+</tr>
+<tr>
+<td>`lds/python-dev`</td>
+<td>`python:3.14-alpine3.24-dev`</td>
+<td>Python + watchfiles</td>
+</tr>
+<tr>
+<td>`lds/java-dev`</td>
+<td>`eclipse-temurin:25-jdk-alpine3.24-dev` ²</td>
+<td>Maven + JDK</td>
+</tr>
+</tbody>
+</table>
 
 ¹ **PHP is the DHI exception.** The `dhi.io/php` images are split — a minimal
 `-dev` build with **no php-fpm** and **no `docker-php-ext-*` helpers**, plus a

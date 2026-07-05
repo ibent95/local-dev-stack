@@ -3,10 +3,27 @@
 For `http://<name>.test` to open in your browser, the host OS has to resolve
 `<name>.test` to `127.0.0.1` (where the proxy listens). There are two ways:
 
-| Approach | Covers | Best for |
-|----------|--------|----------|
-| **Adapter DNS → `127.0.0.1`** (the `dns` container) | **every** `*.test`, current + future, wildcard | daily use — set once, never touch again |
-| **`lds hosts-sync`** (hosts file) | only the names it writes (PHP folders + stack UIs) | quick try / locked-down machines where you can't change DNS |
+<table>
+<thead>
+<tr>
+<th>Approach</th>
+<th>Covers</th>
+<th>Best for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>**Adapter DNS → `127.0.0.1`** (the `dns` container)</td>
+<td>**every** `*.test`, current + future, wildcard</td>
+<td>daily use — set once, never touch again</td>
+</tr>
+<tr>
+<td>**`lds hosts-sync`** (hosts file)</td>
+<td>only the names it writes (PHP folders + stack UIs)</td>
+<td>quick try / locked-down machines where you can't change DNS</td>
+</tr>
+</tbody>
+</table>
 
 The hosts file **cannot do wildcards**, so every new `.test` host needs a
 re-sync. Pointing your adapter's DNS at the `dns` container is the wildcard

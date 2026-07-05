@@ -3,41 +3,216 @@
 Semua port host berada di blok **`44xx`** agar tidak bentrok dengan apa pun di
 mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 
-|        Grup        |      Layanan       |           Host + Port           |  Dari Container + Port  |
-|--------------------|--------------------|---------------------------------|-------------------------|
-| **Data** `440x` ----------------------------------------------------------------------------------|||
-|                    | MySQL              | `localhost:4400`                | `mysql:3306`            |
-|                    | PostgreSQL         | `localhost:4401`                | `postgres:5432`         |
-|                    | MongoDB            | `localhost:4402`                | `mongo:27017`           |
-|                    | Redis              | `localhost:4403`                | `redis:6379`            |
-|                    | Memcached          | `localhost:4404`                | `memcached:11211`       |
-| **Kafka** `441x` ---------------------------------------------------------------------------------|||
-|                    | Broker (bootstrap) | `localhost:4410`                | `kafka-broker:9092`     |
-|                    | Schema Registry    | `localhost:4411`                | `schema-registry:8080`  |
-|                    | Connect — generic  | `localhost:4412`                | `connect-generic:8083`  |
-|                    | Connect — Debezium | `localhost:4413`                | `connect-debezium:8083` |
-| **UI Web** `442x+` -------------------------------------------------------------------------------|||
-|                    | Kafka UI           | `localhost:4420`                | `kafka-ui:8080`         |
-|                    | phpCacheAdmin      | `localhost:4421` (`cache.test`) | `phpcacheadmin:80`      |
-|                    | DBGate             | `localhost:4422` (`db.test`)    | `dbgate:3000`           |
-|                    | DrawDB             | `localhost:4423` (buka di sini, **bukan** `drawdb.test`) | `drawdb:80` |
-|                    | Apache Hop         | `localhost:4424` (`hop.test`)   | `hop:8080`              |
-|                    | Apache Superset    | `localhost:4425` (`superset.test`) | `superset:8088`      |
-|                    | Viewer Semgrep     | `localhost:4426` (`semgrep.test`) | `semgrep:80`          |
-|                    | InsightTrack UI    | `localhost:4427` (`insighttrack.test`) | `insighttrack:4173` |
-|                    | InsightTrack API   | `localhost:4428`                | `insighttrack-backend:3001` |
-|                    | Vaultwarden        | `localhost:4429` (`vaultwarden.test`) | `vaultwarden:80`    |
-|                    | Werkyn             | `localhost:4435` (`werkyn.test`) | `werkyn:3000`          |
-| **Realtime** `443x` ------------------------------------------------------------------------------|||
-|                    | Soketi (Pusher)    | `localhost:4430` (`ws.test`)    | `soketi:6001`           |
-|                    | Centrifugo + UI    | `localhost:4431` (`centrifugo.test`) | `centrifugo:8000`  |
-|                    | Mosquitto — MQTT   | `localhost:4432`                | `mosquitto:1883`        |
-|                    | Mosquitto — MQTT/WS | `localhost:4433` (path `/`)     | `mosquitto:9001`        |
-|                    | MQTTX web client   | `localhost:4434` (`mqtt.test`)  | `mqttx:80`              |
-| **Infra** ----------------------------------------------------------------------------------------|||
-|                    | Proxy web          | `localhost:80` (`*.test`)       |            —            |
-|                    | Proxy web (HTTPS)  | `localhost:443` (`*.test`, opt-in) |         —            |
-|                    | DNS                | `localhost:53` (udp + tcp)      |            —            |
+<table>
+<thead>
+<tr>
+<th>Grup</th>
+<th>Layanan</th>
+<th>Host + Port</th>
+<th>Dari Container + Port</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>**Data** `440x` ----------------------------------------------------------------------------------</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>MySQL</td>
+<td>`localhost:4400`</td>
+<td>`mysql:3306`</td>
+</tr>
+<tr>
+<td></td>
+<td>PostgreSQL</td>
+<td>`localhost:4401`</td>
+<td>`postgres:5432`</td>
+</tr>
+<tr>
+<td></td>
+<td>MongoDB</td>
+<td>`localhost:4402`</td>
+<td>`mongo:27017`</td>
+</tr>
+<tr>
+<td></td>
+<td>Redis</td>
+<td>`localhost:4403`</td>
+<td>`redis:6379`</td>
+</tr>
+<tr>
+<td></td>
+<td>Memcached</td>
+<td>`localhost:4404`</td>
+<td>`memcached:11211`</td>
+</tr>
+<tr>
+<td>**Kafka** `441x` ---------------------------------------------------------------------------------</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>Broker (bootstrap)</td>
+<td>`localhost:4410`</td>
+<td>`kafka-broker:9092`</td>
+</tr>
+<tr>
+<td></td>
+<td>Schema Registry</td>
+<td>`localhost:4411`</td>
+<td>`schema-registry:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>Connect — generic</td>
+<td>`localhost:4412`</td>
+<td>`connect-generic:8083`</td>
+</tr>
+<tr>
+<td></td>
+<td>Connect — Debezium</td>
+<td>`localhost:4413`</td>
+<td>`connect-debezium:8083`</td>
+</tr>
+<tr>
+<td>**UI Web** `442x+` -------------------------------------------------------------------------------</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>Kafka UI</td>
+<td>`localhost:4420`</td>
+<td>`kafka-ui:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>phpCacheAdmin</td>
+<td>`localhost:4421` (`cache.test`)</td>
+<td>`phpcacheadmin:80`</td>
+</tr>
+<tr>
+<td></td>
+<td>DBGate</td>
+<td>`localhost:4422` (`db.test`)</td>
+<td>`dbgate:3000`</td>
+</tr>
+<tr>
+<td></td>
+<td>DrawDB</td>
+<td>`localhost:4423` (buka di sini, **bukan** `drawdb.test`)</td>
+<td>`drawdb:80`</td>
+</tr>
+<tr>
+<td></td>
+<td>Apache Hop</td>
+<td>`localhost:4424` (`hop.test`)</td>
+<td>`hop:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>Apache Superset</td>
+<td>`localhost:4425` (`superset.test`)</td>
+<td>`superset:8088`</td>
+</tr>
+<tr>
+<td></td>
+<td>Viewer Semgrep</td>
+<td>`localhost:4426` (`semgrep.test`)</td>
+<td>`semgrep:80`</td>
+</tr>
+<tr>
+<td></td>
+<td>InsightTrack UI</td>
+<td>`localhost:4427` (`insighttrack.test`)</td>
+<td>`insighttrack:4173`</td>
+</tr>
+<tr>
+<td></td>
+<td>InsightTrack API</td>
+<td>`localhost:4428`</td>
+<td>`insighttrack-backend:3001`</td>
+</tr>
+<tr>
+<td></td>
+<td>Vaultwarden</td>
+<td>`localhost:4429` (`vaultwarden.test`)</td>
+<td>`vaultwarden:80`</td>
+</tr>
+<tr>
+<td></td>
+<td>Werkyn</td>
+<td>`localhost:4435` (`werkyn.test`)</td>
+<td>`werkyn:3000`</td>
+</tr>
+<tr>
+<td>**Realtime** `443x` ------------------------------------------------------------------------------</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>Soketi (Pusher)</td>
+<td>`localhost:4430` (`ws.test`)</td>
+<td>`soketi:6001`</td>
+</tr>
+<tr>
+<td></td>
+<td>Centrifugo + UI</td>
+<td>`localhost:4431` (`centrifugo.test`)</td>
+<td>`centrifugo:8000`</td>
+</tr>
+<tr>
+<td></td>
+<td>Mosquitto — MQTT</td>
+<td>`localhost:4432`</td>
+<td>`mosquitto:1883`</td>
+</tr>
+<tr>
+<td></td>
+<td>Mosquitto — MQTT/WS</td>
+<td>`localhost:4433` (path `/`)</td>
+<td>`mosquitto:9001`</td>
+</tr>
+<tr>
+<td></td>
+<td>MQTTX web client</td>
+<td>`localhost:4434` (`mqtt.test`)</td>
+<td>`mqttx:80`</td>
+</tr>
+<tr>
+<td>**Infra** ----------------------------------------------------------------------------------------</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>Proxy web</td>
+<td>`localhost:80` (`*.test`)</td>
+<td>—</td>
+</tr>
+<tr>
+<td></td>
+<td>Proxy web (HTTPS)</td>
+<td>`localhost:443` (`*.test`, opt-in)</td>
+<td>—</td>
+</tr>
+<tr>
+<td></td>
+<td>DNS</td>
+<td>`localhost:53` (udp + tcp)</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
 
 - **Dari host**, hubungkan ke `localhost:<port>` (kolom kiri).
 - **Dari container lain** di `lds-network`, pakai nama layanan + port

@@ -9,14 +9,47 @@ Semua base dibangun **FROM Docker Hardened Images (DHI)** di bawah
 default ke user non-root, jadi tiap Dockerfile memakai `USER root` untuk langkah
 build + runtime-nya.
 
-| Image | FROM (DHI) | Isi |
-|-------|------------|-----|
-| `lds/php` | `alpine-base:3.24-dev` ¹ | php-fpm + ekstensi + composer **+ nginx + supervisor**, membakar global `configs/php-app/*` (satu-satunya base PHP; supervisord menjalankan php-fpm + nginx) |
-| `lds/go-dev` | `golang:1.26-alpine3.24-dev` | Go + air |
-| `lds/rust-dev` | `rust:1.96-alpine3.24-dev` | Rust + cargo-watch |
-| `lds/node-dev` | `node:26.3-alpine3.24-dev` | Node terpinned |
-| `lds/python-dev` | `python:3.14-alpine3.24-dev` | Python + watchfiles |
-| `lds/java-dev` | `eclipse-temurin:25-jdk-alpine3.24-dev` ² | Maven + JDK |
+<table>
+<thead>
+<tr>
+<th>Image</th>
+<th>FROM (DHI)</th>
+<th>Isi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>`lds/php`</td>
+<td>`alpine-base:3.24-dev` ¹</td>
+<td>php-fpm + ekstensi + composer **+ nginx + supervisor**, membakar global `configs/php-app/*` (satu-satunya base PHP; supervisord menjalankan php-fpm + nginx)</td>
+</tr>
+<tr>
+<td>`lds/go-dev`</td>
+<td>`golang:1.26-alpine3.24-dev`</td>
+<td>Go + air</td>
+</tr>
+<tr>
+<td>`lds/rust-dev`</td>
+<td>`rust:1.96-alpine3.24-dev`</td>
+<td>Rust + cargo-watch</td>
+</tr>
+<tr>
+<td>`lds/node-dev`</td>
+<td>`node:26.3-alpine3.24-dev`</td>
+<td>Node terpinned</td>
+</tr>
+<tr>
+<td>`lds/python-dev`</td>
+<td>`python:3.14-alpine3.24-dev`</td>
+<td>Python + watchfiles</td>
+</tr>
+<tr>
+<td>`lds/java-dev`</td>
+<td>`eclipse-temurin:25-jdk-alpine3.24-dev` ²</td>
+<td>Maven + JDK</td>
+</tr>
+</tbody>
+</table>
 
 ¹ **PHP adalah pengecualian DHI.** Image `dhi.io/php` terpisah — build `-dev`
 minimal **tanpa php-fpm** dan **tanpa helper `docker-php-ext-*`**, plus runtime

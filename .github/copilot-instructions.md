@@ -4,22 +4,72 @@
 
 Use `./lds.sh` on bash/Linux/macOS or `lds.bat` on Windows `cmd`.
 
-| Task | Command |
-|---|---|
-| First-time setup | `cp .env.example .env && ./lds.sh init` |
-| Build all shared base images | `./lds.sh build-bases` |
-| Force-rebuild base images | `./lds.sh build-bases --force` |
-| Build only the PHP base image | `./lds.sh build-php` |
-| Start stack (default profile toggles from `.env`) | `./lds.sh up` |
-| Start only selected profiles | `./lds.sh up mysql redis` |
-| Full reset lifecycle (`init -> down -> rm -> build-if-missing -> up`) | `./lds.sh start [profiles...]` |
-| Stop and remove containers | `./lds.sh down` |
-| Stop/remove and wipe volumes | `./lds.sh down -v` |
-| Service status | `./lds.sh ps` |
-| Service logs | `./lds.sh logs [service]` |
-| Lint / static analysis (full target path) | `./lds.sh tools semgrep [path]` |
-| Lint / static analysis (single target example) | `./lds.sh tools semgrep ./scripts/run` |
-| Validate compose changes | `docker compose config --quiet` |
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>First-time setup</td>
+<td>`cp .env.example .env &amp;&amp; ./lds.sh init`</td>
+</tr>
+<tr>
+<td>Build all shared base images</td>
+<td>`./lds.sh build-bases`</td>
+</tr>
+<tr>
+<td>Force-rebuild base images</td>
+<td>`./lds.sh build-bases --force`</td>
+</tr>
+<tr>
+<td>Build only the PHP base image</td>
+<td>`./lds.sh build-php`</td>
+</tr>
+<tr>
+<td>Start stack (default profile toggles from `.env`)</td>
+<td>`./lds.sh up`</td>
+</tr>
+<tr>
+<td>Start only selected profiles</td>
+<td>`./lds.sh up mysql redis`</td>
+</tr>
+<tr>
+<td>Full reset lifecycle (`init -&gt; down -&gt; rm -&gt; build-if-missing -&gt; up`)</td>
+<td>`./lds.sh start [profiles...]`</td>
+</tr>
+<tr>
+<td>Stop and remove containers</td>
+<td>`./lds.sh down`</td>
+</tr>
+<tr>
+<td>Stop/remove and wipe volumes</td>
+<td>`./lds.sh down -v`</td>
+</tr>
+<tr>
+<td>Service status</td>
+<td>`./lds.sh ps`</td>
+</tr>
+<tr>
+<td>Service logs</td>
+<td>`./lds.sh logs [service]`</td>
+</tr>
+<tr>
+<td>Lint / static analysis (full target path)</td>
+<td>`./lds.sh tools semgrep [path]`</td>
+</tr>
+<tr>
+<td>Lint / static analysis (single target example)</td>
+<td>`./lds.sh tools semgrep ./scripts/run`</td>
+</tr>
+<tr>
+<td>Validate compose changes</td>
+<td>`docker compose config --quiet`</td>
+</tr>
+</tbody>
+</table>
 
 There is no repository-wide unit/integration test runner at repo root; validation is done via Compose/service health plus targeted Semgrep scans.
 

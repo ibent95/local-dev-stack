@@ -3,10 +3,27 @@
 Agar `http://<nama>.test` terbuka di browser, OS host harus meresolusi
 `<nama>.test` ke `127.0.0.1` (tempat proxy mendengarkan). Ada dua cara:
 
-| Pendekatan | Mencakup | Cocok untuk |
-|------------|----------|-------------|
-| **DNS adapter → `127.0.0.1`** (container `dns`) | **semua** `*.test`, kini + nanti, wildcard | pemakaian harian — set sekali, lupakan |
-| **`lds hosts-sync`** (berkas hosts) | hanya nama yang ditulisnya (folder PHP + UI stack) | coba cepat / mesin terkunci yang tak bisa ubah DNS |
+<table>
+<thead>
+<tr>
+<th>Pendekatan</th>
+<th>Mencakup</th>
+<th>Cocok untuk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>**DNS adapter → `127.0.0.1`** (container `dns`)</td>
+<td>**semua** `*.test`, kini + nanti, wildcard</td>
+<td>pemakaian harian — set sekali, lupakan</td>
+</tr>
+<tr>
+<td>**`lds hosts-sync`** (berkas hosts)</td>
+<td>hanya nama yang ditulisnya (folder PHP + UI stack)</td>
+<td>coba cepat / mesin terkunci yang tak bisa ubah DNS</td>
+</tr>
+</tbody>
+</table>
 
 Berkas hosts **tidak bisa wildcard**, jadi setiap host `.test` baru perlu
 sync ulang. Mengarahkan DNS adapter ke container `dns` adalah opsi wildcard dan
