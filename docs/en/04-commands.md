@@ -14,7 +14,7 @@
 | `logs [service]` | tail logs (all, or one service) |
 | `ps` | status of all services |
 | `kafka <sub>` | `topics` · `connect-plugin [--generic] <name>` · `register-connectors` · `init` (topics + connectors) |
-| `db <sub>` | `init [mysql\|mongo\|all]` (create the `app` db/users) · `seed` (DBGate connections) |
+| `db <sub>` | `init [mysql\|postgres\|mongo\|all]` (create default db/users + optional tool specs via `*_INIT_SPECS`) · `seed` (DBGate connections) |
 | `tools <sub>` | `semgrep [path]` — run a Semgrep scan; view it at `semgrep.test` (`up semgrep`) |
 | `certs [--force]` | mint the wildcard `*.test` dev TLS cert (for the `LDS_ENABLE_HTTPS` overlay) |
 | `hosts-sync` | write projects + tool hosts into the hosts file (DNS fallback), grouped by category |
@@ -23,7 +23,7 @@
 
 > The grouped subcommands replace the old flat names, which **still work as
 > aliases**: `kafka-topics`, `register-connectors`, `connect-plugin`,
-> `mysql-init`, `mongo-init`, `dbgate-seed`.
+> `mysql-init`, `postgres-init`, `mongo-init`, `dbgate-seed`.
 
 Each script also exists standalone in `scripts/run/` and `scripts/build/` in
 both `.sh` and `.bat` form.

@@ -10,12 +10,13 @@ tiap proyek hostname `<nama>.test`, dan pustaka **template** men-scaffold proyek
 baru untuk berbagai bahasa dan framework.
 
 - Profile: `proxy`, `php`, `mysql`, `postgres`, `mongo`, `redis`, `memcached`,
-  `kafka`, `phpcacheadmin`, `dbgate`, `soketi`, `centrifugo`, `emqx`, `all`. Tiap
+  `kafka`, `phpcacheadmin`, `dbgate`, `drawdb`, `hop`, `superset`, `semgrep`,
+  `insighttrack`, `vaultwarden`, `werkyn`, `soketi`, `centrifugo`, `mqtt`, `all`. Tiap
   profile dijelaskan rinci di [13 · Profile](13-profiles.md).
 - `lds up` tanpa profile menjalankan setiap profile yang toggle
   `LDS_ENABLE_<PROFILE>`-nya di `.env` bernilai `true` (default: `proxy`, `php`,
   `mysql`, `dbgate` aktif). Ubah satu baris (mis. `LDS_ENABLE_KAFKA=true`) untuk menambah
-  grup. Broker realtime (`soketi`, `centrifugo`, `emqx`) mati secara default —
+  grup. Broker realtime (`soketi`, `centrifugo`, `mqtt`) mati secara default —
   jalankan salah satu dengan `lds up <nama>` atau ubah toggle-nya.
 - Semua berbagi satu jaringan eksternal, `lds-network`.
 - Satu perintah wrapper, `lds`, menjalankan seluruh stack (lihat [04](04-commands.md)).

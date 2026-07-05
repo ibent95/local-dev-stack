@@ -1,8 +1,7 @@
 @echo off
-REM Ensure the `app` database + `app` user exist. The DHI mysql image's entrypoint
-REM (unlike the official image) does NOT honor MYSQL_DATABASE / MYSQL_USER /
-REM /docker-entrypoint-initdb.d - only the datadir + root password - so we create
-REM them here. Idempotent; auto-run by `lds up` for the mysql/all profile.
+REM Ensure the default MySQL database/user exist and optionally provision extra
+REM tool databases/users from MYSQL_INIT_SPECS (db:user:password entries).
+REM Idempotent; auto-run by `lds up` for the mysql/all profile.
 setlocal enabledelayedexpansion
 pushd "%~dp0..\.."
 
@@ -22,16 +21,48 @@ for /l %%i in (1,1,30) do (
 )
 if not defined READY ( echo mysql not reachable - is the mysql profile up? & popd & endlocal & exit /b 1 )
 
-echo Ensuring MySQL database %MYSQL_DATABASE% + user %MYSQL_USER%...
-docker exec %C% mysql -uroot -p%MYSQL_ROOT_PASSWORD% -e "CREATE DATABASE IF NOT EXISTS %MYSQL_DATABASE%; CREATE USER IF NOT EXISTS '%MYSQL_USER%'@'%%' IDENTIFIED BY '%MYSQL_PASSWORD%'; GRANT ALL PRIVILEGES ON %MYSQL_DATABASE%.* TO '%MYSQL_USER%'@'%%'; FLUSH PRIVILEGES;"
+call :ensure_mysql_db_user "%MYSQL_DATABASE%" "%MYSQL_USER%" "%MYSQL_PASSWORD%"
 
-REM Apply seed/schema SQL into the db. DHI mysql ignores /docker-entrypoint-initdb.d,
-REM so we feed configs\mysql\init\*.sql ourselves (idempotent files - safe to re-run).
+if defined MYSQL_INIT_SPECS (
+  for %%s in (!MYSQL_INIT_SPECS:,= !) do call :ensure_mysql_spec "%%~s"
+)
+
+REM Apply seed/schema SQL into the default db only. DHI mysql ignores
+REM /docker-entrypoint-initdb.d, so we feed configs\mysql\init\*.sql ourselves.
 for %%f in ("configs\mysql\init\*.sql") do (
   echo   applying %%~nxf...
   docker exec -i %C% mysql -uroot -p%MYSQL_ROOT_PASSWORD% %MYSQL_DATABASE% < "%%f"
 )
 
-echo MySQL ready (database %MYSQL_DATABASE%, user %MYSQL_USER%).
+echo MySQL ready.
 popd
 endlocal
+exit /b 0
+
+:ensure_mysql_spec
+set "SPEC=%~1"
+set "DBX="
+set "UX="
+set "PX="
+for /f "tokens=1,2,* delims=:" %%a in ("!SPEC!") do (
+  set "DBX=%%~a"
+  set "UX=%%~b"
+  set "PX=%%~c"
+)
+if "!DBX!"=="" goto :invalid_mysql_spec
+if "!UX!"=="" goto :invalid_mysql_spec
+if "!PX!"=="" goto :invalid_mysql_spec
+call :ensure_mysql_db_user "!DBX!" "!UX!" "!PX!"
+goto :eof
+
+:invalid_mysql_spec
+echo Skipping invalid MYSQL_INIT_SPECS entry "!SPEC!" ^(expected db:user:password^).
+goto :eof
+
+:ensure_mysql_db_user
+set "DBN=%~1"
+set "UN=%~2"
+set "PW=%~3"
+echo Ensuring MySQL database !DBN! + user !UN!...
+docker exec %C% mysql -uroot -p%MYSQL_ROOT_PASSWORD% -e "CREATE DATABASE IF NOT EXISTS !DBN!; CREATE USER IF NOT EXISTS '!UN!'@'%%' IDENTIFIED BY '!PW!'; ALTER USER '!UN!'@'%%' IDENTIFIED BY '!PW!'; GRANT ALL PRIVILEGES ON !DBN!.* TO '!UN!'@'%%'; FLUSH PRIVILEGES;"
+goto :eof

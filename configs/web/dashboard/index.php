@@ -62,6 +62,7 @@ $uiGroups = [
     'Data tools' => [
         ['label' => 'phpCacheAdmin', 'desc' => 'Redis · Memcached',  'url' => '//cache.test', 'alt' => 'localhost:4421', 'health' => ['phpcacheadmin', 80]],
         ['label' => 'DBGate',        'desc' => 'MySQL · PostgreSQL',  'url' => '//db.test',    'alt' => 'localhost:4422', 'health' => ['dbgate', 3000]],
+        ['label' => 'Vaultwarden',   'desc' => 'password manager',     'url' => '//vaultwarden.test', 'alt' => 'localhost:4429', 'health' => ['vaultwarden', 80]],
     ],
     'Database design' => [
         // DrawDB uses crypto.randomUUID(), which only exists in a secure context,
@@ -74,6 +75,12 @@ $uiGroups = [
     ],
     'Code quality' => [
         ['label' => 'Semgrep', 'desc' => 'SAST · SARIF viewer', 'url' => '//semgrep.test', 'alt' => 'localhost:4426', 'health' => ['semgrep', 80]],
+    ],
+    'Web analytics' => [
+        ['label' => 'InsightTrack',  'desc' => 'privacy-first analytics', 'url' => '//insighttrack.test',  'alt' => 'localhost:4427', 'health' => ['insighttrack', 4173]],
+    ],
+    'Project management' => [
+        ['label' => 'Werkyn', 'desc' => 'team project management', 'url' => '//werkyn.test', 'alt' => 'localhost:4435', 'health' => ['werkyn', 3000]],
     ],
     'Kafka' => [
         ['label' => 'Kafka UI',          'desc' => 'topics · connectors',      'url' => 'http://localhost:4420', 'alt' => null, 'health' => ['kafka-ui', 8080]],

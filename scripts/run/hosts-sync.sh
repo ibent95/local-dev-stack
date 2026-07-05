@@ -54,6 +54,9 @@ group "Data tools"
 add "${CACHE_ADMIN_HOST:-cache.test}"
 add "${DB_ADMIN_HOST:-db.test}"
 
+group "Security & auth"
+add "${VAULTWARDEN_HOST:-vaultwarden.test}"
+
 group "Database design"
 add "${DRAWDB_HOST:-drawdb.test}" "(open via http://localhost:4423 — needs a secure context)"
 
@@ -64,10 +67,16 @@ add "${HOP_HOST:-hop.test}"
 group "Code quality"
 add "${SEMGREP_HOST:-semgrep.test}"
 
+group "Web analytics"
+add "${INSIGHTTRACK_HOST:-insighttrack.test}"
+
+group "Project management"
+add "${WERKYN_HOST:-werkyn.test}"
+
 group "Realtime & messaging"
 add "${SOKETI_HOST:-ws.test}"
 add "${CENTRIFUGO_HOST:-centrifugo.test}"
-add "${EMQX_DASHBOARD_HOST:-mqtt.test}"
+add "${MQTT_HOST:-mqtt.test}"
 
 bann "# ===== end local-dev-stack ====="
 

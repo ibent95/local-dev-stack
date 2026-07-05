@@ -31,14 +31,17 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 | `dbgate`     | `LDS_ENABLE_DBGATE`     |   ✅    | `dbgate`                                                        |
 | `soketi`     | `LDS_ENABLE_SOKETI`     |   ❌    | `soketi`                                                         |
 | `centrifugo` | `LDS_ENABLE_CENTRIFUGO` |   ❌    | `centrifugo`                                                     |
-| `emqx`       | `LDS_ENABLE_EMQX`       |   ❌    | `emqx`                                                           |
+| `mqtt`       | `LDS_ENABLE_MQTT`       |   ❌    | `mosquitto`, `mqttx`                                             |
 | `drawdb`     | `LDS_ENABLE_DRAWDB`     |   ❌    | `drawdb` — perancang skema DB (buka di `localhost:4423`)        |
 | `hop`        | `LDS_ENABLE_HOP`        |   ❌    | `hop` — Apache Hop Web (perancang ETL)                          |
 | `superset`   | `LDS_ENABLE_SUPERSET`   |   ❌    | `superset` — Apache Superset (BI)                               |
 | `semgrep`    | `LDS_ENABLE_SEMGREP`    |   ❌    | `semgrep` — viewer SARIF (`lds tools semgrep` menjalankan scan) |
+| `insighttrack` | `LDS_ENABLE_INSIGHTTRACK` | ❌ | `insighttrack-backend`, `insighttrack` — web analytics self-hosted |
+| `vaultwarden` | `LDS_ENABLE_VAULTWARDEN` | ❌ | `vaultwarden` — password manager                                 |
+| `werkyn`     | `LDS_ENABLE_WERKYN`     |   ❌    | `werkyn` — aplikasi project management/kolaborasi                |
 | `all`        | —                       |   —     | semua layanan di atas                                            |
 
-> **Tool data** (`drawdb`, `hop`, `superset`, `semgrep`) punya halaman sendiri —
+> **Tool data** (`drawdb`, `hop`, `superset`, `semgrep`, `insighttrack`, `vaultwarden`, `werkyn`) punya halaman sendiri —
 > lihat [15 · Dashboard & data tools](15-data-tools.md). Panel kontrol di
 > `http://localhost` menautkan semuanya lengkap dengan status langsung.
 
@@ -225,7 +228,7 @@ default.**
   untuk profile `dbgate`/`all`). Koneksi buatan UI tersimpan di direktori
   bind-mount `data/dbgate/`.
 
-## Broker realtime / pub-sub — `soketi`, `centrifugo`, `emqx`
+## Broker realtime / pub-sub — `soketi`, `centrifugo`, `mqtt`
 
 Ketiganya **mati secara default**, **stateless** (tanpa volume data → tanpa
 penumpukan disk), dan **dibatasi mem/cpu**. Mereka berbicara protokol klien yang
@@ -260,21 +263,55 @@ perlu instance kedua per channel.
   `${CENTRIFUGO_ADMIN_PASSWORD}`.
 - Batas: `${CENTRIFUGO_MEM_LIMIT}` (default `256m`), `${CENTRIFUGO_CPUS}` (`0.50`).
 
-### `emqx` — broker MQTT + dashboard
+### `mqtt` — broker Mosquitto + web client MQTTX
 
-**Toggle:** `LDS_ENABLE_EMQX`. Paling berat dari ketiganya (Erlang VM) — batas
-lebih tinggi.
+**Toggle:** `LDS_ENABLE_MQTT`. Profile ringan: broker + client UI di browser.
 
-- **Image:** `emqx/emqx:${EMQX_VERSION}`. Tiga port: MQTT native host
-  `${EMQX_MQTT_HOST_PORT}` (default `4432`) → `1883`; MQTT-over-WebSocket
-  `${EMQX_WS_HOST_PORT}` (default `4433`) → `8083` (path `/mqtt`); dashboard
-  `${EMQX_DASHBOARD_HOST_PORT}` (default `4434`) → `18083`, juga
-  `${EMQX_DASHBOARD_HOST}` (default `mqtt.test`).
-- Klien memakai **library MQTT** (MQTT.js / Paho di browser, MQTT native untuk
-  backend). Akses anonim diizinkan (dev). Login dashboard `admin` / `public`
-  (ganti saat login pertama). Wildcard `#` membuat dashboard bisa mengawasi semua
-  topik.
-- Batas: `${EMQX_MEM_LIMIT}` (default `512m`), `${EMQX_CPUS}` (default `1.00`).
+- **Image broker:** `eclipse-mosquitto:${MOSQUITTO_VERSION}`. Port:
+  `${MQTT_HOST_PORT}` (default `4432`) → `1883` (MQTT native),
+  `${MQTT_WS_HOST_PORT}` (default `4433`) → `9001` (MQTT-over-WebSocket, path `/`).
+- **Image web client:** `emqx/mqttx-web:${MQTTX_VERSION}` di
+  `${MQTT_HOST}` (default `mqtt.test`) / `${MQTTX_HOST_PORT}` (default `4434`).
+- Klien tetap memakai **library MQTT** (MQTT.js / Paho di browser, MQTT native
+  untuk backend). `mqttx` adalah UI client (publish/subscribe), bukan dashboard admin broker.
+- Batas: `${MOSQUITTO_MEM_LIMIT}` (default `128m`), `${MQTTX_MEM_LIMIT}` (default `128m`).
+
+## `insighttrack` — web analytics (reuse Postgres bersama)
+
+**Menjalankan:** `insighttrack-backend`, `insighttrack` (UI), dan `postgres`
+bersama. **Toggle:** `LDS_ENABLE_INSIGHTTRACK`. **Mati secara default.**
+
+- **Tanpa container DB tambahan:** profile ini memakai `lds-postgres`.
+- **DuckDB embedded** di proses backend (persisten via volume `insighttrack-duckdb-data`).
+- **UI:** `${INSIGHTTRACK_HOST}` (default `insighttrack.test`) dan host port
+  `${INSIGHTTRACK_HOST_PORT}` (default `4427`).
+- **API:** host port `${INSIGHTTRACK_API_HOST_PORT}` (default `4428`).
+- **Init DB tool otomatis:** `lds up insighttrack` menjalankan `insighttrack-init`
+  (delegasi ke `postgres-init`) agar
+  `INSIGHTTRACK_POSTGRES_DB/USER/PASSWORD` tersedia.
+
+## `vaultwarden` — password manager
+
+**Menjalankan:** `vaultwarden`. **Toggle:** `LDS_ENABLE_VAULTWARDEN`. **Mati secara default.**
+
+- **Image:** `vaultwarden/server:${VAULTWARDEN_VERSION}`.
+- **UI/API:** `${VAULTWARDEN_HOST}` (default `vaultwarden.test`) dan host port
+  `${VAULTWARDEN_HOST_PORT}` (default `4429`).
+- **Storage:** volume persisten berbasis sqlite (`vaultwarden-data`).
+- **Default:** signup nonaktif (`VAULTWARDEN_SIGNUPS_ALLOWED=false`);
+  panel admin dilindungi `VAULTWARDEN_ADMIN_TOKEN`.
+
+## `werkyn` — project management dan kolaborasi
+
+**Menjalankan:** `werkyn` dan `postgres` bersama. **Toggle:** `LDS_ENABLE_WERKYN`. **Mati secara default.**
+
+- **Tanpa container DB tambahan:** profile ini memakai `lds-postgres`.
+- **URL aplikasi:** `${WERKYN_HOST}` (default `werkyn.test`) dan host port
+  `${WERKYN_HOST_PORT}` (default `4435`).
+- **Data persisten aplikasi:** volume `werkyn-storage` dan `werkyn-dex-data`.
+- **Init DB tool otomatis:** `lds up werkyn` menjalankan `werkyn-init`
+  (delegasi ke `postgres-init`) agar
+  `WERKYN_POSTGRES_DB/USER/PASSWORD` tersedia.
 
 ## `all` — semuanya
 

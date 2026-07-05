@@ -14,8 +14,8 @@
 # admin UIs → data tools → realtime brokers → Kafka (heaviest, off by default).
 # Profiles: proxy | php | mysql | postgres | mongo | redis | memcached |
 #           phpcacheadmin | dbgate | drawdb | hop | superset | semgrep |
-#           soketi | centrifugo | emqx | kafka | all
-#   Data tools (drawdb/hop/superset/semgrep) + the http://localhost control panel:
+#           insighttrack | vaultwarden | werkyn | soketi | centrifugo | mqtt | kafka | all
+#   Data tools (drawdb/hop/superset/semgrep/insighttrack/vaultwarden/werkyn) + the http://localhost control panel:
 #   see docs/en/15-data-tools.md.
 # =============================================================================
 
@@ -164,7 +164,7 @@ services:
   postgres:
     image: ${DHI_REGISTRY:-dhi.io}/postgres:${POSTGRES_VERSION:-18.4-alpine3.24}
     container_name: lds-postgres
-    profiles: [postgres, all]
+    profiles: [postgres, insighttrack, werkyn, all]
     restart: *restart
     # DHI postgres entrypoint already runs `exec postgres "$@"`, so pass ONLY the
     # flags (no leading `postgres`, unlike the official image).
@@ -541,11 +541,202 @@ services:
     networks: [lds-network]
 
   # ===========================================================================
-  # Realtime / pub-sub brokers (profiles: soketi | centrifugo | emqx, all)
+  # InsightTrack — privacy-first web analytics dashboard + API.
+  #   profile: insighttrack, all
+  #   - Reuses the shared LDS postgres service (no dedicated postgres container)
+  #   - DuckDB remains embedded in the backend process (persisted via volume)
+  #   - UI is nginx-served static files with /api proxied to backend
+  # ===========================================================================
+  insighttrack-backend:
+    build:
+      context: .
+      dockerfile: configs/insighttrack/backend.Dockerfile
+      args:
+        NODE_VERSION: ${NODE_VERSION:-26.3}
+        INSIGHTTRACK_REF: ${INSIGHTTRACK_REF:-91310fcd94ac2ab9d89ebb6018f3ecfec9c57254}
+    image: ${REGISTRY:-local}/local-dev-stack/insighttrack-backend:latest
+    pull_policy: build
+    container_name: lds-insighttrack-backend
+    profiles: [insighttrack, all]
+    restart: *restart
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      PG_HOST: postgres
+      PG_PORT: "5432"
+      PG_USER: ${INSIGHTTRACK_POSTGRES_USER:-app}
+      PG_PASSWORD: ${INSIGHTTRACK_POSTGRES_PASSWORD:-app}
+      PG_DATABASE: ${INSIGHTTRACK_POSTGRES_DB:-app}
+      PORT: "3001"
+      JWT_SECRET: ${INSIGHTTRACK_JWT_SECRET:-insighttrack-dev-jwt-change-me}
+      APP_BASE_URL: ${INSIGHTTRACK_APP_BASE_URL:-http://insighttrack.test}
+      CORS_ORIGINS: ${INSIGHTTRACK_CORS_ORIGINS:-http://localhost:4427,http://insighttrack.test}
+      DUCKDB_PATH: /data/analytics.duckdb
+      SYNC_INTERVAL_MS: ${INSIGHTTRACK_SYNC_INTERVAL_MS:-60000}
+      SYNC_BATCH_SIZE: ${INSIGHTTRACK_SYNC_BATCH_SIZE:-2000}
+      NODE_ENV: production
+    expose:
+      - "3001"
+    ports:
+      - "${INSIGHTTRACK_API_HOST_PORT:-4428}:3001"
+    volumes:
+      - insighttrack-duckdb-data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:3001/api/health >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    mem_limit: ${INSIGHTTRACK_BACKEND_MEM_LIMIT:-384m}
+    cpus: ${INSIGHTTRACK_BACKEND_CPUS:-0.60}
+    networks: [lds-network]
+
+  insighttrack:
+    build:
+      context: .
+      dockerfile: configs/insighttrack/ui.Dockerfile
+      args:
+        NODE_VERSION: ${NODE_VERSION:-26.3}
+        NGINX_VERSION: ${NGINX_VERSION:-1.27-alpine}
+        INSIGHTTRACK_REF: ${INSIGHTTRACK_REF:-91310fcd94ac2ab9d89ebb6018f3ecfec9c57254}
+    image: ${REGISTRY:-local}/local-dev-stack/insighttrack-ui:latest
+    pull_policy: build
+    container_name: lds-insighttrack
+    profiles: [insighttrack, all]
+    restart: *restart
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      VIRTUAL_HOST: ${INSIGHTTRACK_HOST:-insighttrack.test}
+      VIRTUAL_PORT: "4173"
+    expose:
+      - "4173"
+    ports:
+      - "${INSIGHTTRACK_HOST_PORT:-4427}:4173"
+    depends_on:
+      insighttrack-backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:4173 >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+    mem_limit: ${INSIGHTTRACK_UI_MEM_LIMIT:-192m}
+    cpus: ${INSIGHTTRACK_UI_CPUS:-0.40}
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Vaultwarden — self-hosted password manager (Bitwarden-compatible API/UI).
+  #   profile: vaultwarden, all
+  #   - Single lightweight container, sqlite-backed by default.
+  #   - Reuses the shared edge proxy via VIRTUAL_HOST (when proxy/php profile is up).
+  # ===========================================================================
+  vaultwarden:
+    image: vaultwarden/server:${VAULTWARDEN_VERSION:-1.34.3}
+    container_name: lds-vaultwarden
+    profiles: [vaultwarden, all]
+    restart: *restart
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      ROCKET_PORT: "80"
+      VIRTUAL_HOST: ${VAULTWARDEN_HOST:-vaultwarden.test}
+      VIRTUAL_PORT: "80"
+      DOMAIN: ${VAULTWARDEN_DOMAIN:-http://vaultwarden.test}
+      SIGNUPS_ALLOWED: "${VAULTWARDEN_SIGNUPS_ALLOWED:-false}"
+      ADMIN_TOKEN: ${VAULTWARDEN_ADMIN_TOKEN:-vaultwarden-dev-admin-token-change-me}
+    expose:
+      - "80"
+    ports:
+      - "${VAULTWARDEN_HOST_PORT:-4429}:80"
+    volumes:
+      - vaultwarden-data:/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1/alive >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    mem_limit: ${VAULTWARDEN_MEM_LIMIT:-128m}
+    cpus: ${VAULTWARDEN_CPUS:-0.25}
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Werkyn — self-hosted project management + collaboration.
+  #   profile: werkyn, all
+  #   - Reuses the shared LDS postgres service (no dedicated postgres container).
+  #   - Single app container with persisted app storage + dex data.
+  # ===========================================================================
+  werkyn:
+    image: ${WERKYN_IMAGE:-ghcr.io/rackstead/werkyn}:${WERKYN_VERSION:-latest}
+    container_name: lds-werkyn
+    profiles: [werkyn, all]
+    restart: *restart
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: postgresql://${WERKYN_POSTGRES_USER:-werkyn}:${WERKYN_POSTGRES_PASSWORD:-werkyn}@postgres:5432/${WERKYN_POSTGRES_DB:-werkyn}
+      JWT_SECRET: ${WERKYN_JWT_SECRET:-werkyn-dev-jwt-secret-change-me-32chars}
+      COOKIE_SECRET: ${WERKYN_COOKIE_SECRET:-werkyn-dev-cookie-secret-change-me}
+      COOKIE_SECURE: "${WERKYN_COOKIE_SECURE:-false}"
+      COOKIE_SAMESITE: ${WERKYN_COOKIE_SAMESITE:-lax}
+      CORS_ORIGIN: ${WERKYN_CORS_ORIGIN:-http://werkyn.test,http://localhost:4435}
+      FRONTEND_URL: ${WERKYN_FRONTEND_URL:-http://werkyn.test}
+      SMTP_HOST: ${WERKYN_SMTP_HOST:-localhost}
+      SMTP_PORT: "${WERKYN_SMTP_PORT:-25}"
+      SMTP_SECURE: "${WERKYN_SMTP_SECURE:-false}"
+      SMTP_USER: ${WERKYN_SMTP_USER:-}
+      SMTP_PASS: ${WERKYN_SMTP_PASS:-}
+      SMTP_FROM: ${WERKYN_SMTP_FROM:-noreply@werkyn.local}
+      STORAGE_DIR: /app/storage
+      DEX_STORAGE_TYPE: postgres
+      DEX_CONFIG_DIR: /app/data/dex
+      VIRTUAL_HOST: ${WERKYN_HOST:-werkyn.test}
+      VIRTUAL_PORT: "3000"
+    expose:
+      - "3000"
+    ports:
+      - "${WERKYN_HOST_PORT:-4435}:3000"
+    volumes:
+      - werkyn-storage:/app/storage
+      - werkyn-dex-data:/app/data/dex
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:3000 >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    mem_limit: ${WERKYN_MEM_LIMIT:-384m}
+    cpus: ${WERKYN_CPUS:-0.60}
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Realtime / pub-sub brokers (profiles: soketi | centrifugo | mqtt, all)
   #   OFF BY DEFAULT — their LDS_ENABLE_* toggles are false. Turn one on explicitly:
   #     lds up soketi      Pusher protocol — Laravel Reverb/Echo compatible
   #     lds up centrifugo  raw WebSocket channels + built-in admin UI
-  #     lds up emqx        MQTT + MQTT-over-WebSocket + dashboard
+  #     lds up mqtt        MQTT + MQTT-over-WebSocket + dashboard
   #   A "channel"/"topic" is just a name: ONE broker handles unlimited channels,
   #   you never run a second one per channel. Pick the broker whose CLIENT
   #   protocol matches your app — the three speak DIFFERENT protocols over the
@@ -887,3 +1078,7 @@ volumes:
   kafka-controller-data:
   kafka-broker-data:
   mosquitto-data:
+  insighttrack-duckdb-data:
+  vaultwarden-data:
+  werkyn-storage:
+  werkyn-dex-data:

@@ -18,21 +18,24 @@ talk to them.
 | Web (PHP)   | `php`        | `php` — one container, supervisord runs php-fpm + nginx (multi-project) | via proxy   |
 | Apps        | _templates_  | Go / Rust / Java / Node containers (own compose)      | via proxy             |
 | Kafka       | `kafka`      | `kafka-controller`, `kafka-broker`, `schema-registry` (Apicurio), `connect-debezium`, `connect-generic`, `kafka-ui` | 4410–4413, 4420 |
-| Realtime    | `soketi` / `centrifugo` / `emqx` | WebSocket / MQTT pub-sub brokers — **off by default**, stateless | 4430 / 4431 / 4432–4434 |
+| Realtime    | `soketi` / `centrifugo` / `mqtt` | WebSocket / MQTT pub-sub brokers — **off by default**, stateless | 4430 / 4431 / 4432–4434 |
 | Admin UIs   | `phpcacheadmin` / `dbgate` | cache browser / web DB client | 4421 / 4422 |
 | DB design   | `drawdb`     | DrawDB — ER diagram designer (open at `localhost:4423`) | 4423 |
 | Warehouse/BI| `hop` / `superset` | Apache Hop (ETL designer) / Apache Superset (BI) | 4424 / 4425 |
 | Code quality| `semgrep`    | Semgrep SARIF viewer (`lds tools semgrep` runs the scan) | 4426 |
+| Security/Auth | `vaultwarden` | Vaultwarden password manager (Bitwarden-compatible) | 4429 |
+| Web analytics | `insighttrack` | InsightTrack dashboard + API (reuses shared `postgres`) | 4427 / 4428 |
+| Project management | `werkyn` | Werkyn team project management/collaboration app (reuses shared `postgres`) | 4435 |
 
 > **Realtime brokers** are three independent choices for WebSocket pub/sub, each
 > speaking a *different client protocol* (so pick the one matching your app):
 > **Soketi** (Pusher protocol — drop-in for Laravel Reverb broadcasting + Laravel
 > Echo / pusher-js), **Centrifugo** (raw WebSocket channels + admin UI, Centrifuge
-> JS SDK), **EMQX** (MQTT + MQTT-over-WebSocket + a dashboard that can watch every
-> topic via the `#` wildcard; clients use MQTT.js / Paho). One broker serves
+> JS SDK), **MQTT (Mosquitto + MQTTX)** (MQTT + MQTT-over-WebSocket via Mosquitto
+> with a browser client at `mqtt.test`; clients use MQTT.js / Paho). One broker serves
 > unlimited channels/topics — you never run a second one per channel. All three are
 > stateless (no data volume) and mem/cpu-capped. Start one with `lds up soketi` /
-> `centrifugo` / `emqx`.
+> `centrifugo` / `mqtt`.
 
 **PHP extensions:** rdkafka, redis, memcached, pdo_mysql, pdo_pgsql, opcache,
 intl, bcmath, gd, zip, sockets + composer.
@@ -52,7 +55,10 @@ cp .env.example .env             # then edit if needed
 ./lds.sh up mysql postgres redis memcached
 ./lds.sh up php                  # (auto-builds the lds/php base if missing)
 ./lds.sh up kafka
-./lds.sh up emqx                 # a realtime broker (soketi | centrifugo | emqx)
+./lds.sh up insighttrack
+./lds.sh up vaultwarden
+./lds.sh up werkyn
+./lds.sh up mqtt                 # a realtime broker (soketi | centrifugo | mqtt)
 ./lds.sh up all                  # or everything at once
 
 ./lds.sh down                    # stop (add -v to wipe data)
@@ -109,7 +115,7 @@ From other containers on `lds-network`, use the service name + its internal port
 |                    | Schema Registry    | `localhost:4411`                | `schema-registry:8080`  |
 |                    | Connect — generic  | `localhost:4412`                | `connect-generic:8083`  |
 |                    | Connect — Debezium | `localhost:4413`                | `connect-debezium:8083` |
-| **Web UIs** `442x` |--------------------------------------------------------------------------------|
+| **Web UIs** `442x+` |-------------------------------------------------------------------------------|
 |                    | Kafka UI           | `localhost:4420`                | `kafka-ui:8080`         |
 |                    | phpCacheAdmin      | `localhost:4421` (`cache.test`) | `phpcacheadmin:80`      |
 |                    | DBGate             | `localhost:4422` (`db.test`)    | `dbgate:3000`           |
@@ -117,12 +123,16 @@ From other containers on `lds-network`, use the service name + its internal port
 |                    | Apache Hop         | `localhost:4424` (`hop.test`)   | `hop:8080`              |
 |                    | Apache Superset    | `localhost:4425` (`superset.test`) | `superset:8088`      |
 |                    | Semgrep viewer     | `localhost:4426` (`semgrep.test`) | `semgrep:80`          |
+|                    | InsightTrack UI    | `localhost:4427` (`insighttrack.test`) | `insighttrack:4173` |
+|                    | InsightTrack API   | `localhost:4428`                | `insighttrack-backend:3001` |
+|                    | Vaultwarden        | `localhost:4429` (`vaultwarden.test`) | `vaultwarden:80`    |
+|                    | Werkyn             | `localhost:4435` (`werkyn.test`) | `werkyn:3000`       |
 | **Realtime** `443x`|--------------------------------------------------------------------------------|
 |                    | Soketi (Pusher)    | `localhost:4430` (`ws.test`)    | `soketi:6001`           |
 |                    | Centrifugo + UI    | `localhost:4431` (`centrifugo.test`) | `centrifugo:8000`  |
-|                    | EMQX — MQTT        | `localhost:4432`                | `emqx:1883`             |
-|                    | EMQX — MQTT/WS      | `localhost:4433` (path `/mqtt`) | `emqx:8083`             |
-|                    | EMQX — dashboard   | `localhost:4434` (`mqtt.test`)  | `emqx:18083`            |
+|                    | Mosquitto — MQTT   | `localhost:4432`                | `mosquitto:1883`        |
+|                    | Mosquitto — MQTT/WS | `localhost:4433` (path `/`)     | `mosquitto:9001`        |
+|                    | MQTTX web client   | `localhost:4434` (`mqtt.test`)  | `mqttx:80`              |
 | **Infra**          |--------------------------------------------------------------------------------|
 |                    | Web proxy          | `localhost:80` (`*.test`)       |            —            |
 |                    | DNS                | `localhost:53` (udp + tcp)      |            —            |
