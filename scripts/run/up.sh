@@ -21,7 +21,7 @@ if [ $# -gt 0 ]; then
 else
   profiles=()
   # Canonical profile order; each maps to LDS_ENABLE_<UPPER>=true in .env.
-  for p in proxy php mysql postgres mongo redis memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep insighttrack vaultwarden werkyn; do
+  for p in proxy php mysql postgres mongo redis memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep vaultwarden analytics tasks wiki; do
     var="LDS_ENABLE_$(printf '%s' "$p" | tr '[:lower:]' '[:upper:]')"
     val="$(grep -E "^[[:space:]]*${var}=" .env 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/#.*//' | tr -d '[:space:]\r')"
     case "$val" in
@@ -64,6 +64,16 @@ case " ${profiles[*]} " in
     fi ;;
 esac
 
+# The Semgrep viewer uses lds/nginx — build it once if missing.
+case " ${profiles[*]} " in
+  *" semgrep "*|*" all "*)
+    if ! docker image inspect "lds/nginx:${NGINX_VERSION:-1.27}" >/dev/null 2>&1; then
+      sub "build lds/nginx base (first run)"
+      ( cd "$ROOT" && docker buildx bake -f docker-bake.hcl --load nginx )
+      subdone
+    fi ;;
+esac
+
 # Seed DBGate connections into its volume BEFORE it starts (fresh setups only;
 # skips if you already have connections). Keeps the stack DBs auto-listed.
 case " ${profiles[*]} " in
@@ -90,17 +100,22 @@ esac
 
 # Ensure the Postgres app database + user and extra tool DB specs.
 case " ${profiles[*]} " in
-  *" postgres "*|*" insighttrack "*|*" werkyn "*|*" all "*) sub "postgres-init"; "$ROOT/scripts/run/postgres-init.sh" || true; subdone ;;
+  *" postgres "*|*" analytics "*|*" tasks "*|*" wiki "*|*" all "*) sub "postgres-init"; "$ROOT/scripts/run/postgres-init.sh" || true; subdone ;;
 esac
 
-# Ensure the InsightTrack DB/user spec exists (can differ from default postgres app creds).
+# Ensure the LDS Analytics DB/user spec exists.
 case " ${profiles[*]} " in
-  *" insighttrack "*|*" all "*) sub "insighttrack-init"; "$ROOT/scripts/run/insighttrack-init.sh" || true; subdone ;;
+  *" analytics "*|*" all "*) sub "analytics-init"; "$ROOT/scripts/run/analytics-init.sh" || true; subdone ;;
 esac
 
-# Ensure the Werkyn DB/user spec exists (can differ from default postgres app creds).
+# Ensure the LDS Tasks DB/user spec exists.
 case " ${profiles[*]} " in
-  *" werkyn "*|*" all "*) sub "werkyn-init"; "$ROOT/scripts/run/werkyn-init.sh" || true; subdone ;;
+  *" tasks "*|*" all "*) sub "tasks-init"; "$ROOT/scripts/run/tasks-init.sh" || true; subdone ;;
+esac
+
+# Ensure the LDS Wiki DB/user spec exists.
+case " ${profiles[*]} " in
+  *" wiki "*|*" all "*) sub "wiki-init"; "$ROOT/scripts/run/wiki-init.sh" || true; subdone ;;
 esac
 
 # Initiate the Mongo replica set + users (single-node RS for CDC).

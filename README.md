@@ -173,12 +173,12 @@ cp .env.example .env             # then edit if needed
 
 ### Base images
 
-The PHP extension set and each language's dev tooling (air, cargo-watch, Maven,
-…) are built **once** into shared `lds/*` base images, then reused by the stack
-and every template. Build/refresh them with `./lds.sh build-bases` (`--force` to
+The PHP extension set, each language's dev tooling (air, cargo-watch, Maven,
+…), and a shared nginx runtime base are built **once** into `lds/*` images, then
+reused by the stack and every template. Build/refresh them with `./lds.sh build-bases` (`--force` to
 rebuild, `--push` to push to `$REGISTRY`). Sources live in `base-images/`; the
 build is orchestrated by **`docker-bake.hcl`** (`docker buildx bake`), so all
-six images build in parallel from one declarative definition.
+seven images build in parallel from one declarative definition.
 
 Raw Compose equivalents:
 

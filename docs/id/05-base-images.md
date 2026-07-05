@@ -5,9 +5,10 @@ image bersama `lds/*` (sumber di `base-images/`), lalu dipakai ulang oleh stack
 dan tiap template — sehingga instalasi berat (PECL, cargo-watch, …) hanya sekali.
 
 Semua base dibangun **FROM Docker Hardened Images (DHI)** di bawah
-`${DHI_REGISTRY:-dhi.io}`, memakai flavor `-dev` (menyertakan shell + apt). DHI
-default ke user non-root, jadi tiap Dockerfile memakai `USER root` untuk langkah
-build + runtime-nya.
+`${DHI_REGISTRY:-dhi.io}`. Base dev bahasa memakai flavor `-dev`
+(menyertakan shell + apt), sedangkan `lds/nginx` memakai image runtime hardened.
+DHI default ke user non-root, jadi Dockerfile hanya memakai `USER root` saat
+langkah build/runtime memang membutuhkannya.
 
 <table>
 <thead>
@@ -48,6 +49,11 @@ build + runtime-nya.
 <td>`eclipse-temurin:25-jdk-alpine3.24-dev` ²</td>
 <td>Maven + JDK</td>
 </tr>
+<tr>
+<td>`lds/nginx`</td>
+<td>`nginx:1.27`</td>
+<td>Runtime nginx terpinned untuk kontainer UI/static</td>
+</tr>
 </tbody>
 </table>
 
@@ -82,11 +88,11 @@ mengunduh & mengekstraknya, jadi tak perlu apk install.
   Dockerfile membawa suffix OS/flavor per bahasa. Set `DHI_REGISTRY` di `.env`
   untuk mengarahkan ulang namespace DHI.
 - Build / refresh: `./lds.sh build-bases` (`--force` rebuild, `--push` ke `$REGISTRY`).
-  Diorkestrasi oleh `docker-bake.hcl` (`docker buildx bake`) — keenam dibangun paralel.
+  Diorkestrasi oleh `docker-bake.hcl` (`docker buildx bake`) — ketujuhnya dibangun paralel.
 - Dibangun **sekali**; rebuild hanya saat versi/dependensi berubah — bukan tiap
   build template, bukan tiap ubah kode.
-- Stage **dev** template `FROM lds/*`; stage **prod** tetap pakai image publik
-  yang ramping.
+- Stage **dev** template `FROM lds/*`; stage **prod** web statis juga bisa
+  memakai `lds/nginx` agar tidak pull nginx terpisah.
 
 > Service DB (`mysql`/`postgres`/`redis`/`memcached`) dan image dns juga berasal
 > dari DHI — lihat [13 · Profiles](13-profiles.md). Service DB memakai flavor

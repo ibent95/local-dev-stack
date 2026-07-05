@@ -21,7 +21,7 @@ REM case-insensitively).
 set "PROFILES=%*"
 if "%PROFILES%"=="" (
   set "PROFILES="
-  for %%p in (proxy php mysql postgres mongo redis memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep insighttrack vaultwarden werkyn) do (
+  for %%p in (proxy php mysql postgres mongo redis memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep vaultwarden analytics tasks wiki) do (
     set "VAL="
     if exist .env for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do if /I "%%a"=="LDS_ENABLE_%%p" set "VAL=%%b"
     set "VAL=!VAL: =!"
@@ -62,6 +62,17 @@ if not errorlevel 1 (
   )
 )
 
+REM The Semgrep viewer uses lds/nginx - build it once if missing.
+if "%NGINX_VERSION%"=="" set "NGINX_VERSION=1.27"
+echo %PROFILES% | findstr /I /C:"semgrep" /C:"all" >nul
+if not errorlevel 1 (
+  docker image inspect "lds/nginx:%NGINX_VERSION%" >nul 2>&1 || (
+    call :sub "build lds/nginx base - first run"
+    docker buildx bake -f docker-bake.hcl --load nginx
+    call :subdone
+  )
+)
+
 REM Seed DBGate connections into its volume BEFORE it starts (fresh setups only).
 echo %PROFILES% | findstr /I /C:"dbgate" /C:"all" >nul
 if not errorlevel 1 (
@@ -92,26 +103,34 @@ if not errorlevel 1 (
 )
 
 REM Ensure the Postgres app database + user and extra tool DB specs.
-echo %PROFILES% | findstr /I /C:"postgres" /C:"insighttrack" /C:"werkyn" /C:"all" >nul
+echo %PROFILES% | findstr /I /C:"postgres" /C:"analytics" /C:"tasks" /C:"wiki" /C:"all" >nul
 if not errorlevel 1 (
   call :sub "postgres-init"
   call "%~dp0postgres-init.bat"
   call :subdone
 )
 
-REM Ensure the InsightTrack DB/user spec exists (can differ from default postgres app creds).
-echo %PROFILES% | findstr /I /C:"insighttrack" /C:"all" >nul
+REM Ensure the LDS Analytics DB/user spec exists.
+echo %PROFILES% | findstr /I /C:"analytics" /C:"all" >nul
 if not errorlevel 1 (
-  call :sub "insighttrack-init"
-  call "%~dp0insighttrack-init.bat"
+  call :sub "analytics-init"
+  call "%~dp0analytics-init.bat"
   call :subdone
 )
 
-REM Ensure the Werkyn DB/user spec exists (can differ from default postgres app creds).
-echo %PROFILES% | findstr /I /C:"werkyn" /C:"all" >nul
+REM Ensure the LDS Tasks DB/user spec exists.
+echo %PROFILES% | findstr /I /C:"tasks" /C:"all" >nul
 if not errorlevel 1 (
-  call :sub "werkyn-init"
-  call "%~dp0werkyn-init.bat"
+  call :sub "tasks-init"
+  call "%~dp0tasks-init.bat"
+  call :subdone
+)
+
+REM Ensure the LDS Wiki DB/user spec exists.
+echo %PROFILES% | findstr /I /C:"wiki" /C:"all" >nul
+if not errorlevel 1 (
+  call :sub "wiki-init"
+  call "%~dp0wiki-init.bat"
   call :subdone
 )
 

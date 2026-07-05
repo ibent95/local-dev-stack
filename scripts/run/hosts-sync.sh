@@ -68,10 +68,13 @@ group "Code quality"
 add "${SEMGREP_HOST:-semgrep.test}"
 
 group "Web analytics"
-add "${INSIGHTTRACK_HOST:-insighttrack.test}"
+add "${ANALYTICS_HOST:-analytics.test}"
 
 group "Project management"
-add "${WERKYN_HOST:-werkyn.test}"
+add "${TASKS_HOST:-tasks.test}"
+
+group "Documentation"
+add "${WIKI_HOST:-wiki.test}"
 
 group "Realtime & messaging"
 add "${SOKETI_HOST:-ws.test}"

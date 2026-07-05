@@ -11,7 +11,7 @@ projects across many languages and frameworks.
 
 - Services are gated by profiles: `proxy`, `php`, `mysql`, `postgres`, `mongo`,
   `redis`, `memcached`, `kafka`, `phpcacheadmin`, `dbgate`, `drawdb`, `hop`,
-  `superset`, `semgrep`, `insighttrack`, `vaultwarden`, `werkyn`, `soketi`,
+  `superset`, `semgrep`, `vaultwarden`, `analytics`, `tasks`, `wiki`, `soketi`,
   `centrifugo`, `mqtt`, `all`.
   Each one is described in detail in
   [13 · Profiles](13-profiles.md).

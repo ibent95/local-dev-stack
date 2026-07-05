@@ -24,6 +24,7 @@ export RUST_VERSION="${RUST_VERSION:-1.96}"
 export NODE_VERSION="${NODE_VERSION:-26.3}"
 export PYTHON_VERSION="${PYTHON_VERSION:-3.14}"
 export JAVA_VERSION="${JAVA_VERSION:-25}"
+export NGINX_VERSION="${NGINX_VERSION:-1.27}"
 REGISTRY="${REGISTRY:-}"
 
 push=""; force=""
@@ -44,7 +45,8 @@ docker buildx bake -f docker-bake.hcl "${bake_args[@]}"
 # have no registry) aren't pushed to docker.io by accident.
 if [ -n "$push" ] && [ -n "$REGISTRY" ]; then
   for spec in "php:$PHP_VERSION" "go-dev:$GO_VERSION" "rust-dev:$RUST_VERSION" \
-              "node-dev:$NODE_VERSION" "python-dev:$PYTHON_VERSION" "java-dev:$JAVA_VERSION"; do
+              "node-dev:$NODE_VERSION" "python-dev:$PYTHON_VERSION" "java-dev:$JAVA_VERSION" \
+              "nginx:$NGINX_VERSION"; do
     echo "push $REGISTRY/$spec"
     docker tag "lds/$spec" "$REGISTRY/$spec"
     docker push "$REGISTRY/$spec"

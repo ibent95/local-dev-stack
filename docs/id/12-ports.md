@@ -126,15 +126,15 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 </tr>
 <tr>
 <td></td>
-<td>InsightTrack UI</td>
-<td>`localhost:4427` (`insighttrack.test`)</td>
-<td>`insighttrack:4173`</td>
+<td>LDS Analytics UI</td>
+<td>`localhost:4427` (`analytics.test`)</td>
+<td>`analytics-ui:4173`</td>
 </tr>
 <tr>
 <td></td>
-<td>InsightTrack API</td>
+<td>LDS Analytics API</td>
 <td>`localhost:4428`</td>
-<td>`insighttrack-backend:3001`</td>
+<td>`analytics-api:3001`</td>
 </tr>
 <tr>
 <td></td>
@@ -144,9 +144,27 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 </tr>
 <tr>
 <td></td>
-<td>Werkyn</td>
-<td>`localhost:4435` (`werkyn.test`)</td>
-<td>`werkyn:3000`</td>
+<td>LDS Tasks UI</td>
+<td>`localhost:4435` (`tasks.test`)</td>
+<td>`tasks-ui:4174`</td>
+</tr>
+<tr>
+<td></td>
+<td>LDS Tasks API</td>
+<td>`localhost:4436`</td>
+<td>`tasks-api:3002`</td>
+</tr>
+<tr>
+<td></td>
+<td>LDS Wiki UI</td>
+<td>`localhost:4437` (`wiki.test`)</td>
+<td>`wiki-ui:4175`</td>
+</tr>
+<tr>
+<td></td>
+<td>LDS Wiki API</td>
+<td>`localhost:4438`</td>
+<td>`wiki-api:3003`</td>
 </tr>
 <tr>
 <td colspan="4">

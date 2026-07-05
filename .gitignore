@@ -14,3 +14,12 @@ data/*/*
 .DS_Store
 Thumbs.db
 *.log
+nul
+**/node_modules/
+
+# LDS app generated files
+configs/analytics/ui/.nuxt/
+configs/analytics/ui/dist/
+configs/tasks/ui/dist/
+configs/wiki/ui/.next/
+configs/wiki/ui/out/

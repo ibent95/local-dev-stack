@@ -3,10 +3,11 @@
 This page covers the **control panel** at `http://localhost` and the standalone
 tool profiles added on top of the core stack: **DrawDB** (schema design),
 **Apache Hop** + **Apache Superset** (data warehouse & BI), **Semgrep**
-(code quality), **InsightTrack** (web analytics), **Vaultwarden** (password manager),
-and **Werkyn** (project management). The two backing-service
+(code quality), **Vaultwarden** (password manager),
+and **LDS Wiki** (documentation). The two backing-service
 browsers, `phpcacheadmin` and `dbgate`, are documented in
 [13 · Profiles](13-profiles.md).
+
 
 ## Control panel — `http://localhost`
 
@@ -17,8 +18,8 @@ The PHP container serves a control panel as its default site, reachable at
 - **Tools & web UIs**, grouped — *Data tools* (phpCacheAdmin, DBGate),
   *Security & auth* (Vaultwarden),
   *Database design* (DrawDB), *Data warehouse & BI* (Superset, Hop),
-  *Code quality* (Semgrep), *Web analytics* (InsightTrack),
-  *Project management* (Werkyn), *Realtime*
+  *Code quality* (Semgrep), *Realtime*
+
   (Centrifugo, MQTTX), plus Kafka UI — each with a ●/○ reachability dot.
 - **Projects** — every folder under `${PHP_PROJECTS_PATH}`, linked at its
   `<name>.test` host.
@@ -140,18 +141,16 @@ rules), and that end-of-run upload can hang on slow/offline links — so the scr
 only enables metrics when you explicitly set `SEMGREP_RULES=auto`. (Registry packs
 are still fetched over the network at scan start; that's load time, not a hang.)
 
-## Web analytics — InsightTrack
+## Web analytics — LDS Analytics
 
-**Profile:** `insighttrack` (`LDS_ENABLE_INSIGHTTRACK`). **Off by default.**
+**Profile:** `analytics` (`LDS_ENABLE_ANALYTICS`). **Off by default.**
 
-Self-hosted analytics (dashboard + API) integrated as a lightweight stack add-on.
+Self-hosted analytics (Nuxt/Vue frontend + Hono API) integrated as a lightweight stack add-on.
 
-- Reuses shared **`lds-postgres`** (no dedicated InsightTrack postgres container).
-- Stores analytics read data in **embedded DuckDB** inside the backend process
-  (persisted via an LDS-managed volume).
-- UI: `http://localhost:4427` / `insighttrack.test`
+- Reuses shared **`lds-postgres`** (no dedicated analytics postgres container).
+- UI: `http://localhost:4427` / `analytics.test`
 - API: `http://localhost:4428`
-- DB bootstrap is automatic when this profile starts (`insighttrack-init` →
+- DB bootstrap is automatic when this profile starts (`analytics-init` →
   `postgres-init`).
 
 ## Security & auth — Vaultwarden
@@ -164,16 +163,27 @@ Self-hosted password manager (Bitwarden-compatible server + web vault).
 - Persistent storage: `vaultwarden-data` volume (sqlite-backed).
 - Default signups are off (`VAULTWARDEN_SIGNUPS_ALLOWED=false`).
 
-## Project management — Werkyn
+## Project management — LDS Tasks
 
-**Profile:** `werkyn` (`LDS_ENABLE_WERKYN`). **Off by default.**
+**Profile:** `tasks` (`LDS_ENABLE_TASKS`). **Off by default.**
 
-Self-hosted team project management/collaboration app (boards, tasks, wiki-like workflows).
+Self-hosted team project management/collaboration app (Angular frontend + Hono API).
 
-- Reuses shared **`lds-postgres`** (no dedicated Werkyn postgres container).
-- URL: `http://localhost:4435` / `werkyn.test`
-- Persistent app data: `werkyn-storage` and `werkyn-dex-data` volumes.
-- DB bootstrap is automatic when this profile starts (`werkyn-init` → `postgres-init`).
+- Reuses shared **`lds-postgres`** (no dedicated tasks postgres container).
+- UI: `http://localhost:4435` / `tasks.test`
+- API: `http://localhost:4436`
+- DB bootstrap is automatic when this profile starts (`tasks-init` → `postgres-init`).
+
+## Documentation — LDS Wiki
+
+**Profile:** `wiki` (`LDS_ENABLE_WIKI`). **Off by default.**
+
+Self-hosted documentation/wiki app (Next.js frontend + Hono API).
+
+- Reuses shared **`lds-postgres`** (no dedicated wiki postgres container).
+- UI: `http://localhost:4437` / `wiki.test`
+- API: `http://localhost:4438`
+- DB bootstrap is automatic when this profile starts (`wiki-init` → `postgres-init`).
 
 ---
 

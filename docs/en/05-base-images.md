@@ -5,9 +5,10 @@ shared `lds/*` base images (sources in `base-images/`), then reused by the stack
 and every template — so heavy installs (PECL, cargo-watch, …) happen once.
 
 All bases build **FROM Docker Hardened Images (DHI)** under
-`${DHI_REGISTRY:-dhi.io}`, using the `-dev` flavor (ships a shell + apt). DHI
-defaults to a non-root user, so each Dockerfile does `USER root` for its build +
-runtime steps.
+`${DHI_REGISTRY:-dhi.io}`. Language dev bases use the `-dev` flavor (ships a
+shell + apt), while `lds/nginx` uses the hardened runtime image. DHI defaults
+to a non-root user, so Dockerfiles switch to `USER root` only where build/runtime
+steps require it.
 
 <table>
 <thead>
@@ -48,6 +49,11 @@ runtime steps.
 <td>`eclipse-temurin:25-jdk-alpine3.24-dev` ²</td>
 <td>Maven + JDK</td>
 </tr>
+<tr>
+<td>`lds/nginx`</td>
+<td>`nginx:1.27`</td>
+<td>Pinned nginx runtime for static/UI containers</td>
+</tr>
 </tbody>
 </table>
 
@@ -83,11 +89,11 @@ fetch and unpack it, so no apk install is needed.
   `DHI_REGISTRY` in `.env` to repoint the DHI namespace.
 - Build / refresh: `./lds.sh build-bases` (`--force` to rebuild, `--push` to
   push to `$REGISTRY`). Orchestrated by `docker-bake.hcl` (`docker buildx bake`)
-  — all six build in parallel from one definition.
+  — all seven build in parallel from one definition.
 - Built **once**; rebuild only when a version/dependency changes — not per
   template build, not per code change.
-- Template **dev** stages `FROM lds/*`; **prod** stages stay on lean public
-  images.
+- Template **dev** stages `FROM lds/*`; static web **prod** stages may also reuse
+  `lds/nginx` to avoid extra nginx pulls.
 
 > The DB services (`mysql`/`postgres`/`redis`/`memcached`) and the dns image
 > also come from DHI — see [13 · Profiles](13-profiles.md). DB services use the

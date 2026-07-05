@@ -21,18 +21,21 @@ call :banner "RM - force-remove containers"
 call "%~dp0rm.bat"
 call :doneb
 
-REM Build the lds/* bases ONLY if the core one (lds/php) is missing - distinct
+REM Build the lds/* bases ONLY if required core images are missing - distinct
 REM from the standalone `lds build-bases`, which always (re)builds them all.
-call :banner "ENSURE BASE IMAGES - run build-bases only if lds/php is missing"
+call :banner "ENSURE BASE IMAGES - run build-bases only if lds/php or lds/nginx is missing"
 if not exist .env copy .env.example .env >nul
 if exist .env for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do if not defined %%a set "%%a=%%b"
 if "%PHP_VERSION%"=="" set "PHP_VERSION=8.4"
-docker image inspect "lds/php:%PHP_VERSION%" >nul 2>&1
-if errorlevel 1 (
-  echo   lds/php not found - handing off to build-bases...
+if "%NGINX_VERSION%"=="" set "NGINX_VERSION=1.27"
+set "NEED_BASES="
+docker image inspect "lds/php:%PHP_VERSION%" >nul 2>&1 || set "NEED_BASES=1"
+docker image inspect "lds/nginx:%NGINX_VERSION%" >nul 2>&1 || set "NEED_BASES=1"
+if defined NEED_BASES (
+  echo   required base image missing - handing off to build-bases...
   call "%~dp0..\build\build-bases.bat"
 ) else (
-  echo   lds/php already present - skipping ^(run 'lds build-bases' to force a rebuild^).
+  echo   lds/php + lds/nginx already present - skipping ^(run 'lds build-bases' to force a rebuild^).
 )
 call :doneb
 

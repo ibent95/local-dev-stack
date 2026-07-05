@@ -130,10 +130,10 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 <td>`semgrep` — viewer SARIF (`lds tools semgrep` menjalankan scan)</td>
 </tr>
 <tr>
-<td>`insighttrack`</td>
-<td>`LDS_ENABLE_INSIGHTTRACK`</td>
+<td>`analytics`</td>
+<td>`LDS_ENABLE_ANALYTICS`</td>
 <td>❌</td>
-<td>`insighttrack-backend`, `insighttrack` — web analytics self-hosted</td>
+<td>`analytics-api`, `analytics-ui` — Nuxt/Vue reactive analytics</td>
 </tr>
 <tr>
 <td>`vaultwarden`</td>
@@ -142,10 +142,16 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 <td>`vaultwarden` — password manager</td>
 </tr>
 <tr>
-<td>`werkyn`</td>
-<td>`LDS_ENABLE_WERKYN`</td>
+<td>`tasks`</td>
+<td>`LDS_ENABLE_TASKS`</td>
 <td>❌</td>
-<td>`werkyn` — aplikasi project management/kolaborasi</td>
+<td>`tasks-api`, `tasks-ui` — Angular project management</td>
+</tr>
+<tr>
+<td>`wiki`</td>
+<td>`LDS_ENABLE_WIKI`</td>
+<td>❌</td>
+<td>`wiki-api`, `wiki-ui` — Next.js documentation</td>
 </tr>
 <tr>
 <td>`all`</td>
@@ -156,7 +162,7 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 </tbody>
 </table>
 
-> **Tool data** (`drawdb`, `hop`, `superset`, `semgrep`, `insighttrack`, `vaultwarden`, `werkyn`) punya halaman sendiri —
+> **Aplikasi kustom** (`analytics`, `tasks`, `wiki`) dan **tool data** (`drawdb`, `hop`, `superset`, `semgrep`, `vaultwarden`) punya halaman sendiri —
 > lihat [15 · Dashboard & data tools](15-data-tools.md). Panel kontrol di
 > `http://localhost` menautkan semuanya lengkap dengan status langsung.
 
@@ -391,20 +397,6 @@ perlu instance kedua per channel.
   untuk backend). `mqttx` adalah UI client (publish/subscribe), bukan dashboard admin broker.
 - Batas: `${MOSQUITTO_MEM_LIMIT}` (default `128m`), `${MQTTX_MEM_LIMIT}` (default `128m`).
 
-## `insighttrack` — web analytics (reuse Postgres bersama)
-
-**Menjalankan:** `insighttrack-backend`, `insighttrack` (UI), dan `postgres`
-bersama. **Toggle:** `LDS_ENABLE_INSIGHTTRACK`. **Mati secara default.**
-
-- **Tanpa container DB tambahan:** profile ini memakai `lds-postgres`.
-- **DuckDB embedded** di proses backend (persisten via volume `insighttrack-duckdb-data`).
-- **UI:** `${INSIGHTTRACK_HOST}` (default `insighttrack.test`) dan host port
-  `${INSIGHTTRACK_HOST_PORT}` (default `4427`).
-- **API:** host port `${INSIGHTTRACK_API_HOST_PORT}` (default `4428`).
-- **Init DB tool otomatis:** `lds up insighttrack` menjalankan `insighttrack-init`
-  (delegasi ke `postgres-init`) agar
-  `INSIGHTTRACK_POSTGRES_DB/USER/PASSWORD` tersedia.
-
 ## `vaultwarden` — password manager
 
 **Menjalankan:** `vaultwarden`. **Toggle:** `LDS_ENABLE_VAULTWARDEN`. **Mati secara default.**
@@ -415,18 +407,6 @@ bersama. **Toggle:** `LDS_ENABLE_INSIGHTTRACK`. **Mati secara default.**
 - **Storage:** volume persisten berbasis sqlite (`vaultwarden-data`).
 - **Default:** signup nonaktif (`VAULTWARDEN_SIGNUPS_ALLOWED=false`);
   panel admin dilindungi `VAULTWARDEN_ADMIN_TOKEN`.
-
-## `werkyn` — project management dan kolaborasi
-
-**Menjalankan:** `werkyn` dan `postgres` bersama. **Toggle:** `LDS_ENABLE_WERKYN`. **Mati secara default.**
-
-- **Tanpa container DB tambahan:** profile ini memakai `lds-postgres`.
-- **URL aplikasi:** `${WERKYN_HOST}` (default `werkyn.test`) dan host port
-  `${WERKYN_HOST_PORT}` (default `4435`).
-- **Data persisten aplikasi:** volume `werkyn-storage` dan `werkyn-dex-data`.
-- **Init DB tool otomatis:** `lds up werkyn` menjalankan `werkyn-init`
-  (delegasi ke `postgres-init`) agar
-  `WERKYN_POSTGRES_DB/USER/PASSWORD` tersedia.
 
 ## `all` — semuanya
 

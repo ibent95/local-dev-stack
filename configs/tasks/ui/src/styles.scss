@@ -1,0 +1,31 @@
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  background: #18181b;
+  color: #fafafa;
+}
+
+/* Angular Material dark theme overrides */
+.mat-mdc-card {
+  background: #27272a !important;
+  color: #fafafa !important;
+}
+
+.mat-mdc-form-field {
+  width: 100%;
+}
+
+.mdc-text-field--outlined .mdc-notched-outline__leading,
+.mdc-text-field--outlined .mdc-notched-outline__trailing,
+.mdc-text-field--outlined .mdc-notched-outline__notch {
+  border-color: #3f3f46 !important;
+}
+
+.mat-mdc-menu-panel {
+  background: #27272a !important;
+}
+
+.mat-mdc-menu-item {
+  color: #fafafa !important;
+}

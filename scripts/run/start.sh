@@ -22,15 +22,18 @@ banner "INIT — network + .env";              "$ROOT/scripts/run/init.sh"; done
 banner "DOWN — stop/remove existing";        "$ROOT/scripts/run/down.sh"; done_step
 banner "RM — force-remove containers";       "$ROOT/scripts/run/rm.sh";   done_step
 
-# Build the lds/* bases ONLY if the core one (lds/php) is missing — distinct
-# from the standalone `lds build-bases`, which always (re)builds them all.
-banner "ENSURE BASE IMAGES — run build-bases only if lds/php is missing"
+# Build the lds/* bases ONLY if required core images are missing — distinct from
+# the standalone `lds build-bases`, which always (re)builds them all.
+banner "ENSURE BASE IMAGES — run build-bases only if lds/php or lds/nginx is missing"
 [ -f .env ] && { set -a; . ./.env; set +a; }
-if ! docker image inspect "lds/php:${PHP_VERSION:-8.4}" >/dev/null 2>&1; then
-  echo "  lds/php not found — handing off to build-bases…"
+need_bases=0
+docker image inspect "lds/php:${PHP_VERSION:-8.4}" >/dev/null 2>&1 || need_bases=1
+docker image inspect "lds/nginx:${NGINX_VERSION:-1.27}" >/dev/null 2>&1 || need_bases=1
+if [ "$need_bases" -eq 1 ]; then
+  echo "  required base image missing — handing off to build-bases…"
   "$ROOT/scripts/build/build-bases.sh"
 else
-  echo "  lds/php already present — skipping (run 'lds build-bases' to force a rebuild)."
+  echo "  lds/php + lds/nginx already present — skipping (run 'lds build-bases' to force a rebuild)."
 fi
 done_step
 

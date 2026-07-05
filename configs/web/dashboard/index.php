@@ -77,10 +77,13 @@ $uiGroups = [
         ['label' => 'Semgrep', 'desc' => 'SAST · SARIF viewer', 'url' => '//semgrep.test', 'alt' => 'localhost:4426', 'health' => ['semgrep', 80]],
     ],
     'Web analytics' => [
-        ['label' => 'InsightTrack',  'desc' => 'privacy-first analytics', 'url' => '//insighttrack.test',  'alt' => 'localhost:4427', 'health' => ['insighttrack', 4173]],
+        ['label' => 'LDS Analytics', 'desc' => 'Nuxt 4 · reactive dashboard', 'url' => '//analytics.test', 'alt' => 'localhost:4427', 'health' => ['analytics-ui', 4173]],
     ],
     'Project management' => [
-        ['label' => 'Werkyn', 'desc' => 'team project management', 'url' => '//werkyn.test', 'alt' => 'localhost:4435', 'health' => ['werkyn', 3000]],
+        ['label' => 'LDS Tasks', 'desc' => 'Angular 22 · Kanban boards', 'url' => '//tasks.test', 'alt' => 'localhost:4435', 'health' => ['tasks-ui', 4174]],
+    ],
+    'Documentation' => [
+        ['label' => 'LDS Wiki', 'desc' => 'Next.js 16 · documentation hub', 'url' => '//wiki.test', 'alt' => 'localhost:4437', 'health' => ['wiki-ui', 4175]],
     ],
     'Kafka' => [
         ['label' => 'Kafka UI',          'desc' => 'topics · connectors',      'url' => 'http://localhost:4420', 'alt' => null, 'health' => ['kafka-ui', 8080]],

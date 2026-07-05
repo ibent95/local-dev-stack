@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Ensure Postgres has the InsightTrack database/user. Reuses postgres-init by
-# injecting the InsightTrack spec into POSTGRES_INIT_SPECS for this run.
-# Idempotent; auto-run by `lds up` for insighttrack/all.
+# Ensure Postgres has the LDS Tasks database/user. Reuses postgres-init by
+# injecting the tasks spec into POSTGRES_INIT_SPECS for this run.
+# Idempotent; auto-run by `lds up` for tasks/all.
 set -euo pipefail
 export MSYS_NO_PATHCONV=1
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -14,9 +14,9 @@ if [ -f .env ]; then
   done < .env
 fi
 
-db="${INSIGHTTRACK_POSTGRES_DB:-app}"
-u="${INSIGHTTRACK_POSTGRES_USER:-app}"
-p="${INSIGHTTRACK_POSTGRES_PASSWORD:-app}"
+db="${TASKS_POSTGRES_DB:-lds_tasks}"
+u="${TASKS_POSTGRES_USER:-app}"
+p="${TASKS_POSTGRES_PASSWORD:-app}"
 spec="${db}:${u}:${p}"
 
 merged="${POSTGRES_INIT_SPECS:-}"

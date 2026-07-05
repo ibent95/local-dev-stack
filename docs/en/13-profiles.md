@@ -130,10 +130,10 @@ when you'd turn it on.
 <td>`semgrep` — SARIF viewer (`lds tools semgrep` runs the scan)</td>
 </tr>
 <tr>
-<td>`insighttrack`</td>
-<td>`LDS_ENABLE_INSIGHTTRACK`</td>
+<td>`analytics`</td>
+<td>`LDS_ENABLE_ANALYTICS`</td>
 <td>❌</td>
-<td>`insighttrack-backend`, `insighttrack` — self-hosted web analytics</td>
+<td>`analytics-api`, `analytics-ui` — Nuxt/Vue reactive analytics</td>
 </tr>
 <tr>
 <td>`vaultwarden`</td>
@@ -142,10 +142,16 @@ when you'd turn it on.
 <td>`vaultwarden` — password manager</td>
 </tr>
 <tr>
-<td>`werkyn`</td>
-<td>`LDS_ENABLE_WERKYN`</td>
+<td>`tasks`</td>
+<td>`LDS_ENABLE_TASKS`</td>
 <td>❌</td>
-<td>`werkyn` — project management/collaboration app</td>
+<td>`tasks-api`, `tasks-ui` — Angular project management</td>
+</tr>
+<tr>
+<td>`wiki`</td>
+<td>`LDS_ENABLE_WIKI`</td>
+<td>❌</td>
+<td>`wiki-api`, `wiki-ui` — Next.js documentation</td>
 </tr>
 <tr>
 <td>`all`</td>
@@ -156,7 +162,7 @@ when you'd turn it on.
 </tbody>
 </table>
 
-> **Data tools** (`drawdb`, `hop`, `superset`, `semgrep`, `insighttrack`, `vaultwarden`, `werkyn`) get their own page —
+> **Custom apps** (`analytics`, `tasks`, `wiki`) and **data tools** (`drawdb`, `hop`, `superset`, `semgrep`, `vaultwarden`) get their own page —
 > see [15 · Dashboard & data tools](15-data-tools.md). The `http://localhost`
 > control panel links them all with live status.
 
@@ -379,19 +385,8 @@ serves unlimited channels/topics; you never run a second instance per channel.
   backends). `mqttx` is a client UI (publish/subscribe), not a broker admin dashboard.
 - Caps: `${MOSQUITTO_MEM_LIMIT}` (default `128m`), `${MQTTX_MEM_LIMIT}` (default `128m`).
 
-## `insighttrack` — web analytics (reuses shared Postgres)
 
-**Starts:** `insighttrack-backend`, `insighttrack` (UI), and shared `postgres`.
-**Toggle:** `LDS_ENABLE_INSIGHTTRACK`. **Off by default.**
 
-- **No separate DB container:** the profile reuses `lds-postgres` (service `postgres`).
-- **DuckDB is embedded** in the backend process (persisted in `insighttrack-duckdb-data`).
-- **UI:** `${INSIGHTTRACK_HOST}` (default `insighttrack.test`) and host port
-  `${INSIGHTTRACK_HOST_PORT}` (default `4427`).
-- **API:** host port `${INSIGHTTRACK_API_HOST_PORT}` (default `4428`).
-- **DB bootstrap for the tool:** `lds up insighttrack` auto-runs `insighttrack-init`
-  (delegates to `postgres-init`) so the configured
-  `INSIGHTTRACK_POSTGRES_DB/USER/PASSWORD` exist.
 
 ## `vaultwarden` — password manager
 
@@ -404,17 +399,6 @@ serves unlimited channels/topics; you never run a second instance per channel.
 - **Defaults:** signups off by default (`VAULTWARDEN_SIGNUPS_ALLOWED=false`);
   admin panel gated by `VAULTWARDEN_ADMIN_TOKEN`.
 
-## `werkyn` — project management and collaboration
-
-**Starts:** `werkyn` and shared `postgres`. **Toggle:** `LDS_ENABLE_WERKYN`. **Off by default.**
-
-- **No separate DB container:** the profile reuses `lds-postgres` (service `postgres`).
-- **App URL:** `${WERKYN_HOST}` (default `werkyn.test`) and host port
-  `${WERKYN_HOST_PORT}` (default `4435`).
-- **Persistent app data:** named volumes `werkyn-storage` and `werkyn-dex-data`.
-- **DB bootstrap for the tool:** `lds up werkyn` auto-runs `werkyn-init`
-  (delegates to `postgres-init`) so the configured
-  `WERKYN_POSTGRES_DB/USER/PASSWORD` exist.
 
 ## `all` — everything
 

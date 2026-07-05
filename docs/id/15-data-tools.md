@@ -3,8 +3,8 @@
 Halaman ini membahas **panel kontrol** di `http://localhost` serta profile tool
 mandiri yang ditambahkan di atas stack inti: **DrawDB** (perancangan skema),
 **Apache Hop** + **Apache Superset** (data warehouse & BI), **Semgrep**
-(kualitas kode), **InsightTrack** (web analytics), **Vaultwarden** (password manager),
-dan **Werkyn** (project management). Dua browser layanan pendukung, `phpcacheadmin` dan `dbgate`,
+(kualitas kode), **Vaultwarden** (password manager),
+dan **LDS Wiki** (dokumentasi). Dua browser layanan pendukung, `phpcacheadmin` dan `dbgate`,
 didokumentasikan di [13 · Profile](13-profiles.md).
 
 ## Panel kontrol — `http://localhost`
@@ -16,8 +16,7 @@ Container PHP melayani panel kontrol sebagai situs default-nya, dapat diakses di
 - **Tool & UI web**, dikelompokkan — *Data tools* (phpCacheAdmin, DBGate),
   *Security & auth* (Vaultwarden),
   *Database design* (DrawDB), *Data warehouse & BI* (Superset, Hop),
-  *Code quality* (Semgrep), *Web analytics* (InsightTrack),
-  *Project management* (Werkyn), *Realtime* (Centrifugo, MQTTX), plus Kafka UI — masing
+  *Code quality* (Semgrep), *Realtime* (Centrifugo, MQTTX), plus Kafka UI — masing
   -masing dengan titik ●/○ status keterjangkauan.
 - **Proyek** — setiap folder di `${PHP_PROJECTS_PATH}`, ditautkan ke host
   `<nama>.test`-nya.
@@ -141,19 +140,14 @@ lambat/offline — jadi skrip hanya menyalakan metrics bila Anda set
 `SEMGREP_RULES=auto`. (Pack registry tetap diambil via jaringan saat scan mulai;
 itu waktu muat, bukan macet.)
 
-## Web analytics — InsightTrack
+## Web analytics — LDS Analytics**Profile:** `analytics` (`LDS_ENABLE_ANALYTICS`). **Mati secara default.**
 
-**Profile:** `insighttrack` (`LDS_ENABLE_INSIGHTTRACK`). **Mati secara default.**
+Web analytics self-hosted (frontend Nuxt/Vue + API Hono) yang ditambahkan ringan di atas stack inti.
 
-Web analytics self-hosted (dashboard + API) yang ditambahkan ringan di atas stack
-inti.
-
-- Reuse **`lds-postgres`** bersama (tanpa container Postgres khusus InsightTrack).
-- Data analitik baca disimpan di **DuckDB embedded** di proses backend
-  (persisten via volume yang dikelola LDS).
-- UI: `http://localhost:4427` / `insighttrack.test`
+- Reuse **`lds-postgres`** bersama (tanpa container Postgres khusus analytics).
+- UI: `http://localhost:4427` / `analytics.test`
 - API: `http://localhost:4428`
-- Bootstrap DB otomatis saat profile ini start (`insighttrack-init` →
+- Bootstrap DB otomatis saat profile ini start (`analytics-init` →
   `postgres-init`).
 
 ## Security & auth — Vaultwarden
@@ -166,16 +160,27 @@ Password manager self-hosted (server + web vault kompatibel Bitwarden).
 - Storage persisten: volume `vaultwarden-data` (sqlite).
 - Signup default nonaktif (`VAULTWARDEN_SIGNUPS_ALLOWED=false`).
 
-## Project management — Werkyn
+## Project management — LDS Tasks
 
-**Profile:** `werkyn` (`LDS_ENABLE_WERKYN`). **Mati secara default.**
+**Profile:** `tasks` (`LDS_ENABLE_TASKS`). **Mati secara default.**
 
-Aplikasi project management/kolaborasi tim self-hosted (board, task, alur kerja dokumentasi).
+Aplikasi project management/kolaborasi tim self-hosted (frontend Angular + API Hono).
 
-- Reuse **`lds-postgres`** bersama (tanpa container Postgres khusus Werkyn).
-- URL: `http://localhost:4435` / `werkyn.test`
-- Data persisten aplikasi: volume `werkyn-storage` dan `werkyn-dex-data`.
-- Bootstrap DB otomatis saat profile ini start (`werkyn-init` → `postgres-init`).
+- Reuse **`lds-postgres`** bersama (tanpa container Postgres khusus tasks).
+- UI: `http://localhost:4435` / `tasks.test`
+- API: `http://localhost:4436`
+- Bootstrap DB otomatis saat profile ini start (`tasks-init` → `postgres-init`).
+
+## Dokumentasi — LDS Wiki
+
+**Profile:** `wiki` (`LDS_ENABLE_WIKI`). **Mati secara default.**
+
+Aplikasi wiki/dokumentasi self-hosted (frontend Next.js + API Hono).
+
+- Reuse **`lds-postgres`** bersama (tanpa container Postgres khusus wiki).
+- UI: `http://localhost:4437` / `wiki.test`
+- API: `http://localhost:4438`
+- Bootstrap DB otomatis saat profile ini start (`wiki-init` → `postgres-init`).
 
 ---
 

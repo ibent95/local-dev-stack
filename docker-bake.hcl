@@ -8,7 +8,8 @@
 # Versions come from env vars (PHP_VERSION, GO_VERSION, …) or the defaults here.
 # =============================================================================
 # DHI_REGISTRY = Docker Hardened Images namespace the dev bases build FROM.
-# Each base-images/*/Dockerfile pins its own OS/flavor + `-dev` DHI suffix.
+# Language dev bases pin their own OS/flavor + `-dev` DHI suffix; lds/nginx uses
+# the hardened runtime tag.
 variable "DHI_REGISTRY"   { default = "dhi.io" }
 variable "PHP_VERSION"    { default = "8.4" }
 variable "GO_VERSION"     { default = "1.26" }
@@ -16,9 +17,10 @@ variable "RUST_VERSION"   { default = "1.96" }
 variable "NODE_VERSION"   { default = "26.3" }
 variable "PYTHON_VERSION" { default = "3.14" }
 variable "JAVA_VERSION"   { default = "25" }
+variable "NGINX_VERSION" { default = "1.27" }
 
 group "default" {
-  targets = ["php", "go-dev", "rust-dev", "node-dev", "python-dev", "java-dev"]
+  targets = ["php", "go-dev", "rust-dev", "node-dev", "python-dev", "java-dev", "nginx"]
 }
 
 # The ONE PHP base — context is the repo root so it can bake configs/php-app/*.
@@ -64,4 +66,11 @@ target "java-dev" {
   dockerfile = "base-images/java-dev/Dockerfile"
   args       = { JAVA_VERSION = "${JAVA_VERSION}", DHI_REGISTRY = "${DHI_REGISTRY}" }
   tags       = ["lds/java-dev:${JAVA_VERSION}"]
+}
+
+target "nginx" {
+  context    = "."
+  dockerfile = "base-images/nginx/Dockerfile"
+  args       = { NGINX_VERSION = "${NGINX_VERSION}", DHI_REGISTRY = "${DHI_REGISTRY}" }
+  tags       = ["lds/nginx:${NGINX_VERSION}"]
 }

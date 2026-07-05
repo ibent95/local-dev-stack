@@ -17,9 +17,10 @@ if "%DRAWDB_HOST%"=="" set "DRAWDB_HOST=drawdb.test"
 if "%HOP_HOST%"=="" set "HOP_HOST=hop.test"
 if "%SUPERSET_HOST%"=="" set "SUPERSET_HOST=superset.test"
 if "%SEMGREP_HOST%"=="" set "SEMGREP_HOST=semgrep.test"
-if "%INSIGHTTRACK_HOST%"=="" set "INSIGHTTRACK_HOST=insighttrack.test"
+if "%ANALYTICS_HOST%"=="" set "ANALYTICS_HOST=analytics.test"
 if "%VAULTWARDEN_HOST%"=="" set "VAULTWARDEN_HOST=vaultwarden.test"
-if "%WERKYN_HOST%"=="" set "WERKYN_HOST=werkyn.test"
+if "%TASKS_HOST%"=="" set "TASKS_HOST=tasks.test"
+if "%WIKI_HOST%"=="" set "WIKI_HOST=wiki.test"
 set "PROJDIR=%PHP_PROJECTS_PATH:/=\%"
 
 set "HOSTS=%WINDIR%\System32\drivers\etc\hosts"
@@ -69,9 +70,11 @@ call :add %HOP_HOST%
 call :sec "Code quality"
 call :add %SEMGREP_HOST%
 call :sec "Web analytics"
-call :add %INSIGHTTRACK_HOST%
+call :add %ANALYTICS_HOST%
 call :sec "Project management"
-call :add %WERKYN_HOST%
+call :add %TASKS_HOST%
+call :sec "Documentation"
+call :add %WIKI_HOST%
 call :sec "Realtime & messaging"
 call :add %SOKETI_HOST%
 call :add %CENTRIFUGO_HOST%

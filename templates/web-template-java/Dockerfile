@@ -9,9 +9,7 @@ RUN mvn -q -B dependency:go-offline || true
 COPY . .
 RUN mvn -q -B -DskipTests package
 
-FROM tomcat:10.1-jdk21 AS dev
+FROM tomcat:10.1-jdk21
 RUN rm -rf /usr/local/tomcat/webapps/*
 COPY --from=build /app/target/ROOT.war /usr/local/tomcat/webapps/ROOT.war
 EXPOSE 8080
-
-FROM dev AS prod

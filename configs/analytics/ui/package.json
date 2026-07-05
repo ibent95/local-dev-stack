@@ -1,0 +1,24 @@
+{
+  "name": "lds-analytics-ui",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "nuxt dev --port 4173 --host 0.0.0.0",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "generate": "nuxt generate"
+  },
+  "dependencies": {
+    "nuxt": "^4.0.0",
+    "vue": "~3.5.39",
+    "vue-router": "^4.6.0",
+    "recharts": "^2.15.0",
+    "lucide-vue-next": "^0.468.0"
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "^2.1.0",
+    "@nuxtjs/tailwindcss": "^6.14.0",
+    "sass": "^1.101.0",
+    "typescript": "^5.8.0"
+  }
+}

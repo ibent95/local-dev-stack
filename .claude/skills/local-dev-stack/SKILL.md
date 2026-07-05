@@ -3,7 +3,7 @@ name: local-dev-stack
 description: >
   Operate the local-dev-stack shared Docker Compose environment via the `lds`
   CLI — start/stop profiles, manage the bundled tools (DrawDB, Apache Hop,
-  Superset, Semgrep, InsightTrack, Vaultwarden, Werkyn, Kafka, the databases),
+  Superset, Semgrep, Vaultwarden, Analytics, Tasks, Wiki, Kafka, the databases),
   sync *.test hosts, and apply known
   fixes. Use when working in this repo or when the user asks to run, configure,
   or troubleshoot the stack, its tools, or its `<name>.test` URLs.
@@ -50,7 +50,7 @@ Old flat names (`kafka-topics`, `mysql-init`, `mongo-init`, `register-connectors
 `docker-compose.yml` is ordered by importance of usage: **web foundation**
 (proxy, dns, php) → **databases** (mysql, postgres, mongo, redis, memcached) →
 **admin UIs** (phpcacheadmin, dbgate) → **data tools** (drawdb, hop, superset,
-semgrep, insighttrack, vaultwarden, werkyn) → **realtime brokers** (soketi, centrifugo, mqtt) → **Kafka** (last,
+semgrep, vaultwarden, analytics, tasks, wiki) → **realtime brokers** (soketi, centrifugo, mqtt) → **Kafka** (last,
 heaviest, off by default). Each group has a `# ===` banner. Host ports live in
 the `44xx` block (see `docs/en/12-ports.md`).
 
@@ -88,11 +88,15 @@ bind-mounted, so changes are live (no restart).
   the viewer. (Not `docker compose run` — Compose's -v splits on ':' and chokes on
   Windows `D:\…` paths, leaving /src empty.) Empty viewer = no scan has run yet.
   `lds up semgrep` pre-pulls the scanner image (best-effort).
-- **InsightTrack** reuses shared `postgres` (no extra DB container); `insighttrack-init`
+- **Analytics** reuses shared `postgres` (no extra DB container); `analytics-init`
   augments `POSTGRES_INIT_SPECS` and delegates to `postgres-init` so the configured
-  `INSIGHTTRACK_POSTGRES_DB/USER/PASSWORD` exist. UI at `insighttrack.test` / :4427.
-- **Werkyn** reuses shared `postgres`; `werkyn-init` augments `POSTGRES_INIT_SPECS`
-  and delegates to `postgres-init` so `WERKYN_POSTGRES_DB/USER/PASSWORD` exist.
+  `ANALYTICS_POSTGRES_DB/USER/PASSWORD` exist. UI at `analytics.test` / :4440.
+- **Tasks** reuses shared `postgres`; `tasks-init` augments `POSTGRES_INIT_SPECS`
+  and delegates to `postgres-init` so `TASKS_POSTGRES_DB/USER/PASSWORD` exist.
+  UI at `tasks.test` / :4442.
+- **Wiki** reuses shared `postgres`; `wiki-init` augments `POSTGRES_INIT_SPECS`
+  and delegates to `postgres-init` so `WIKI_POSTGRES_DB/USER/PASSWORD` exist.
+  UI at `wiki.test` / :4444.
 - **DB `app` database missing** (or tool DB/user not created yet)
   → `lds db init mysql|postgres|mongo|all` (auto-run by `lds up` when relevant profiles are selected).
 - **`*.test` won't resolve** without the dns container as your resolver → run

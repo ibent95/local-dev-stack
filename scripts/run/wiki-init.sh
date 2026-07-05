@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Ensure Postgres has the Werkyn database/user. Reuses postgres-init by
-# injecting the Werkyn spec into POSTGRES_INIT_SPECS for this run.
-# Idempotent; auto-run by `lds up` for werkyn/all.
+# Ensure Postgres has the LDS Wiki database/user. Reuses postgres-init by
+# injecting the wiki spec into POSTGRES_INIT_SPECS for this run.
+# Idempotent; auto-run by `lds up` for wiki/all.
 set -euo pipefail
 export MSYS_NO_PATHCONV=1
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -14,9 +14,9 @@ if [ -f .env ]; then
   done < .env
 fi
 
-db="${WERKYN_POSTGRES_DB:-werkyn}"
-u="${WERKYN_POSTGRES_USER:-werkyn}"
-p="${WERKYN_POSTGRES_PASSWORD:-werkyn}"
+db="${WIKI_POSTGRES_DB:-lds_wiki}"
+u="${WIKI_POSTGRES_USER:-app}"
+p="${WIKI_POSTGRES_PASSWORD:-app}"
 spec="${db}:${u}:${p}"
 
 merged="${POSTGRES_INIT_SPECS:-}"
