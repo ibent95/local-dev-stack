@@ -23,3 +23,5 @@ configs/analytics/ui/dist/
 configs/tasks/ui/dist/
 configs/wiki/ui/.next/
 configs/wiki/ui/out/
+configs/*/ui/package-lock.json
+configs/*/api/package-lock.json

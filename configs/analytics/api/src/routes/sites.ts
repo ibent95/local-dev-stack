@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { sites } from "../db/schema.js";
 
@@ -20,7 +21,7 @@ sitesRouter.post("/", async (c) => {
 // GET /api/sites/:id — get single site
 sitesRouter.get("/:id", async (c) => {
   const id = c.req.param("id");
-  const [row] = await db.select().from(sites).where(sites.id.eq(id));
+  const [row] = await db.select().from(sites).where(eq(sites.id, id));
   if (!row) return c.json({ error: "Site not found" }, 404);
   return c.json(row);
 });
@@ -28,7 +29,7 @@ sitesRouter.get("/:id", async (c) => {
 // DELETE /api/sites/:id — delete a site
 sitesRouter.delete("/:id", async (c) => {
   const id = c.req.param("id");
-  const deleted = await db.delete(sites).where(sites.id.eq(id)).returning();
+  const deleted = await db.delete(sites).where(eq(sites.id, id)).returning();
   if (deleted.length === 0) return c.json({ error: "Site not found" }, 404);
   return c.json({ ok: true });
 });

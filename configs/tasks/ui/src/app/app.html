@@ -1,0 +1,27 @@
+<div class="app-container">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span class="logo">&#x1F4CB; LDS Tasks</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="nav-item" routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
+        <span class="nav-icon">&#x1F4CA;</span>
+        <span class="nav-label">Dashboard</span>
+      </a>
+
+      <div class="nav-section">Workspaces</div>
+      @for (ws of workspaces(); track ws.id) {
+        <a class="nav-item" [routerLink]="['/workspace', ws.slug]" routerLinkActive="active">
+          <span class="nav-icon">&#x1F4C2;</span>
+          <span class="nav-label">{{ ws.name }}</span>
+          <span class="nav-count" *ngIf="ws.projectCount != null">{{ ws.projectCount }}</span>
+        </a>
+      }
+    </nav>
+  </aside>
+
+  <main class="main-content">
+    <router-outlet />
+  </main>
+</div>

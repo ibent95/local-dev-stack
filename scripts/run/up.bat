@@ -3,6 +3,14 @@ REM Bring up one or more profiles.  up.bat mysql redis   |   up.bat all
 setlocal enabledelayedexpansion
 pushd "%~dp0..\.."
 
+REM --- --rebuild flag: add --build to docker compose up ---------------------
+set "REBUILD=0"
+set "PROFILES="
+for %%a in (%*) do (
+  if /I "%%a"=="--rebuild" (set "REBUILD=1") else (set "PROFILES=!PROFILES! %%a")
+)
+if defined PROFILES set "PROFILES=!PROFILES:~1!"
+
 if not exist .env (
   echo No .env - creating from .env.example
   copy .env.example .env >nul
@@ -18,7 +26,6 @@ REM Profiles to start: explicit args win. With no args, build the default run-se
 REM from the per-service toggles in .env (LDS_ENABLE_<PROFILE>=true|false), else
 REM "all". Canonical profile order; each maps to LDS_ENABLE_<NAME> (matched
 REM case-insensitively).
-set "PROFILES=%*"
 if "%PROFILES%"=="" (
   set "PROFILES="
   for %%p in (proxy php mysql postgres mongo redis memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep vaultwarden analytics tasks wiki) do (
@@ -81,11 +88,17 @@ if not errorlevel 1 (
   call :subdone
 )
 
-call :sub "compose up -d - start containers: %PROFILES%"
+set "UP_FLAGS=-d --remove-orphans"
+if !REBUILD!==1 (
+  set "UP_FLAGS=!UP_FLAGS! --build"
+  call :sub "compose up -d --build (rebuild + start containers): %PROFILES%"
+) else (
+  call :sub "compose up -d (pull + start containers): %PROFILES%"
+)
 REM --remove-orphans clears containers left behind by renamed/removed services.
 REM If `up` fails (e.g. an image pull errored), STOP - don't fall through to
 REM mongo-init/kafka-topics, which would wait on containers that never started.
-docker compose !CFILES! !ARGS! up -d --remove-orphans
+docker compose !CFILES! !ARGS! up !UP_FLAGS!
 if errorlevel 1 (
   echo compose up failed - aborting ^(check the pull/error above^).
   docker compose !CFILES! !ARGS! ps

@@ -111,7 +111,7 @@ foreach ($serviceGroups as $svcs) foreach ($svcs as [$h, $p]) $targets["$h:$p"] 
 foreach ($uiGroups as $apps) foreach ($apps as $a) if ($a['health']) { [$h, $p] = $a['health']; $targets["$h:$p"] = [$h, $p]; }
 
 $cached = [];
-if (is_file($LDS_CACHE)) { $j = json_decode(@file_get_contents($LDS_CACHE), true); if (is_array($j)) $cached = $j; }
+if (is_file($LDS_CACHE)) { $j = json_decode(file_get_contents($LDS_CACHE), true); if (is_array($j)) $cached = $j; }
 $age = is_file($LDS_CACHE) ? (time() - filemtime($LDS_CACHE)) : PHP_INT_MAX;
 
 $status = [];  // "host:port" => 'up' | 'down' | 'unknown'
@@ -123,7 +123,7 @@ if ($age <= $LDS_TTL && $cached) {
         if (microtime(true) - $start > $LDS_BUDGET) { $status[$k] = $cached[$k] ?? 'unknown'; continue; }
         $status[$k] = lds_probe($h, $p) ? 'up' : 'down';
     }
-    @file_put_contents($LDS_CACHE, json_encode($status));   // best-effort persist
+    file_put_contents($LDS_CACHE, json_encode($status), LOCK_EX);   // atomic write (prevents race condition)
 }
 
 // Map the unified status back onto the display structures.
@@ -212,7 +212,7 @@ unset($apps);
   <?php if ($projects): ?>
     <div class="grid">
       <?php foreach ($projects as $p): ?>
-        <a class="card" href="http://<?= htmlspecialchars($p['name']) ?>.<?= $tld ?>/">
+        <a class="card" href="//<?= htmlspecialchars($p['name']) ?>.<?= $tld ?>/">
           <div class="name"><?= htmlspecialchars($p['name']) ?>.<?= $tld ?></div>
           <div class="meta">docroot: <?= htmlspecialchars($p['docroot']) ?></div>
         </a>
@@ -220,7 +220,7 @@ unset($apps);
     </div>
   <?php else: ?>
     <p class="empty">No projects yet — drop <code>myapp/public/index.php</code> into your
-       projects path, then visit <code>http://myapp.<?= $tld ?></code>.</p>
+       projects path, then visit <code>//myapp.<?= $tld ?></code>.</p>
   <?php endif; ?>
 
   <h2>Backing services</h2>

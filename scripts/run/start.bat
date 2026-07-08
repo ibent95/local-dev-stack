@@ -7,6 +7,14 @@ REM Teardown (down/rm) always covers everything; profiles passed go to `up`.
 setlocal enabledelayedexpansion
 pushd "%~dp0..\.."
 
+REM --- --rebuild flag: forward to up.bat -----------------------------------
+set "REBUILD=0"
+set "START_ARGS="
+for %%a in (%*) do (
+  if /I "%%a"=="--rebuild" (set "REBUILD=1") else (set "START_ARGS=!START_ARGS! %%a")
+)
+if defined START_ARGS set "START_ARGS=!START_ARGS:~1!"
+
 set "N=0"
 
 call :banner "INIT - network + .env"
@@ -39,8 +47,10 @@ if defined NEED_BASES (
 )
 call :doneb
 
-call :banner "UP - %*"
-call "%~dp0up.bat" %*
+set "UP_ARGS=!START_ARGS!"
+if !REBUILD!==1 set "UP_ARGS=!UP_ARGS! --rebuild"
+call :banner "UP - !UP_ARGS!"
+call "%~dp0up.bat" !UP_ARGS!
 REM Propagate up's exit code so `lds start && lds hosts-sync` skips hosts-sync
 REM when `up` fails (e.g. a pull error aborts it). Captured BEFORE the footer.
 set "RC=!errorlevel!"

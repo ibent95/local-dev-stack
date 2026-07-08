@@ -4,6 +4,17 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
+# --- --rebuild flag: add --build to docker compose up ------------------------
+REBUILD=0
+args_raw=()
+for a in "$@"; do
+  case "$a" in
+    --rebuild) REBUILD=1 ;;
+    *) args_raw+=("$a") ;;
+  esac
+done
+set -- "${args_raw[@]}"
+
 [ -f .env ] || { echo "No .env — creating from .env.example"; cp .env.example .env; }
 
 NET="${NETWORK_NAME:-lds-network}"
@@ -74,18 +85,34 @@ case " ${profiles[*]} " in
     fi ;;
 esac
 
+# Node-based apps (analytics, tasks, wiki) need lds/node-dev.
+case " ${profiles[*]} " in
+  *" analytics "*|*" tasks "*|*" wiki "*|*" all "*)
+    if ! docker image inspect "lds/node-dev:${NODE_VERSION:-26.3}" >/dev/null 2>&1; then
+      sub "build lds/node-dev base (first run)"
+      ( cd "$ROOT" && docker buildx bake -f docker-bake.hcl --load node-dev )
+      subdone
+    fi ;;
+esac
+
 # Seed DBGate connections into its volume BEFORE it starts (fresh setups only;
 # skips if you already have connections). Keeps the stack DBs auto-listed.
 case " ${profiles[*]} " in
   *" dbgate "*|*" all "*) sub "dbgate-seed"; "$ROOT/scripts/run/dbgate-seed.sh" || true; subdone ;;
 esac
 
-sub "compose up -d (pull + start containers): ${profiles[*]}"
+up_flags=(-d --remove-orphans)
+if [ "$REBUILD" -eq 1 ]; then
+  up_flags+=(--build)
+  sub "compose up -d --build (rebuild + start containers): ${profiles[*]}"
+else
+  sub "compose up -d (pull + start containers): ${profiles[*]}"
+fi
 # --remove-orphans clears containers left behind by renamed/removed services
 # (profile-gated services still in the file are kept). If `up` fails (e.g. an
 # image pull errored), STOP — don't fall through to mongo-init/kafka-topics,
 # which would wait on containers that never started.
-if ! docker compose "${compose_files[@]}" "${args[@]}" up -d --remove-orphans; then
+if ! docker compose "${compose_files[@]}" "${args[@]}" up "${up_flags[@]}"; then
   echo "compose up failed — aborting (check the pull/error above)."
   docker compose "${compose_files[@]}" "${args[@]}" ps
   exit 1

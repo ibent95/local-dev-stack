@@ -10,7 +10,7 @@ cd "$ROOT"
 if [ -f .env ]; then
   while IFS='=' read -r k v; do
     case "$k" in ''|'#'*) continue ;; esac
-    [ -z "${!k:-}" ] && export "$k=$v"
+    [ -z "${!k:-}" ] && export "$k=${v%$'\r'}"
   done < .env
 fi
 
@@ -39,3 +39,16 @@ for s in "${specs[@]}"; do
 done
 
 POSTGRES_INIT_SPECS="$dedup" "$ROOT/scripts/run/postgres-init.sh"
+
+# Wait for postgres to be ready before applying schema (DHI PGDATA may re-init on restart)
+for i in $(seq 1 30); do
+  docker exec -e PGPASSWORD="$p" lds-postgres psql -U "$u" -d "$db" -tAc "SELECT 1" >/dev/null 2>&1 && break
+  sleep 2
+done
+
+# Apply the Drizzle table schema (idempotent — uses CREATE TABLE IF NOT EXISTS).
+schema="$ROOT/configs/tasks/api/schema.sql"
+if [ -f "$schema" ]; then
+  echo "Applying Tasks DB schema to '$db'…"
+  docker exec -i -e PGPASSWORD="$p" lds-postgres psql -v ON_ERROR_STOP=1 -U "$u" -d "$db" < "$schema" >/dev/null
+fi

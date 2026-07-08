@@ -10,7 +10,7 @@ cd "$ROOT"
 if [ -f .env ]; then
   while IFS='=' read -r k v; do
     case "$k" in ''|'#'*) continue ;; esac
-    [ -z "${!k:-}" ] && export "$k=$v"
+    [ -z "${!k:-}" ] && export "$k=${v%$'\r'}"
   done < .env
 fi
 
@@ -72,6 +72,9 @@ ensure_db_user "$DB" "$U" "$P"
 
 # Extra tool db/user specs (comma-separated `db:user:password`), e.g.:
 #   POSTGRES_INIT_SPECS=insighttrack:insighttrack:insighttrack
+# Trim whitespace and skip if empty.
+SPECS="$(printf '%s' "$SPECS" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+[ -z "$SPECS" ] && exit 0
 IFS=',' read -ra init_specs <<< "$SPECS"
 for spec in "${init_specs[@]}"; do
   spec="$(printf '%s' "$spec" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"

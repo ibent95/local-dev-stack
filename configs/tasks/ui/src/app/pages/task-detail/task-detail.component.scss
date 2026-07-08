@@ -1,0 +1,132 @@
+.task-detail { max-width: 1000px; }
+
+.page-header {
+  margin-bottom: 24px;
+  h1 { margin: 0 0 8px; font-size: 24px; font-weight: 600; }
+}
+
+.back-link {
+  font-size: 13px;
+  color: var(--text-muted);
+  display: inline-block;
+  margin-bottom: 8px;
+  &:hover { color: var(--text-primary); }
+}
+
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  .date { color: var(--text-muted); font-size: 13px; }
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+}
+
+.main-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.side-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  h3 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+}
+
+.description {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  margin: 0;
+  &:hover { background: var(--bg-tertiary); }
+}
+
+.comments {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.comment {
+  padding: 12px;
+  background: var(--bg-primary);
+  border-radius: 6px;
+
+  .comment-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    strong { font-size: 13px; }
+    .date { font-size: 11px; color: var(--text-muted); }
+  }
+  p { margin: 0; font-size: 14px; color: var(--text-secondary); }
+}
+
+.add-comment {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+
+  textarea {
+    width: 100%;
+    resize: vertical;
+  }
+}
+
+.detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+
+  label {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  input, select { width: 100%; }
+}
+
+.labels-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.label-tag {
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: white;
+  font-weight: 500;
+}
+
+.danger-zone {
+  border-color: var(--red-muted);
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}

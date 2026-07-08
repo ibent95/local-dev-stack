@@ -1,8 +1,9 @@
+import { eq } from "drizzle-orm";
 import { db } from "./index.js";
 import { sites } from "./schema.js";
 
 async function ensureSite(domain: string, name: string): Promise<string> {
-  const existing = await db.select().from(sites).where(sites.domain.eq(domain)).limit(1);
+  const existing = await db.select().from(sites).where(eq(sites.domain, domain)).limit(1);
   if (existing.length > 0) return existing[0].id;
 
   const [row] = await db.insert(sites).values({ domain, name }).returning({ id: sites.id });

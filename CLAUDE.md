@@ -282,6 +282,8 @@ proxy comes along regardless, since both live in the `php` profile).
 ```bash
 ./lds.sh build-bases               # one-time: build lds/* base images
 ./lds.sh up kafka                  # start a profile
+./lds.sh up --rebuild tasks        # start + rebuild service images
+./lds.sh start --rebuild tasks     # full reset + rebuild + start
 ./lds.sh down -v                   # stop + wipe data
 ./lds.sh ps                        # status of everything
 ```

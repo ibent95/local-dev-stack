@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { events, sites } from "../db/schema.js";
 
@@ -22,7 +23,7 @@ trackRouter.post("/track", async (c) => {
   // Resolve site_id from domain if not provided
   let siteId = body.site_id;
   if (!siteId && body.domain) {
-    const [site] = await db.select({ id: sites.id }).from(sites).where(sites.domain.eq(body.domain)).limit(1);
+    const [site] = await db.select({ id: sites.id }).from(sites).where(eq(sites.domain, body.domain)).limit(1);
     if (site) siteId = site.id;
   }
 
@@ -94,5 +95,7 @@ trackRouter.get("/track.js", (c) => {
   }
 })();
 `;
-  return c.header("Content-Type", "application/javascript").header("Cache-Control", "public, max-age=3600").body(script);
+  c.header("Content-Type", "application/javascript");
+  c.header("Cache-Control", "public, max-age=3600");
+  return c.body(script);
 });

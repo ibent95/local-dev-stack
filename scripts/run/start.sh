@@ -8,6 +8,17 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
+# --- --rebuild flag: forward to up.sh --------------------------------------
+REBUILD=0
+args_raw=()
+for a in "$@"; do
+  case "$a" in
+    --rebuild) REBUILD=1 ;;
+    *) args_raw+=("$a") ;;
+  esac
+done
+set -- "${args_raw[@]}"
+
 # --- step banners: show which phase of the lifecycle we're in --------------
 TOTAL=5; N=0; STEP=""
 banner() {
@@ -37,7 +48,9 @@ else
 fi
 done_step
 
-banner "UP — ${*:-default toggles}";         "$ROOT/scripts/run/up.sh" "$@"; done_step
+up_args=("$@")
+[ "$REBUILD" -eq 1 ] && up_args+=("--rebuild")
+banner "UP — ${up_args[*]:-default toggles}"; "$ROOT/scripts/run/up.sh" "${up_args[@]}"; done_step
 
 printf '\n========================================================\n'
 printf   '  lds start: COMPLETE\n'

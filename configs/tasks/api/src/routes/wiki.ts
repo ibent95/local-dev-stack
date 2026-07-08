@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { db } from "../db/index.js";
-import { wikiSpaces, wikiPages, wikiPageRevisions, wikiComments } from "../db/schema.js";
+import { workspaces, wikiSpaces, wikiPages, wikiPageRevisions, wikiComments } from "../db/schema.js";
 import { eq, and, asc, desc } from "drizzle-orm";
 
 export const wikiRouter = new Hono();
