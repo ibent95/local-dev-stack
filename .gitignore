@@ -1,5 +1,6 @@
-# Local env — never commit secrets
-.env
+
+# Local env at root level — never commit secrets
+/.env
 
 # Project folders (mount point for your code) — keep only the sample
 /www/*

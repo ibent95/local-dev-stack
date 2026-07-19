@@ -1,0 +1,8 @@
+# env files
+.env
+
+# dependencies
+/node_modules
+
+# generated
+/drizzle

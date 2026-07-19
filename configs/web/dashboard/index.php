@@ -22,7 +22,11 @@ foreach (glob($root . '/*', GLOB_ONLYDIR) as $dir) {
 
 // Tiny TCP reachability probe on the lds-network network.
 function lds_probe(string $host, int $port): bool {
-    $c = @fsockopen($host, $port, $e, $s, 0.5);
+    // Increased to 1.0s on Debian: glibc's DNS resolution can take up to 1s for
+    // non-running services (Docker DNS timeout), and the fsockopen timeout only
+    // covers the TCP connect phase, not DNS. A longer connect timeout gives more
+    // time for DNS + connect on slower/loaded hosts.
+    $c = @fsockopen($host, $port, $e, $s, 1.0);
     if ($c) { fclose($c); return true; }
     return false;
 }
@@ -102,8 +106,11 @@ $uiGroups = [
 // request. Render time is then always bounded (page can never 504); services not
 // reached within the budget keep their last-known value or show "unknown".
 $LDS_CACHE  = sys_get_temp_dir() . '/lds-dashboard-status.json';
-$LDS_TTL    = 10;     // seconds a cached result stays fresh (no probing)
-$LDS_BUDGET = 20.0;   // max wall-clock seconds spent probing per cold/stale render
+$LDS_TTL    = 60;     // seconds a cached result stays fresh (no probing) — was 30
+                       // (longer TTL means fewer cold probes, so green dots stay green longer)
+$LDS_BUDGET = 20.0;   // max wall-clock seconds spent probing per cold/stale render — was 8
+                       // (restored from the original 20s: each non-running service costs ~1s
+                       // in DNS timeout on glibc/Debian, and there are ~22 unique targets)
 
 // Unique host:port probe targets, gathered from both structures.
 $targets = [];

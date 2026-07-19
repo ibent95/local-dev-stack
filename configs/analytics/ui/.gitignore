@@ -1,0 +1,14 @@
+# env files
+.env
+
+# dependencies
+/node_modules
+
+# Nuxt
+/.nuxt/
+/output/
+/dist/
+
+# misc
+.DS_Store
+*.log

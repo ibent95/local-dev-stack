@@ -50,6 +50,7 @@ case "$cmd" in
   stop)                exec "$ROOT/scripts/run/stop.sh" "$@" ;;
   rm)                  exec "$ROOT/scripts/run/rm.sh" "$@" ;;
   start)               exec "$ROOT/scripts/run/start.sh" "$@" ;;
+  restart)             exec "$ROOT/scripts/run/restart.sh" "$@" ;;
   logs)                exec "$ROOT/scripts/run/logs.sh" "$@" ;;
   certs)               exec "$ROOT/scripts/run/certs.sh" "$@" ;;
   hosts-sync)          exec "$ROOT/scripts/run/hosts-sync.sh" "$@" ;;
@@ -81,6 +82,8 @@ local-dev-stack — usage: ./lds.sh <command> [args]
   start [profiles...]           full lifecycle: init, down, rm, build-bases
                                   (if missing), up (default: all)
   logs [service]                tail logs (all, or one service)
+  restart [profiles...]         stop + start containers (default: enabled toggles)
+                                  e.g. restart php | restart --rebuild kafka
   ps                            status of all services
   exec <service> [cmd...]       run a command (or open a shell) in a service container
 

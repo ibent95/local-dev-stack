@@ -8,81 +8,72 @@
 #   - Webman (overrides CMD to run its own server).
 # Built from the REPO ROOT so it can COPY configs/php-app/* (./lds.sh build-bases).
 # -----------------------------------------------------------------------------
-# DHI's php images split build (`-dev`: no php-fpm, no docker-php-ext-* helpers)
-# from a hardened fpm runtime (no shell/apk) — neither can host this fat single
-# container. So we build on the DHI alpine-base and install php-fpm + the
-# extensions + nginx + supervisor from Alpine's repos (php = php84). rdkafka,
-# redis and memcached ship as apk packages (php84-pecl-*, which auto-enable
-# their own conf.d ini); only apfd has no package, so it's built via PECL.
-# Alpine's curated DHI repo carries no php, so we add the upstream Alpine
-# main+community repos (same shape as debian-base pulling php from Debian).
-# Compat shims below keep the official-image layout the configs/mounts expect:
+# Debian 13 (Trixie) ships PHP 8.4 natively in its repositories. We build on
+# Docker's official debian:13-slim image and install php-fpm, nginx, supervisor,
+# and all extensions from Debian repos via apt. rdkafka and apfd are compiled
+# via PECL since they lack Debian packages.
+# Compat shims keep the official-image layout the configs/mounts expect:
 #   php-fpm on $PATH, fpm on 127.0.0.1:9000, inis in /usr/local/etc/php/conf.d.
 # =============================================================================
-ARG DHI_REGISTRY=dhi.io
-ARG ALPINE_VERSION=3.24
-FROM ${DHI_REGISTRY}/alpine-base:${ALPINE_VERSION}-dev
+FROM debian:13-slim
 
 # DHI defaults to a non-root user; the build (and supervisord/nginx on :80 at
 # runtime) need root.
 USER root
 
-ARG ALPINE_VERSION=3.24
-# php lives in upstream Alpine community (the DHI alpine repo has no php), so add
-# the matching upstream main+community. Leading \n so it lands on its own line.
-RUN printf '\nhttps://dl-cdn.alpinelinux.org/alpine/v%s/main\nhttps://dl-cdn.alpinelinux.org/alpine/v%s/community\n' \
-        "$ALPINE_VERSION" "$ALPINE_VERSION" >> /etc/apk/repositories \
-    && apk add --no-cache \
-        nginx supervisor git curl unzip \
-        php84 php84-fpm \
-        php84-pdo_mysql php84-pdo_pgsql php84-intl php84-bcmath php84-gd \
-        php84-zip php84-mbstring php84-curl php84-opcache php84-sockets \
-        php84-phar php84-openssl php84-iconv php84-fileinfo php84-ctype \
-        php84-session php84-tokenizer php84-dom php84-xml php84-xmlreader \
-        php84-xmlwriter php84-simplexml \
-        php84-pecl-redis php84-pecl-memcached php84-pecl-rdkafka \
-    # unversioned php + php-fpm on $PATH for composer / supervisord
-    # (Alpine has no /usr/local/{bin,sbin} by default — create them first)
-    && mkdir -p /usr/local/bin /usr/local/sbin \
-    && ln -sf /usr/bin/php84      /usr/local/bin/php \
-    && ln -sf /usr/sbin/php-fpm84 /usr/local/sbin/php-fpm \
-    # apfd has no apk package — compile it via PECL with a THROWAWAY toolchain
-    # (gcc/make/musl-dev + phpize/pecl), then drop it so the final image doesn't
-    # ship a ~200 MB compiler. rdkafka/redis/memcached came from apk (own inis).
-    # NB: the gcc unpack needs Docker disk headroom — if it throws an I/O error,
-    # reclaim space first: `docker builder prune -af`.
-    && apk add --no-cache --virtual .build-deps \
-        php84-dev php84-pear gcc make musl-dev autoconf \
-    && ln -sf /usr/bin/phpize84 /usr/local/bin/phpize \
-    && ln -sf /usr/bin/php-config84 /usr/local/bin/php-config \
-    && PECL="$(command -v pecl || command -v pecl84)" \
-    && "$PECL" install apfd \
-    && echo 'extension=apfd' > /etc/php84/conf.d/30_apfd.ini \
-    && apk del .build-deps \
-    && rm -f /usr/local/bin/phpize /usr/local/bin/php-config \
-    # --- compat shims so the official-image configs/mounts work unchanged ---
-    # 1) fpm pool already listens on 127.0.0.1:9000 (Alpine default); run it as
-    #    the nginx web user instead of nobody so served apps can write
-    && sed -ri 's#^user = .*#user = nginx#; s#^group = .*#group = nginx#' \
-        /etc/php84/php-fpm.d/www.conf \
-    # 2) /usr/local/etc/php/conf.d -> Alpine's conf.d (where the compose php
-    #    service mounts php.ini / opcache.ini)
+# Install php-fpm, nginx, supervisor, extra extensions, and build deps.
+# Build deps (php8.4-dev, php-pear, gcc, make, autoconf, librdkafka-dev) are
+# installed as part of this same apt-get command, then purged after PECL runs.
+# librdkafka1 is explicitly apt-mark'd as manually installed so it survives
+# the autoremove (rdkafka.so needs librdkafka1 at runtime).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        nginx supervisor git curl wget unzip ca-certificates \
+        php8.4-fpm \
+        php8.4-mysql php8.4-pgsql php8.4-intl php8.4-bcmath php8.4-gd \
+        php8.4-zip php8.4-mbstring php8.4-curl \
+        php8.4-sockets php8.4-xml \
+        php-redis php-memcached \
+        librdkafka1 \
+        php8.4-dev php-pear gcc make autoconf librdkafka-dev \
+    && apt-mark manual librdkafka1 \
+    && BUILD_DEPS="php8.4-dev php-pear gcc make autoconf librdkafka-dev" \
+    # --- PECL extensions (no Debian packages) ---
+    # rdkafka: Apache 2.0, needed for Kafka produce/consume from PHP
+    && pecl install rdkafka \
+    && echo 'extension=rdkafka' > /etc/php/8.4/mods-available/rdkafka.ini \
+    && phpenmod rdkafka \
+    # apfd: needed for PHP-FPM's apfd status page
+    && pecl install apfd \
+    && echo 'extension=apfd' > /etc/php/8.4/mods-available/apfd.ini \
+    && phpenmod apfd \
+    # --- Clean up build dependencies ---
+    && apt-get purge -y $BUILD_DEPS \
+    && apt-get autoremove -y --purge \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    # --- Compat shims for compose mounts and supervisord ---
+    # 1) FPM pool: listen on TCP 127.0.0.1:9000, run as www-data (Debian web
+    #    user) so served apps can write to the filesystem
+    && sed -ri \
+        's#^listen = .*#listen = 127.0.0.1:9000#; s#^user = .*#user = www-data#; s#^group = .*#group = www-data#' \
+        /etc/php/8.4/fpm/pool.d/www.conf \
+    # 2) /usr/local/etc/php/conf.d -> Debian's FPM conf.d (where the compose
+    #    php service mounts php.ini / opcache.ini). Make CLI share the same
+    #    conf.d so `php -i` and composer see the same settings.
     && mkdir -p /usr/local/etc/php \
-    && ln -sfn /etc/php84/conf.d /usr/local/etc/php/conf.d \
-    # 3) nginx: server{} configs live in conf.d by repo convention. Alpine
-    #    includes server blocks from http.d (http context) and conf.d from the
-    #    MAIN context (wrong for server{}). Drop the main-context conf.d include,
-    #    remove Alpine's default site, and make conf.d == http.d.
-    && sed -i '\|include /etc/nginx/conf.d/\*.conf;|d' /etc/nginx/nginx.conf \
-    && rm -f /etc/nginx/http.d/default.conf \
-    && ln -sfn /etc/nginx/http.d /etc/nginx/conf.d \
+    && ln -sfn /etc/php/8.4/fpm/conf.d /usr/local/etc/php/conf.d \
+    && rm -rf /etc/php/8.4/cli/conf.d \
+    && ln -sfn /etc/php/8.4/fpm/conf.d /etc/php/8.4/cli/conf.d \
+    # 3) php-fpm: Debian package installs /usr/sbin/php-fpm8.4, but supervisord
+    #    expects 'php-fpm' on PATH. Create a symlink so it can be found.
+    && ln -sf /usr/sbin/php-fpm8.4 /usr/local/sbin/php-fpm \
+    # 4) nginx: remove Debian's default site, create runtime directories.
+    && rm -f /etc/nginx/sites-enabled/default \
     && mkdir -p /run/nginx /run/php /etc/supervisor/conf.d
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# supercronic — container-friendly cron, run as the [program:cron] supervisord
-# program (off unless ENABLE_CRON=true). Vendored static binary (amd64, runs on
-# musl) from assets/, COPYed at build time. Built from the repo root.
+# supercronic — static Go binary, works on both musl and glibc.
 COPY assets/supersonic/v0.2.46/supercronic-linux-amd64 /usr/local/bin/supercronic
 RUN chmod +x /usr/local/bin/supercronic
 
@@ -91,7 +82,6 @@ COPY configs/php-app/nginx.conf       /etc/nginx/conf.d/default.conf
 
 WORKDIR /var/www/html
 
-# Universal program switches (per-project conf.d files add more, e.g. queue).
 ENV ENABLE_PHP=true \
     ENABLE_NGINX=true \
     ENABLE_CRON=false

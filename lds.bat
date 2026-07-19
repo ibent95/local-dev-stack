@@ -31,6 +31,7 @@ if /I "%CMD%"=="up"                  call "%ROOT%scripts\run\up.bat" %REST% & go
 if /I "%CMD%"=="down"                call "%ROOT%scripts\run\down.bat" %REST% & goto end
 if /I "%CMD%"=="stop"                call "%ROOT%scripts\run\stop.bat" %REST% & goto end
 if /I "%CMD%"=="rm"                  call "%ROOT%scripts\run\rm.bat" %REST% & goto end
+if /I "%CMD%"=="restart"             call "%ROOT%scripts\run\restart.bat" %REST% & goto end
 if /I "%CMD%"=="start"               call "%ROOT%scripts\run\start.bat" %REST% & goto end
 if /I "%CMD%"=="logs"                call "%ROOT%scripts\run\logs.bat" %REST% & goto end
 if /I "%CMD%"=="kafka-topics"        call "%ROOT%scripts\run\kafka-topics.bat" %REST% & goto end
@@ -91,6 +92,7 @@ echo   stop                          stop running containers but KEEP them (fast
 echo   down [-v]                     remove containers (-v also wipes data volumes)
 echo   rm [profiles...]              force-remove containers (default: all)
 echo   start [profiles...]           full lifecycle: init, down, rm, build-bases, up
+echo   restart [profiles...]         stop + start containers (default: enabled toggles)
 echo   logs [service]                tail logs (all, or one service)
 echo   ps                            status of all services
 echo   exec ^<service^> [cmd...]       run a command (or open a shell) in a service container

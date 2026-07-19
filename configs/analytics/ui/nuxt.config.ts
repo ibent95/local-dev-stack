@@ -4,15 +4,17 @@ export default defineNuxtConfig({
 
   modules: ["@nuxtjs/tailwindcss"],
 
+  // Nuxt auto-maps NUXT_PUBLIC_* env vars to runtimeConfig.public.*
+  // So NUXT_PUBLIC_API_BASE from .env → runtimeConfig.public.apiBase
   runtimeConfig: {
     public: {
-      apiBase: process.env.API_URL || "http://localhost:3001",
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || "http://localhost:3001",
     },
   },
 
   routeRules: {
     "/api/**": {
-      proxy: `${process.env.API_URL || "http://localhost:3001"}/api/**`,
+      proxy: `${process.env.NUXT_PUBLIC_API_BASE || "http://localhost:3001"}/api/**`,
     },
   },
 
