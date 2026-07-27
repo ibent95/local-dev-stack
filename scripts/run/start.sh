@@ -30,8 +30,8 @@ banner() {
 done_step() { printf -- '  ---- [%s/%s] %s: done ----\n' "$N" "$TOTAL" "$STEP"; }
 
 banner "INIT — network + .env";              "$ROOT/scripts/run/init.sh"; done_step
-banner "DOWN — stop/remove existing";        "$ROOT/scripts/run/down.sh"; done_step
-banner "RM — force-remove containers";       "$ROOT/scripts/run/rm.sh";   done_step
+banner "DOWN — stop/remove existing";        "$ROOT/scripts/run/down.sh" "$@"; done_step
+banner "RM — force-remove containers";       "$ROOT/scripts/run/rm.sh" "$@";   done_step
 
 # Build the lds/* bases ONLY if required core images are missing — distinct from
 # the standalone `lds build-bases`, which always (re)builds them all.

@@ -46,7 +46,7 @@ docker buildx bake -f docker-bake.hcl "${bake_args[@]}"
 if [ -n "$push" ] && [ -n "$REGISTRY" ]; then
   for spec in "php:$PHP_VERSION" "go-dev:$GO_VERSION" "rust-dev:$RUST_VERSION" \
               "node-dev:$NODE_VERSION" "python-dev:$PYTHON_VERSION" "java-dev:$JAVA_VERSION" \
-              "nginx:$NGINX_VERSION"; do
+              "nginx:$NGINX_VERSION" "duckdev:${DUCKDB_VERSION:-1.2.0}"; do
     echo "push $REGISTRY/$spec"
     docker tag "lds/$spec" "$REGISTRY/$spec"
     docker push "$REGISTRY/$spec"

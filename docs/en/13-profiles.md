@@ -142,6 +142,18 @@ when you'd turn it on.
 <td>`vaultwarden` — password manager</td>
 </tr>
 <tr>
+<td>`duckdb`</td>
+<td>`LDS_ENABLE_DUCKDB`</td>
+<td>❌</td>
+<td>`duckdb` — embedded OLAP engine (CLI only, exec into container)</td>
+</tr>
+<tr>
+<td>`trino`</td>
+<td>`LDS_ENABLE_TRINO`</td>
+<td>❌</td>
+<td>`trino`, `hive-metastore` — distributed SQL query engine (official images)</td>
+</tr>
+<tr>
 <td>`tasks`</td>
 <td>`LDS_ENABLE_TASKS`</td>
 <td>❌</td>

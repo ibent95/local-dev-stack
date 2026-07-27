@@ -28,7 +28,7 @@ REM "all". Canonical profile order; each maps to LDS_ENABLE_<NAME> (matched
 REM case-insensitively).
 if "%PROFILES%"=="" (
   set "PROFILES="
-  for %%p in (proxy php mysql postgres mongo redis memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep vaultwarden analytics tasks wiki) do (
+  for %%p in (proxy php mysql postgres mongo redis memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep vaultwarden analytics tasks wiki openwa rustfs duckdb trino) do (
     set "VAL="
     if exist .env for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do if /I "%%a"=="LDS_ENABLE_%%p" set "VAL=%%b"
     set "VAL=!VAL: =!"
@@ -80,6 +80,17 @@ if not errorlevel 1 (
   )
 )
 
+REM DuckDB service uses lds/duckdev (DHI alpine-base + DuckDB CLI binary).
+if "%DUCKDB_VERSION%"=="" set "DUCKDB_VERSION=1.2.0"
+echo %PROFILES% | findstr /I /C:"duckdb" /C:"all" >nul
+if not errorlevel 1 (
+  docker image inspect "lds/duckdev:%DUCKDB_VERSION%" >nul 2>&1 || (
+    call :sub "build lds/duckdev base (first run)"
+    docker buildx bake -f docker-bake.hcl --load duckdev
+    call :subdone
+  )
+)
+
 REM Seed DBGate connections into its volume BEFORE it starts (fresh setups only).
 echo %PROFILES% | findstr /I /C:"dbgate" /C:"all" >nul
 if not errorlevel 1 (
@@ -87,6 +98,16 @@ if not errorlevel 1 (
   call "%~dp0dbgate-seed.bat"
   call :subdone
 )
+
+REM Seed sample Parquet/CSV/JSON data for DuckDB and Trino.
+echo %PROFILES% | findstr /I /C:"duckdb" /C:"trino" /C:"all" >nul
+if not errorlevel 1 (
+  call :sub "seed-data"
+  call "%~dp0seed-data.bat"
+  call :subdone
+)
+
+
 
 set "UP_FLAGS=-d --remove-orphans"
 if !REBUILD!==1 (
@@ -107,21 +128,8 @@ if errorlevel 1 (
 docker compose !CFILES! !ARGS! ps
 call :subdone
 
-REM Ensure the MySQL app database + user (DHI mysql doesn't auto-create them).
-echo %PROFILES% | findstr /I /C:"mysql" /C:"all" >nul
-if not errorlevel 1 (
-  call :sub "mysql-init"
-  call "%~dp0mysql-init.bat"
-  call :subdone
-)
-
-REM Ensure the Postgres app database + user and extra tool DB specs.
-echo %PROFILES% | findstr /I /C:"postgres" /C:"analytics" /C:"tasks" /C:"wiki" /C:"all" >nul
-if not errorlevel 1 (
-  call :sub "postgres-init"
-  call "%~dp0postgres-init.bat"
-  call :subdone
-)
+REM DB services now self-initialize on startup (see docker-compose.yml).
+REM The mysql-init and postgres-init scripts are kept for manual use via `lds exec`.
 
 REM Ensure the LDS Analytics DB/user spec exists.
 echo %PROFILES% | findstr /I /C:"analytics" /C:"all" >nul
@@ -144,6 +152,15 @@ echo %PROFILES% | findstr /I /C:"wiki" /C:"all" >nul
 if not errorlevel 1 (
   call :sub "wiki-init"
   call "%~dp0wiki-init.bat"
+  call :subdone
+)
+
+REM Ensure the Hive Metastore DB/user exists. The metastore container's
+REM schematool retries while waiting for this DB; without it schematool fails.
+echo %PROFILES% | findstr /I /C:"trino" /C:"all" >nul
+if not errorlevel 1 (
+  call :sub "hive-metastore-init"
+  call "%~dp0hive-metastore-init.bat"
   call :subdone
 )
 

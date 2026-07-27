@@ -22,11 +22,10 @@ foreach (glob($root . '/*', GLOB_ONLYDIR) as $dir) {
 
 // Tiny TCP reachability probe on the lds-network network.
 function lds_probe(string $host, int $port): bool {
-    // Increased to 1.0s on Debian: glibc's DNS resolution can take up to 1s for
-    // non-running services (Docker DNS timeout), and the fsockopen timeout only
-    // covers the TCP connect phase, not DNS. A longer connect timeout gives more
-    // time for DNS + connect on slower/loaded hosts.
-    $c = @fsockopen($host, $port, $e, $s, 1.0);
+    // 0.5s timeout: Docker DNS is bounded by dns_opt (timeout:1/attempts:1), so each
+    // DOWN service takes at most ~0.5s (DNS failover + TCP refused). Combined with the
+    // 15s budget below, all ~22 targets are probed within the window.
+    $c = @fsockopen($host, $port, $e, $s, 0.5);
     if ($c) { fclose($c); return true; }
     return false;
 }
@@ -64,38 +63,46 @@ $serviceGroups = [
 // http->https redirect hop). Direct host:port links stay http (not proxied).
 $uiGroups = [
     'Data tools' => [
-        ['label' => 'phpCacheAdmin', 'desc' => 'Redis · Memcached',  'url' => '//cache.test', 'alt' => 'localhost:4421', 'health' => ['phpcacheadmin', 80]],
-        ['label' => 'DBGate',        'desc' => 'MySQL · PostgreSQL',  'url' => '//db.test',    'alt' => 'localhost:4422', 'health' => ['dbgate', 3000]],
-        ['label' => 'Vaultwarden',   'desc' => 'password manager',     'url' => '//vaultwarden.test', 'alt' => 'localhost:4429', 'health' => ['vaultwarden', 80]],
+        ['label' => 'phpCacheAdmin', 'desc' => 'Redis · Memcached',  'url' => '//cache.test', 'alt' => 'localhost:4460', 'health' => ['phpcacheadmin', 80]],
+        ['label' => 'DBGate',        'desc' => 'MySQL · PostgreSQL',  'url' => '//db.test',    'alt' => 'localhost:4461', 'health' => ['dbgate', 3000]],
+        ['label' => 'Vaultwarden',   'desc' => 'password manager',     'url' => '//vaultwarden.test', 'alt' => 'localhost:4466', 'health' => ['vaultwarden', 80]],
     ],
     'Database design' => [
         // DrawDB uses crypto.randomUUID(), which only exists in a secure context,
         // so it MUST be opened on localhost (or HTTPS) — NOT drawdb.test over http.
-        ['label' => 'DrawDB', 'desc' => 'ER diagrams · open on localhost', 'url' => 'http://localhost:4423', 'alt' => null, 'health' => ['drawdb', 80]],
+        ['label' => 'DrawDB', 'desc' => 'ER diagrams · open on localhost', 'url' => 'http://localhost:4462', 'alt' => null, 'health' => ['drawdb', 80]],
     ],
     'Data warehouse & BI' => [
-        ['label' => 'Apache Superset', 'desc' => 'BI dashboards · admin/admin', 'url' => '//superset.test', 'alt' => 'localhost:4425', 'health' => ['superset', 8088]],
-        ['label' => 'Apache Hop',      'desc' => 'ETL pipeline designer',       'url' => '//hop.test',      'alt' => 'localhost:4424', 'health' => ['hop', 8080]],
+        ['label' => 'Apache Superset', 'desc' => 'BI dashboards · admin/admin', 'url' => '//superset.test', 'alt' => 'localhost:4464', 'health' => ['superset', 8088]],
+        ['label' => 'Apache Hop',      'desc' => 'ETL pipeline designer',       'url' => '//hop.test',      'alt' => 'localhost:4463', 'health' => ['hop', 8080]],
     ],
     'Code quality' => [
-        ['label' => 'Semgrep', 'desc' => 'SAST · SARIF viewer', 'url' => '//semgrep.test', 'alt' => 'localhost:4426', 'health' => ['semgrep', 80]],
+        ['label' => 'Semgrep', 'desc' => 'SAST · SARIF viewer', 'url' => '//semgrep.test', 'alt' => 'localhost:4465', 'health' => ['semgrep', 80]],
     ],
     'Web analytics' => [
-        ['label' => 'LDS Analytics', 'desc' => 'Nuxt 4 · reactive dashboard', 'url' => '//analytics.test', 'alt' => 'localhost:4427', 'health' => ['analytics-ui', 4173]],
+        ['label' => 'LDS Analytics', 'desc' => 'Nuxt 4 · reactive dashboard', 'url' => '//analytics.test', 'alt' => 'localhost:4481', 'health' => ['analytics-ui', 4173]],
     ],
     'Project management' => [
-        ['label' => 'LDS Tasks', 'desc' => 'Angular 22 · Kanban boards', 'url' => '//tasks.test', 'alt' => 'localhost:4435', 'health' => ['tasks-ui', 4174]],
+        ['label' => 'LDS Tasks', 'desc' => 'Angular 22 · Kanban boards', 'url' => '//tasks.test', 'alt' => 'localhost:4483', 'health' => ['tasks-ui', 4174]],
     ],
     'Documentation' => [
-        ['label' => 'LDS Wiki', 'desc' => 'Next.js 16 · documentation hub', 'url' => '//wiki.test', 'alt' => 'localhost:4437', 'health' => ['wiki-ui', 4175]],
+        ['label' => 'LDS Wiki', 'desc' => 'Next.js 16 · documentation hub', 'url' => '//wiki.test', 'alt' => 'localhost:4485', 'health' => ['wiki-ui', 4175]],
     ],
     'Kafka' => [
-        ['label' => 'Kafka UI',          'desc' => 'topics · connectors',      'url' => 'http://localhost:4420', 'alt' => null, 'health' => ['kafka-ui', 8080]],
+        ['label' => 'Kafka UI',          'desc' => 'topics · connectors',      'url' => 'http://localhost:4424', 'alt' => null, 'health' => ['kafka-ui', 8080]],
         ['label' => 'Connector builder', 'desc' => 'build Connect connectors', 'url' => '/connectors.php',       'alt' => null, 'health' => null],
     ],
     'Realtime dashboards' => [
-        ['label' => 'Centrifugo',      'desc' => 'WebSocket · admin UI', 'url' => '//centrifugo.test', 'alt' => 'localhost:4431', 'health' => ['centrifugo', 8000]],
-        ['label' => 'MQTTX',           'desc' => 'MQTT web client · no login', 'url' => '//mqtt.test',  'alt' => 'localhost:4434', 'health' => ['mqttx', 80]],
+        ['label' => 'Centrifugo',      'desc' => 'WebSocket · admin UI', 'url' => '//centrifugo.test', 'alt' => 'localhost:4441', 'health' => ['centrifugo', 8000]],
+        ['label' => 'MQTTX',           'desc' => 'MQTT web client · no login', 'url' => '//mqtt.test',  'alt' => 'localhost:4444', 'health' => ['mqttx', 80]],
+    ],
+    'Communication & storage' => [
+        ['label' => 'OpenWA',          'desc' => 'WhatsApp API gateway',  'url' => '//openwa.test', 'alt' => 'localhost:4467', 'health' => ['openwa', 2785]],
+        ['label' => 'RustFS',          'desc' => 'S3 object storage',     'url' => '//rustfs.test', 'alt' => 'localhost:4469', 'health' => ['rustfs', 9001]],
+    ],
+    'Analytical query engines' => [
+        ['label' => 'DuckDB',          'desc' => 'Embedded OLAP · file engine · Parquet/CSV', 'url' => '#', 'alt' => 'docker exec lds-duckdb duckdb /data/data.duckdb', 'health' => ['duckdb']],
+        ['label' => 'Trino',           'desc' => 'SQL query engine · web UI at :4451/ui', 'url' => 'http://localhost:4451', 'alt' => 'localhost:4451', 'health' => ['trino', 8080]],
     ],
 ];
 // --- Cached + time-budgeted probing -----------------------------------------
@@ -108,14 +115,17 @@ $uiGroups = [
 $LDS_CACHE  = sys_get_temp_dir() . '/lds-dashboard-status.json';
 $LDS_TTL    = 60;     // seconds a cached result stays fresh (no probing) — was 30
                        // (longer TTL means fewer cold probes, so green dots stay green longer)
-$LDS_BUDGET = 20.0;   // max wall-clock seconds spent probing per cold/stale render — was 8
-                       // (restored from the original 20s: each non-running service costs ~1s
-                       // in DNS timeout on glibc/Debian, and there are ~22 unique targets)
+$LDS_BUDGET = 15.0;   // max wall-clock seconds spent probing per cold/stale render — was 20
+                       // (reduced from 20s: fsockopen timeout is now 0.5s, so ~22 targets
+                       // should clear within ~11s even with all down)
 
 // Unique host:port probe targets, gathered from both structures.
 $targets = [];
 foreach ($serviceGroups as $svcs) foreach ($svcs as [$h, $p]) $targets["$h:$p"] = [$h, $p];
-foreach ($uiGroups as $apps) foreach ($apps as $a) if ($a['health']) { [$h, $p] = $a['health']; $targets["$h:$p"] = [$h, $p]; }
+foreach ($uiGroups as $apps) foreach ($apps as $a) if ($a['health']) {
+    if (count($a['health']) < 2) continue; // no port (e.g. DuckDB file engine) — not probed
+    [$h, $p] = $a['health']; $targets["$h:$p"] = [$h, $p];
+}
 
 $cached = [];
 if (is_file($LDS_CACHE)) { $j = json_decode(file_get_contents($LDS_CACHE), true); if (is_array($j)) $cached = $j; }
@@ -126,8 +136,20 @@ if ($age <= $LDS_TTL && $cached) {
     foreach ($targets as $k => $_) $status[$k] = $cached[$k] ?? 'unknown';   // fresh → no probing
 } else {
     $start = microtime(true);
-    foreach ($targets as $k => [$h, $p]) {
+    // Probe previously-unknown targets FIRST. Down services each cost their full
+    // connect/DNS timeout (~1-2s), which can exhaust the budget before end-of-list
+    // services (e.g. newly-added ones, or those with no prior cached state) are
+    // ever probed — leaving them stuck 'unknown' forever. Prioritising unknowns
+    // lets them get a result while the budget still has room.
+    $order = array_keys($targets);
+    usort($order, function($a, $b) use ($cached) {
+        $au = (($cached[$a] ?? 'unknown') === 'unknown') ? 0 : 1;
+        $bu = (($cached[$b] ?? 'unknown') === 'unknown') ? 0 : 1;
+        return $au - $bu;
+    });
+    foreach ($order as $k) {
         if (microtime(true) - $start > $LDS_BUDGET) { $status[$k] = $cached[$k] ?? 'unknown'; continue; }
+        [$h, $p] = $targets[$k];
         $status[$k] = lds_probe($h, $p) ? 'up' : 'down';
     }
     file_put_contents($LDS_CACHE, json_encode($status), LOCK_EX);   // atomic write (prevents race condition)
@@ -142,7 +164,10 @@ foreach ($serviceGroups as $group => $svcs)
 foreach ($uiGroups as &$apps) {
     foreach ($apps as &$app) {
         $app['state'] = null;                // null = no probe (always-available, e.g. this dashboard)
-        if ($app['health']) { [$h, $p] = $app['health']; $app['state'] = $status["$h:$p"] ?? 'unknown'; }
+        if ($app['health']) {
+            if (count($app['health']) < 2) continue; // no port (e.g. DuckDB file engine)
+            [$h, $p] = $app['health']; $app['state'] = $status["$h:$p"] ?? 'unknown';
+        }
     }
     unset($app);
 }

@@ -20,7 +20,8 @@ if "%RUST_VERSION%"==""   set "RUST_VERSION=1.96"
 if "%NODE_VERSION%"==""   set "NODE_VERSION=26.3"
 if "%PYTHON_VERSION%"=="" set "PYTHON_VERSION=3.14"
 if "%JAVA_VERSION%"==""   set "JAVA_VERSION=25"
-if "%NGINX_VERSION%"=="" set "NGINX_VERSION=1.27"
+if "%NGINX_VERSION%"==""  set "NGINX_VERSION=1.27"
+if "%DUCKDB_VERSION%"=="" set "DUCKDB_VERSION=1.2.0"
 
 set "FORCE="
 set "PUSH="
@@ -39,7 +40,7 @@ echo ========================================================
 docker buildx bake -f docker-bake.hcl !BAKE_ARGS!
 
 if defined PUSH if not "%REGISTRY%"=="" (
-  for %%s in (php:%PHP_VERSION% go-dev:%GO_VERSION% rust-dev:%RUST_VERSION% node-dev:%NODE_VERSION% python-dev:%PYTHON_VERSION% java-dev:%JAVA_VERSION% nginx:%NGINX_VERSION%) do (
+  for %%s in (php:%PHP_VERSION% go-dev:%GO_VERSION% rust-dev:%RUST_VERSION% node-dev:%NODE_VERSION% python-dev:%PYTHON_VERSION% java-dev:%JAVA_VERSION% nginx:%NGINX_VERSION% duckdev:%DUCKDB_VERSION%) do (
     echo push %REGISTRY%/%%s
     docker tag lds/%%s %REGISTRY%/%%s
     docker push %REGISTRY%/%%s

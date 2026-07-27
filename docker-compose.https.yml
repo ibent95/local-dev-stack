@@ -8,8 +8,9 @@
 # and HTTPS_METHOD are ADDED to the base definition (lists concatenate).
 #
 # First generate the wildcard dev cert (once):   lds certs
-#   -> writes configs/proxy/certs/default.{crt,key}, which nginx-proxy picks up
-#      as its default certificate for every *.test / localhost vhost.
+#   -> writes configs/proxy/certs/_.test.{crt,key}, which nginx-proxy picks up
+#      as the wildcard cert for every *.test / localhost vhost.
+#   -> The _.test.crt naming follows nginx-proxy's convention where _ = *.
 # =============================================================================
 name: local-dev-stack
 
@@ -24,15 +25,15 @@ services:
       # in .env to force http -> https.
       HTTPS_METHOD: ${HTTPS_METHOD:-noredirect}
     volumes:
-      # Dev certs minted by `lds certs`. nginx-proxy matches each *.test vhost to
-      # test.crt by stripping the leftmost label (wildcard-parent lookup); our
-      # cert's SANs cover *.test, test, and localhost.
+      # Dev certs minted by `lds certs`. The wildcard _.test.crt covers every
+      # *.test vhost (nginx-proxy wildcard convention: _ = *). cert SANs cover
+      # *.test, test, and localhost.
       - ./configs/proxy/certs:/etc/nginx/certs:ro
 
   # The php container serves `localhost` + the regex `*.test` catch-all (all PHP
-  # project hosts). Those vhosts have no wildcard-parent cert match, so point
-  # nginx-proxy at test.crt explicitly via CERT_NAME. Harmless when HTTPS is off
-  # (this overlay isn't applied then).
+  # project hosts). Explicit CERT_NAME ensures the wildcard cert is used even
+  # for localhost and regex-based vhosts. Harmless when HTTPS is off (this
+  # overlay isn't applied then).
   php:
     environment:
-      CERT_NAME: test
+      CERT_NAME: _.test

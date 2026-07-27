@@ -15,191 +15,231 @@ else on your machine. Each one is set by a `*_HOST_PORT` variable in `.env`.
 <tbody>
 <tr>
 <td colspan="4">
-    <b>Data</b> `440x`
+    <b>Databases</b> <code>4400–4419</code>
 </td>
 </tr>
 <tr>
 <td></td>
 <td>MySQL</td>
-<td>`localhost:4400`</td>
-<td>`mysql:3306`</td>
+<td><code>localhost:4400</code></td>
+<td><code>mysql:3306</code></td>
 </tr>
 <tr>
 <td></td>
 <td>PostgreSQL</td>
-<td>`localhost:4401`</td>
-<td>`postgres:5432`</td>
+<td><code>localhost:4401</code></td>
+<td><code>postgres:5432</code></td>
 </tr>
 <tr>
 <td></td>
 <td>MongoDB</td>
-<td>`localhost:4402`</td>
-<td>`mongo:27017`</td>
+<td><code>localhost:4402</code></td>
+<td><code>mongo:27017</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Redis</td>
-<td>`localhost:4403`</td>
-<td>`redis:6379`</td>
+<td><code>localhost:4403</code></td>
+<td><code>redis:6379</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Memcached</td>
-<td>`localhost:4404`</td>
-<td>`memcached:11211`</td>
+<td><code>localhost:4404</code></td>
+<td><code>memcached:11211</code></td>
 </tr>
 <tr>
 <td colspan="4">
-    <b>Kafka</b> `441x`
+    <b>Kafka</b> <code>4420–4439</code>
 </td>
 </tr>
 <tr>
 <td></td>
 <td>Broker (bootstrap)</td>
-<td>`localhost:4410`</td>
-<td>`kafka-broker:9092`</td>
+<td><code>localhost:4420</code></td>
+<td><code>kafka-broker:9092</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Schema Registry</td>
-<td>`localhost:4411`</td>
-<td>`schema-registry:8080`</td>
+<td><code>localhost:4421</code></td>
+<td><code>schema-registry:8080</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Connect — generic</td>
-<td>`localhost:4412`</td>
-<td>`connect-generic:8083`</td>
+<td><code>localhost:4422</code></td>
+<td><code>connect-generic:8083</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Connect — Debezium</td>
-<td>`localhost:4413`</td>
-<td>`connect-debezium:8083`</td>
-</tr>
-<tr>
-<td colspan="4">
-    <b>Web UIs</b> `442x+`
-</td>
+<td><code>localhost:4423</code></td>
+<td><code>connect-debezium:8083</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Kafka UI</td>
-<td>`localhost:4420`</td>
-<td>`kafka-ui:8080`</td>
-</tr>
-<tr>
-<td></td>
-<td>phpCacheAdmin</td>
-<td>`localhost:4421` (`cache.test`)</td>
-<td>`phpcacheadmin:80`</td>
-</tr>
-<tr>
-<td></td>
-<td>DBGate</td>
-<td>`localhost:4422` (`db.test`)</td>
-<td>`dbgate:3000`</td>
-</tr>
-<tr>
-<td></td>
-<td>DrawDB</td>
-<td>`localhost:4423` (open here, <b>not</b> `drawdb.test`)</td>
-<td>`drawdb:80`</td>
-</tr>
-<tr>
-<td></td>
-<td>Apache Hop</td>
-<td>`localhost:4424` (`hop.test`)</td>
-<td>`hop:8080`</td>
-</tr>
-<tr>
-<td></td>
-<td>Apache Superset</td>
-<td>`localhost:4425` (`superset.test`)</td>
-<td>`superset:8088`</td>
-</tr>
-<tr>
-<td></td>
-<td>Semgrep viewer</td>
-<td>`localhost:4426` (`semgrep.test`)</td>
-<td>`semgrep:80`</td>
-</tr>
-<tr>
-<td></td>
-<td>LDS Analytics UI</td>
-<td>`localhost:4427` (`analytics.test`)</td>
-<td>`analytics-ui:4173`</td>
-</tr>
-<tr>
-<td></td>
-<td>LDS Analytics API</td>
-<td>`localhost:4428`</td>
-<td>`analytics-api:3001`</td>
-</tr>
-<tr>
-<td></td>
-<td>Vaultwarden</td>
-<td>`localhost:4429` (`vaultwarden.test`)</td>
-<td>`vaultwarden:80`</td>
-</tr>
-<tr>
-<td></td>
-<td>LDS Tasks UI</td>
-<td>`localhost:4435` (`tasks.test`)</td>
-<td>`tasks-ui:4174`</td>
-</tr>
-<tr>
-<td></td>
-<td>LDS Tasks API</td>
-<td>`localhost:4436`</td>
-<td>`tasks-api:3002`</td>
-</tr>
-<tr>
-<td></td>
-<td>LDS Wiki UI</td>
-<td>`localhost:4437` (`wiki.test`)</td>
-<td>`wiki-ui:4175`</td>
-</tr>
-<tr>
-<td></td>
-<td>LDS Wiki API</td>
-<td>`localhost:4438`</td>
-<td>`wiki-api:3003`</td>
+<td><code>localhost:4424</code></td>
+<td><code>kafka-ui:8080</code></td>
 </tr>
 <tr>
 <td colspan="4">
-    <b>Realtime</b> `443x`
+    <b>Realtime</b> <code>4440–4459</code>
 </td>
 </tr>
 <tr>
 <td></td>
 <td>Soketi (Pusher)</td>
-<td>`localhost:4430` (`ws.test`)</td>
-<td>`soketi:6001`</td>
+<td><code>localhost:4440</code> (<code>ws.test</code>)</td>
+<td><code>soketi:6001</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Centrifugo + UI</td>
-<td>`localhost:4431` (`centrifugo.test`)</td>
-<td>`centrifugo:8000`</td>
+<td><code>localhost:4441</code> (<code>centrifugo.test</code>)</td>
+<td><code>centrifugo:8000</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Mosquitto — MQTT</td>
-<td>`localhost:4432`</td>
-<td>`mosquitto:1883`</td>
+<td><code>localhost:4442</code></td>
+<td><code>mosquitto:1883</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Mosquitto — MQTT/WS</td>
-<td>`localhost:4433` (path `/`)</td>
-<td>`mosquitto:9001`</td>
+<td><code>localhost:4443</code> (path <code>/</code>)</td>
+<td><code>mosquitto:9001</code></td>
 </tr>
 <tr>
 <td></td>
 <td>MQTTX Web client</td>
-<td>`localhost:4434` (`mqtt.test`)</td>
-<td>`mqttx:80`</td>
+<td><code>localhost:4444</code> (<code>mqtt.test</code>)</td>
+<td><code>mqttx:80</code></td>
+</tr>
+<tr>
+<td colspan="4">
+    <b>Analytical query engines</b> <code>4451–4459</code>
+</td>
+</tr>
+<tr>
+<td></td>
+<td>DuckDB</td>
+<td><code>n/a</code> (file engine)</td>
+<td><code>n/a</code> (embedded)</td>
+</tr>
+<tr>
+<td></td>
+<td>Trino</td>
+<td><code>localhost:4451</code> (<code>/ui</code>)</td>
+<td><code>trino:8080</code></td>
+</tr>
+<tr>
+<td colspan="4">
+    <b>Admin tools</b> <code>4460–4479</code>
+</td>
+</tr>
+<tr>
+<td></td>
+<td>phpCacheAdmin</td>
+<td><code>localhost:4460</code> (<code>cache.test</code>)</td>
+<td><code>phpcacheadmin:80</code></td>
+</tr>
+<tr>
+<td></td>
+<td>DBGate</td>
+<td><code>localhost:4461</code> (<code>db.test</code>)</td>
+<td><code>dbgate:3000</code></td>
+</tr>
+<tr>
+<td></td>
+<td>DrawDB</td>
+<td><code>localhost:4462</code> (open here, <b>not</b> <code>drawdb.test</code>)</td>
+<td><code>drawdb:80</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Apache Hop</td>
+<td><code>localhost:4463</code> (<code>hop.test</code>)</td>
+<td><code>hop:8080</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Apache Superset</td>
+<td><code>localhost:4464</code> (<code>superset.test</code>)</td>
+<td><code>superset:8088</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Semgrep viewer</td>
+<td><code>localhost:4465</code> (<code>semgrep.test</code>)</td>
+<td><code>semgrep:80</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Vaultwarden</td>
+<td><code>localhost:4466</code> (<code>vaultwarden.test</code>)</td>
+<td><code>vaultwarden:80</code></td>
+</tr>
+<tr>
+<td></td>
+<td>OpenWA</td>
+<td><code>localhost:4467</code> (<code>openwa.test</code>)</td>
+<td><code>openwa:8080</code></td>
+</tr>
+<tr>
+<td></td>
+<td>RustFS — API</td>
+<td><code>localhost:4468</code></td>
+<td><code>rustfs:9000</code></td>
+</tr>
+<tr>
+<td></td>
+<td>RustFS — Console</td>
+<td><code>localhost:4469</code> (<code>rustfs.test</code>)</td>
+<td><code>rustfs:9001</code></td>
+</tr>
+<tr>
+<td colspan="4">
+    <b>LDS apps</b> <code>4480–4499</code>
+</td>
+</tr>
+<tr>
+<td></td>
+<td>Analytics API</td>
+<td><code>localhost:4480</code></td>
+<td><code>analytics-api:3001</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Analytics UI</td>
+<td><code>localhost:4481</code> (<code>analytics.test</code>)</td>
+<td><code>analytics-ui:4173</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Tasks API</td>
+<td><code>localhost:4482</code></td>
+<td><code>tasks-api:3002</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Tasks UI</td>
+<td><code>localhost:4483</code> (<code>tasks.test</code>)</td>
+<td><code>tasks-ui:4174</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Wiki API</td>
+<td><code>localhost:4484</code></td>
+<td><code>wiki-api:3003</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Wiki UI</td>
+<td><code>localhost:4485</code> (<code>wiki.test</code>)</td>
+<td><code>wiki-ui:4175</code></td>
 </tr>
 <tr>
 <td colspan="4">
@@ -209,19 +249,19 @@ else on your machine. Each one is set by a `*_HOST_PORT` variable in `.env`.
 <tr>
 <td></td>
 <td>Web proxy</td>
-<td>`localhost:80` (`*.test`)</td>
+<td><code>localhost:80</code> (<code>*.test</code>)</td>
 <td>—</td>
 </tr>
 <tr>
 <td></td>
 <td>Web proxy (HTTPS)</td>
-<td>`localhost:443` (`*.test`, opt-in)</td>
+<td><code>localhost:443</code> (<code>*.test</code>, opt-in)</td>
 <td>—</td>
 </tr>
 <tr>
 <td></td>
 <td>DNS</td>
-<td>`localhost:53` (udp + tcp)</td>
+<td><code>localhost:53</code> (udp + tcp)</td>
 <td>—</td>
 </tr>
 </tbody>
@@ -235,7 +275,7 @@ else on your machine. Each one is set by a `*_HOST_PORT` variable in `.env`.
   `*.test`).
 - **Control panel:** `http://localhost` (served by the php container, the proxy's
   default route) lists every tool + project — see [15 · Dashboard & data tools](15-data-tools.md).
-- **DrawDB exception:** open it at `localhost:4423`, **not** `drawdb.test` over
+- **DrawDB exception:** open it at `localhost:4462`, **not** `drawdb.test` over
   http — it needs a secure context (`localhost` or HTTPS) for `crypto.randomUUID`.
 - **HTTPS is opt-in:** port `443` (`WEB_HTTPS_PORT`) is published only when
   `LDS_ENABLE_HTTPS=true`. Run `lds certs` once to mint the wildcard `*.test`

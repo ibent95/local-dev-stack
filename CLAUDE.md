@@ -169,7 +169,7 @@ gated behind **profiles** and share one external network `lds-network`.
   (`01-overview.md` … `10-databases.md`) with a `README.md` index in each.
 
 ## Profiles`proxy` `php` `mysql` `postgres` `mongo` `redis` `memcached` `kafka`
-`phpcacheadmin` `dbgate` `drawdb` `hop` `superset` `semgrep` `soketi` `centrifugo` `emqx` `all`
+`phpcacheadmin` `dbgate` `drawdb` `hop` `superset` `semgrep` `soketi` `centrifugo` `emqx` `duckdb` `trino` `all`
 
 `phpcacheadmin` and `dbgate` are the two web admin UIs, each on its OWN profile
 (no `tools` umbrella — toggle them independently): **phpCacheAdmin** (`cache.test`
@@ -192,7 +192,7 @@ designer (`drawdb`, :4423 — open at `localhost:4423`, NOT `drawdb.test`: it ne
 `crypto.randomUUID` which requires a secure context). **Apache Hop** = ETL designer
 (`hop`, `hop.test` / :4424, image `apache/hop-web` Tomcat — NOT `apache/hop`
 hop-server; no login, served at `/ui`; session timeout disabled; MySQL Connector/J
-added via `configs/hop/jdbc-drivers/` single-file mount since it's not bundled;
+added via `assets/jdbc/` single-file mount since it's not bundled;
 project data bind-mounted to `data/hop/` so pipelines/workflows are
 accessible on disk; folder-per-project via `HOP_PROJECTS_PATH` — each subfolder
 is a Hop project registered automatically via `hop-conf` on `lds up hop`).

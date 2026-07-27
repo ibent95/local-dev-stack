@@ -60,7 +60,7 @@ jaringan pakai nama container (`lds-postgres:5432`, `lds-mysql:3306`).
   `/ui/` adalah 404.)
 - **Driver MySQL.** Hop menyertakan banyak driver JDBC (Postgres, MSSQL, …) tapi
   **bukan** MySQL Connector/J (GPL). Ditambahkan via mount satu berkas dari
-  `configs/hop/jdbc-drivers/` — lihat README di sana untuk mengambil ulang jar
+  `assets/jdbc/` — lihat README di sana untuk mengambil ulang jar
   (`HOP_MYSQL_DRIVER` di `.env`). Postgres tak butuh apa-apa; Kafka pakai
   *transforms* bawaan Hop (bukan JDBC); MongoDB/Redis tak punya driver JDBC.
 - **Tanpa timeout sesi.** Hop Web (Eclipse RAP) mengikat kanvas ke sesi HTTP;
@@ -170,6 +170,132 @@ Aplikasi project management/kolaborasi tim self-hosted (frontend Angular + API H
 - UI: `http://localhost:4435` / `tasks.test`
 - API: `http://localhost:4436`
 - Bootstrap DB otomatis saat profile ini start (`tasks-init` → `postgres-init`).
+
+## Analytical query engines — DuckDB & Trino
+
+**Profile:** `duckdb` (`LDS_ENABLE_DUCKDB`), `trino` (`LDS_ENABLE_TRINO`). **Mati
+secara default.** Dua mesin query analitis yang saling melengkapi untuk eksplorasi
+data dan pelaporan.
+
+### DuckDB — file engine (tanpa network port)
+
+Embedded OLAP engine berjalan di base image **`lds/duckdev`** (DHI alpine-base
++ binary DuckDB CLI). DuckDB bersifat embedded seperti SQLite — tanpa server,
+tanpa REST API. File `data.duckdb` disimpan di named volume persistent yang
+dibagi dengan DBGate untuk akses GUI.
+
+- **Tanpa network port:** DuckDB bukan server. Query via `docker exec`:
+  ```sh
+  docker exec -it lds-duckdb duckdb /data/data.duckdb
+  docker exec lds-duckdb duckdb -c "SELECT * FROM read_parquet('/data/sales.parquet') LIMIT 10" /data/data.duckdb
+  ```
+
+- **Konektivitas DBGate:** Plugin DuckDB DBGate membuka file `data.duckdb` yang
+  sama (read-only, di-mount dari shared volume `duckdb-data`). Tambah koneksi
+  DuckDB di DBGate dengan path `/data/data.duckdb` dan mode **read-only**.
+
+- **Direktori data:** `data/duckdb/` di host. Letakkan file `.parquet`, `.csv`,
+  `.json`. Di dalam container muncul di `/data/`. Query dengan
+  `read_parquet('/data/nama_file.parquet')`.
+
+- **File database persistent:** File `data.duckdb` berada di Docker named volume
+  `duckdb-data`. Bertahan setelah restart. Isi dengan:
+  ```sh
+  docker exec lds-duckdb duckdb /data/data.duckdb -c "CREATE TABLE sales AS SELECT * FROM read_parquet('/data/sales.parquet')"
+  ```
+
+- **Image:** `lds/duckdev:${DUCKDB_VERSION}` — build FROM DHI alpine-base,
+  memasang binary DuckDB CLI official. Ringan — `${DUCKDB_MEM_LIMIT}`
+  (default `256m`).
+
+- **Seed data:** Jalankan `lds seed-data` untuk membuat sample file ke `data/duckdb/`.
+
+### Trino — `localhost:4451`
+
+Mesin SQL query terdistribusi penuh dengan UI web built-in. Query file Parquet
+(melalui Hive connector dengan Hive Metastore), plus query federasi ke MySQL,
+Postgres, Kafka, dan lainnya. ANSI SQL, eksekusi paralel, ekosistem konektor.
+
+- **Web UI:** `http://localhost:4451/ui` — editor query, riwayat query,
+  ringkasan cluster.
+- **JDBC:** Hubungkan BI tools (Superset, Hop, Tableau) melalui driver JDBC
+  Trino. String koneksi: `jdbc:trino://trino:8080/{catalog}/{schema}` (dalam
+  jaringan Docker) atau `jdbc:trino://localhost:4451/{catalog}/{schema}` (dari host).
+
+#### Menghubungkan Apache Superset ke Trino
+
+1. Jalankan kedua profile: `./lds.sh up superset trino`
+2. Buka Superset di `http://superset.test` (login `admin` / `admin`)
+3. Buka **Data → Databases → + Database**
+4. Pilih **Trino** dari dropdown
+5. Masukkan **SQLAlchemy URI**:
+   ```
+   trino://trino:8080/hive/default
+   ```
+   (dari host, gunakan `trino://localhost:4451/hive/default`)
+6. Klik **Test Connection** → **Save**
+
+> Driver Python `trino` diinstal otomatis saat startup Superset melalui
+> entrypoint (`pip install trino`). Tidak perlu langkah manual.
+
+#### Menghubungkan Apache Hop ke Trino
+
+Apache Hop terhubung ke Trino melalui JDBC menggunakan tipe **Generic database**.
+Driver JDBC Trino (`trino-jdbc-483.jar`) di-mount ke container Hop dari
+direktori bersama `assets/jdbc/`.
+
+1. Ambil driver sekali:
+   ```bash
+   curl -fsSL -o assets/jdbc/trino-jdbc-483.jar \
+     https://repo1.maven.org/maven2/io/trino/trino-jdbc/483/trino-jdbc-483.jar
+   ```
+2. Jalankan kedua profile: `./lds.sh up hop trino`
+3. Buka Hop di `http://hop.test/ui`
+4. Di perspektif **Metadata**, klik kanan **Relational Database Connections**
+   → **New**
+5. Isi:
+   - **Connection Name:** `Trino`
+   - **Connection Type:** `Generic`
+   - **Access:** `Native (JDBC)`
+   - **Driver Class:** `io.trino.jdbc.TrinoDriver`
+   - **Custom Connection URL:** `jdbc:trino://trino:8080/hive/default`
+6. Klik **Test** untuk verifikasi, lalu **Save**
+
+- **Hive connector untuk Parquet:** Trino mengakses file Parquet melalui
+  Hive Metastore. Daftarkan tabel via SQL `CREATE TABLE`:
+  ```sql
+  CREATE TABLE hive.parquet_schema.sales (
+    date DATE,
+    product VARCHAR,
+    revenue DOUBLE
+  ) WITH (
+    format = 'PARQUET',
+    external_location = 'local:///data/trino/sales/'
+  );
+  ```
+
+- **Data sampel:** Trino dilengkapi dengan konektor `tpch` dan `tpcds` untuk
+  pengujian:
+  ```sql
+  SELECT * FROM tpch.tiny.orders LIMIT 10;
+  ```
+
+- **Query federasi:** Query lintas semua sumber data LDS dalam satu SQL:
+  ```sql
+  SELECT * FROM tpch.tiny.orders o
+  JOIN mysql.mysql_app.users u ON o.custkey = u.id;
+  ```
+
+- **Image:** Official `trinodb/trino:${TRINO_VERSION}`.
+- **Metastore:** `hive-metastore` (official `apache/hive:4.0.0` image),
+  otomatis berjalan dengan profile `trino`. Menggunakan Postgres LDS bersama
+  (database `lds_hive_metastore`).
+
+- **Direktori data:** `data/trino/` — file Parquet untuk query Trino.
+
+
+
+---
 
 ## Dokumentasi — LDS Wiki
 

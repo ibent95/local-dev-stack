@@ -7,22 +7,21 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 CERT_DIR="$ROOT/configs/proxy/certs"
-# Named after the TLD: nginx-proxy matches vhost <name>.test to test.crt by
-# stripping the leftmost label (wildcard-parent lookup). The php container also
-# sets CERT_NAME=test (in docker-compose.https.yml) so its localhost + regex
-# *.test vhosts use it too.
-CRT="$CERT_DIR/test.crt"
-KEY="$CERT_DIR/test.key"
+# Named as _.test.crt: nginx-proxy's wildcard convention uses _ for * in cert
+# filenames. The php container also sets CERT_NAME=_.test (in
+# docker-compose.https.yml) so its localhost + regex *.test vhosts use it too.
+CRT="$CERT_DIR/_.test.crt"
+KEY="$CERT_DIR/_.test.key"
 mkdir -p "$CERT_DIR"
 
 # Hosts/IPs the dev cert is valid for. *.test covers <name>.test, cache.test,
 # db.test, mqtt.test, ws.test, centrifugo.test, etc.
 HOSTS=("*.test" "test" "localhost" "127.0.0.1" "::1")
 
-[ "${1:-}" = "--force" ] && rm -f "$CRT" "$KEY"
+[ "${1:-}" = "--force" ] && rm -f "$CRT" "$KEY" "$CERT_DIR/default.crt" "$CERT_DIR/default.key"
 
 if [ -s "$CRT" ] && [ -s "$KEY" ]; then
-  echo "Cert already present: $CRT  (use --force to regenerate)"
+  echo "Wildcard cert already present: $CRT  (use --force to regenerate)"
   exit 0
 fi
 
@@ -45,6 +44,14 @@ else
   echo "Install mkcert (recommended): https://github.com/FiloSottile/mkcert" >&2
   exit 1
 fi
+
+# Copy to default.crt/default.key so nginx-proxy serves this wildcard cert
+# for ALL .test vhosts (the template's parent-hostname fallback only works for
+# 3+-part hostnames; .test domains are 2-part so CERT_NAME/default fallback
+# is needed). The proxy has TRUST_DEFAULT_CERT=true to enable the fallback.
+echo "Copying cert to default.{crt,key} for proxy fallback…"
+cp "$CRT" "$CERT_DIR/default.crt"
+cp "$KEY" "$CERT_DIR/default.key"
 
 # Apply immediately: nginx re-reads cert files on reload, but a bind-mounted
 # cert change does NOT restart the container — so a running proxy keeps serving

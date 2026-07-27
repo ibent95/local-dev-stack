@@ -58,11 +58,12 @@ group "Security & auth"
 add "${VAULTWARDEN_HOST:-vaultwarden.test}"
 
 group "Database design"
-add "${DRAWDB_HOST:-drawdb.test}" "(open via http://localhost:4423 — needs a secure context)"
+add "${DRAWDB_HOST:-drawdb.test}" "(open via http://localhost:4462 — needs a secure context)"
 
 group "Data warehouse & BI"
 add "${SUPERSET_HOST:-superset.test}"
 add "${HOP_HOST:-hop.test}"
+add "${DUCKDB_HOST:-duckdb.test}"
 
 group "Code quality"
 add "${SEMGREP_HOST:-semgrep.test}"
@@ -80,6 +81,10 @@ group "Realtime & messaging"
 add "${SOKETI_HOST:-ws.test}"
 add "${CENTRIFUGO_HOST:-centrifugo.test}"
 add "${MQTT_HOST:-mqtt.test}"
+
+group "Communication & storage"
+add "${OPENWA_HOST:-openwa.test}"
+add "${RUSTFS_HOST:-rustfs.test}"
 
 bann "# ===== end local-dev-stack ====="
 

@@ -15,7 +15,16 @@
 # Profiles: proxy | php | mysql | postgres | mongo | redis | memcached |
 #           phpcacheadmin | dbgate | drawdb | hop | superset | semgrep |
 #           vaultwarden | analytics | tasks | wiki |
-#           soketi | centrifugo | mqtt | kafka | all
+#           soketi | centrifugo | mqtt | kafka | openwa | rustfs |
+#           duckdb | trino | hive-metastore | all
+#
+# Host port layout (all in the 44xx block):
+#   4400-4419  Databases      (MySQL, Postgres, Mongo, Redis, Memcached)
+#   4420-4439  Kafka          (Broker, Schema Registry, Connect, UI)
+#   4440-4459  Realtime       (Soketi, Centrifugo, Mosquitto, MQTTX)
+#   4460-4479  Admin tools    (phpCacheAdmin, DBGate, Hop, Superset, etc.)
+#   4480-4499  LDS apps       (Analytics, Tasks, Wiki APIs + UIs)
+#   4450-4459  Analytics      (DuckDB, Trino)
 #   Data tools (drawdb/hop/superset/semgrep/vaultwarden) + the http://localhost control panel:
 #   see docs/en/15-data-tools.md.
 # =============================================================================
@@ -26,6 +35,13 @@ name: local-dev-stack
 # Reusable anchors
 # -----------------------------------------------------------------------------
 x-restart: &restart unless-stopped
+
+# DNS tuning: fast timeout + single attempt to avoid multi-second stalls on
+# container startup when a dependency's hostname isn't immediately resolvable.
+x-dns-opts: &dns
+  dns_opt:
+    - timeout:1
+    - attempts:1
 
 services:
   # ===========================================================================
@@ -100,8 +116,21 @@ services:
       - "${WEB_HOST_PORT:-80}:80"
     environment:
       DEFAULT_HOST: localhost
+      # Use Docker's embedded DNS as the resolver (127.0.0.11 inside the container)
+      # with a short TTL so upstream container IP changes are picked up quickly.
+      RESOLVERS: "127.0.0.11"
+      # Increase worker connections for higher concurrency (default is 1024).
+      # Each upstream connection uses one worker connection; with keepalive,
+      # 2048 handles ~1000 concurrent keepalive connections without exhaustion.
+      WORKER_CONNECTIONS: "2048"
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
+    # Aggressive DNS timeouts — the nginx-proxy resolver looks up upstream
+    # container hostnames via Docker DNS. timeout:1 / attempts:1 ensures a DNS
+    # hiccup doesn't stall the request for more than ~1s.
+    dns_opt:
+      - timeout:1
+      - attempts:1
     mem_limit: ${PROXY_MEM_LIMIT:-256m}
     networks: [lds-network]
 
@@ -122,16 +151,21 @@ services:
   # ===========================================================================
   # MySQL  (profile: mysql, all)
   #   binlog enabled in ROW format so Debezium CDC works out of the box.
+  #   Self-initializing: --init-file creates the app database + user on every
+  #   startup (idempotent via CREATE IF NOT EXISTS). No external init script needed.
   # ===========================================================================
   mysql:
     image: ${DHI_REGISTRY:-dhi.io}/mysql:${MYSQL_VERSION:-8.4-debian13}
     container_name: lds-mysql
     profiles: [mysql, all]
     restart: *restart
+    <<: *dns
     # DHI mysql only enters "mysqld mode" when argv[0] is `mysqld` (the official
     # image auto-prepends it; DHI does not), so pass it explicitly.
+    # --init-file runs the bootstrap SQL on every startup (idempotent).
     command:
       - mysqld
+      - --init-file=/docker-entrypoint-initdb.d/00-init.sql
       - --log-bin=mysql-bin
       - --binlog-format=ROW
       - --binlog-row-image=FULL
@@ -165,25 +199,79 @@ services:
   # ===========================================================================
   # PostgreSQL  (profile: postgres, all)
   #   wal_level=logical so Debezium CDC works out of the box.
+  #   Self-initializing: background the DHI entrypoint (handles initdb + setup),
+  #   then creates extra databases from POSTGRES_INIT_SPECS and runs init SQL
+  #   scripts. No external init script needed.
   # ===========================================================================
   postgres:
     image: ${DHI_REGISTRY:-dhi.io}/postgres:${POSTGRES_VERSION:-18.4-alpine3.24}
     container_name: lds-postgres
-    profiles: [postgres, analytics, tasks, wiki, all]
+    profiles: [postgres, analytics, tasks, wiki, openwa, trino, all]
     restart: *restart
-    # DHI postgres entrypoint already runs `exec postgres "$@"`, so pass ONLY the
-    # flags (no leading `postgres`, unlike the official image).
+    <<: *dns
+    # Override entrypoint so we can init databases AFTER postgres starts.
+    # The original DHI entrypoint is run in background (handles initdb + setup),
+    # then our script creates extra databases and runs init SQL.
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - "-c"
-      - "wal_level=logical"
-      - "-c"
-      - "max_wal_senders=10"
-      - "-c"
-      - "max_replication_slots=10"
+      - |
+        # Run the DHI entrypoint in background (initdb, user setup, then exec postgres)
+        # Pass ONLY config flags (no leading "postgres") — the DHI entrypoint
+        # handles them the same way as the original compose command.
+        /usr/local/bin/docker-entrypoint.sh \
+          -c wal_level=logical \
+          -c max_wal_senders=10 \
+          -c max_replication_slots=10 &
+        PG_PID=$$!
+
+        # Wait for postgres to accept connections
+        echo "Waiting for PostgreSQL..."
+        for i in $$(seq 1 30); do
+          pg_isready -U "$${POSTGRES_USER:-app}" -q 2>/dev/null && break
+          sleep 2
+        done
+        echo "PostgreSQL ready — initializing databases..."
+
+        # Create extra databases from POSTGRES_INIT_SPECS (comma-separated db:user:pass)
+        OLD_IFS="$$IFS"; IFS=','
+        for spec in $${POSTGRES_INIT_SPECS:-}; do
+          [ -z "$$spec" ] && continue
+          db="$$(echo "$$spec" | cut -d: -f1)"
+          u="$$(echo "$$spec" | cut -d: -f2)"
+          p="$$(echo "$$spec" | cut -d: -f3)"
+          [ -z "$$db" ] || [ -z "$$u" ] || [ -z "$$p" ] && continue
+          psql -U "$${POSTGRES_USER:-app}" -d postgres \
+            -c "CREATE DATABASE \"$$db\" OWNER \"$$u\";" 2>/dev/null || true
+          psql -U "$${POSTGRES_USER:-app}" -d postgres \
+            -c "GRANT CONNECT ON DATABASE \"$$db\" TO \"$$u\";" 2>/dev/null || true
+          psql -U "$${POSTGRES_USER:-app}" -d "$$db" \
+            -c "GRANT USAGE, CREATE ON SCHEMA public TO \"$$u\";
+                 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"$$u\";
+                 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO \"$$u\";" 2>/dev/null || true
+          echo "  Database '$$db' + user '$$u' ready"
+        done
+        IFS="$$OLD_IFS"
+
+        # Run init SQL scripts from /docker-entrypoint-initdb.d/ (table schemas)
+        for f in /docker-entrypoint-initdb.d/*.sql /docker-entrypoint-initdb.d/*.sh; do
+          [ -f "$$f" ] || continue
+          case "$$f" in
+            *.sql)
+              echo "  applying $$(basename $$f)..."
+              psql -U "$${POSTGRES_USER:-app}" -d "$${POSTGRES_DB:-app}" -f "$$f" >/dev/null 2>&1 || true ;;
+            *.sh)
+              echo "  running $$(basename $$f)..."
+              bash "$$f" >/dev/null 2>&1 || true ;;
+          esac
+        done
+
+        echo "PostgreSQL ready"
+        wait $$PG_PID
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-app}
       POSTGRES_USER: ${POSTGRES_USER:-app}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+      POSTGRES_INIT_SPECS: ${POSTGRES_INIT_SPECS:-}
       TZ: ${TZ:-Asia/Jakarta}
     ports:
       - "${POSTGRES_HOST_PORT:-4401}:5432"
@@ -219,6 +307,7 @@ services:
     container_name: lds-mongo
     profiles: [mongo, all]
     restart: *restart
+    <<: *dns
     environment:
       TZ: ${TZ:-Asia/Jakarta}
     entrypoint:
@@ -252,6 +341,7 @@ services:
     container_name: lds-redis
     profiles: [redis, all]
     restart: *restart
+    <<: *dns
     command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     environment:
       TZ: ${TZ:-Asia/Jakarta}
@@ -275,6 +365,7 @@ services:
     container_name: lds-memcached
     profiles: [memcached, all]
     restart: *restart
+    <<: *dns
     command: ["memcached", "-m", "${MEMCACHED_MEMORY:-64}", "-p", "11211"]
     ports:
       - "${MEMCACHED_HOST_PORT:-4404}:11211"
@@ -302,9 +393,11 @@ services:
     container_name: lds-phpcacheadmin
     profiles: [phpcacheadmin, all]
     restart: *restart
+    <<: *dns
     environment:
       VIRTUAL_HOST: ${CACHE_ADMIN_HOST:-cache.test}
       VIRTUAL_PORT: "80"
+      CERT_NAME: _.test
       PCA_REDIS_0_NAME: "LDS Redis"
       PCA_REDIS_0_HOST: redis
       PCA_REDIS_0_PORT: "6379"
@@ -314,7 +407,7 @@ services:
     expose:
       - "80"
     ports:
-      - "${CACHE_ADMIN_HOST_PORT:-4421}:80"
+      - "${CACHE_ADMIN_HOST_PORT:-4460}:80"
     networks: [lds-network]
 
   # DBGate — web DB client, pre-connected to MySQL + Postgres.  (profile: dbgate, all)
@@ -325,9 +418,11 @@ services:
     container_name: lds-dbgate
     profiles: [dbgate, all]
     restart: *restart
+    <<: *dns
     environment:
       VIRTUAL_HOST: ${DB_ADMIN_HOST:-db.test}
       VIRTUAL_PORT: "3000"
+      CERT_NAME: _.test
       # Full Community feature set. We intentionally do NOT predefine CONNECTIONS:
       # doing so locks the UI into read-only "preconfigured" mode and disables
       # "Add connection". Left unset, DBGate runs fully open — add/edit/delete
@@ -337,12 +432,18 @@ services:
     expose:
       - "3000"
     ports:
-      - "${DB_ADMIN_HOST_PORT:-4422}:3000"
+      - "${DB_ADMIN_HOST_PORT:-4461}:3000"
     volumes:
       # Persist UI-created connections + app state (the MySQL/Postgres entries
       # above are predefined/read-only; anything you add yourself lives here).
       # Bind-mounted so you can inspect, backup, or version-control connections.
       - ./data/dbgate:/root/.dbgate
+      # Shared writable view of the DuckDB data engine. DuckDB needs to create a
+      # lock/WAL file (data.duckdb.wal) even for reads, so the mount must be
+      # writable — a read-only mount fails with "Cannot open file: Read-only file
+      # system". DuckDB's own file locking prevents simultaneous writers, so set
+      # the DuckDB connection to read-only in the DBGate UI to avoid contention.
+      - duckdb-data:/data
     mem_limit: ${DBGATE_MEM_LIMIT:-384m}
     networks: [lds-network]
 
@@ -359,13 +460,15 @@ services:
     container_name: lds-drawdb
     profiles: [drawdb, all]
     restart: *restart
+    <<: *dns
     environment:
       VIRTUAL_HOST: ${DRAWDB_HOST:-drawdb.test}
       VIRTUAL_PORT: "80"
+      CERT_NAME: _.test
     expose:
       - "80"
     ports:
-      - "${DRAWDB_HOST_PORT:-4423}:80"
+      - "${DRAWDB_HOST_PORT:-4462}:80"
     mem_limit: ${DRAWDB_MEM_LIMIT:-128m}
     networks: [lds-network]
 
@@ -391,6 +494,7 @@ services:
     container_name: lds-hop
     profiles: [hop, all]
     restart: *restart
+    <<: *dns
     # "No session" timeout: Hop Web (Eclipse RAP) ties its UI state to the HTTP
     # session, which inherits Tomcat's 30-min conf/web.xml timeout — so after idle
     # you'd get "session timed out" and lose the canvas. We flip that to never
@@ -406,26 +510,28 @@ services:
       TZ: ${TZ:-Asia/Jakarta}
       VIRTUAL_HOST: ${HOP_HOST:-hop.test}
       VIRTUAL_PORT: "8080"
+      CERT_NAME: _.test
     expose:
       - "8080"
     ports:
-      - "${HOP_HOST_PORT:-4424}:8080"
+      - "${HOP_HOST_PORT:-4463}:8080"
     volumes:
-      # JDBC drivers — Hop ships the PostgreSQL *dialect* plugin but many drivers
-      # are not bundled due to licensing (GPL, EULA, etc.). Single-FILE mounts add
-      # each driver to Hop's shared jdbc folder without shadowing the bundled ones.
-      # Fetch jars into ./configs/hop/jdbc-drivers/ (see the README there).
+      # Shared JDBC JARs are in assets/jdbc/ — download them from Maven Central
+      # (see the comprehensive README at assets/jdbc/README.md). Each JAR is
+      # mounted as a single-file volume without shadowing Hop's bundled drivers.
       # Bump both the filename and the matching ${HOP_*_DRIVER} in .env together.
       # MySQL Connector/J (GPL — not bundled).
-      - ./configs/hop/jdbc-drivers/${HOP_MYSQL_DRIVER:-mysql-connector-j-8.4.0.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_MYSQL_DRIVER:-mysql-connector-j-8.4.0.jar}:ro
+      - ./assets/jdbc/${HOP_MYSQL_DRIVER:-mysql-connector-j-8.4.0.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_MYSQL_DRIVER:-mysql-connector-j-8.4.0.jar}:ro
       # MariaDB JDBC (LGPL — not bundled).
-      - ./configs/hop/jdbc-drivers/${HOP_MARIADB_DRIVER:-mariadb-java-client-3.5.9.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_MARIADB_DRIVER:-mariadb-java-client-3.5.9.jar}:ro
+      - ./assets/jdbc/${HOP_MARIADB_DRIVER:-mariadb-java-client-3.5.9.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_MARIADB_DRIVER:-mariadb-java-client-3.5.9.jar}:ro
       # Oracle JDBC (Oracle Free Use Terms — not bundled).
-      - ./configs/hop/jdbc-drivers/${HOP_ORACLE_DRIVER:-ojdbc11-23.26.2.0.0.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_ORACLE_DRIVER:-ojdbc11-23.26.2.0.0.jar}:ro
+      - ./assets/jdbc/${HOP_ORACLE_DRIVER:-ojdbc11-23.26.2.0.0.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_ORACLE_DRIVER:-ojdbc11-23.26.2.0.0.jar}:ro
       # Microsoft SQL Server JDBC (Microsoft EULA — not bundled).
-      - ./configs/hop/jdbc-drivers/${HOP_MSSQL_DRIVER:-mssql-jdbc-12.8.1.jre11.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_MSSQL_DRIVER:-mssql-jdbc-12.8.1.jre11.jar}:ro
+      - ./assets/jdbc/${HOP_MSSQL_DRIVER:-mssql-jdbc-12.8.1.jre11.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_MSSQL_DRIVER:-mssql-jdbc-12.8.1.jre11.jar}:ro
       # PostgreSQL JDBC (override bundled version if needed).
-      - ./configs/hop/jdbc-drivers/${HOP_POSTGRESQL_DRIVER:-postgresql-42.7.4.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_POSTGRESQL_DRIVER:-postgresql-42.7.4.jar}:ro
+      - ./assets/jdbc/${HOP_POSTGRESQL_DRIVER:-postgresql-42.7.4.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_POSTGRESQL_DRIVER:-postgresql-42.7.4.jar}:ro
+      # Trino JDBC (Apache 2.0 — not bundled).
+      - ./assets/jdbc/${HOP_TRINO_DRIVER:-trino-jdbc-483.jar}:/usr/local/tomcat/jdbc-drivers/${HOP_TRINO_DRIVER:-trino-jdbc-483.jar}:ro
       # Persist Hop projects, connections, and config across container recreates.
       # Bind-mounted to the host (data/hop/*) so you can browse, edit, and
       # version-control your pipelines and workflows directly. Mount only the
@@ -457,10 +563,12 @@ services:
     container_name: lds-superset
     profiles: [superset, all]
     restart: *restart
+    <<: *dns
     environment:
       TZ: ${TZ:-Asia/Jakarta}
       VIRTUAL_HOST: ${SUPERSET_HOST:-superset.test}
       VIRTUAL_PORT: "8088"
+      CERT_NAME: _.test
       SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-lds-dev-secret-change-me}
       SQLALCHEMY_DATABASE_URI: sqlite:////app/superset_home/superset.db
       SUPERSET_LOAD_EXAMPLES: "no"
@@ -472,6 +580,10 @@ services:
       - |
         import os, subprocess
         bin = "/app/.venv/bin"
+        # Install optional DB drivers (idempotent — pip skips if already installed).
+        # trino: SQLAlchemy dialect for Trino queries.
+        for pkg in ["trino"]:
+            subprocess.run([bin + "/pip", "install", "--quiet", pkg], check=False)
         subprocess.run([bin + "/superset", "db", "upgrade"], check=True)
         subprocess.run([bin + "/superset", "fab", "create-admin",
             "--username", os.environ.get("SUPERSET_ADMIN", "admin"),
@@ -484,7 +596,7 @@ services:
     expose:
       - "8088"
     ports:
-      - "${SUPERSET_HOST_PORT:-4425}:8088"
+      - "${SUPERSET_HOST_PORT:-4464}:8088"
     volumes:
       # Persist Superset metadata (SQLite DB, dashboards, connections) on disk.
       # Bind-mounted (SUPERSET_HOME) so you can inspect/backup the SQLite file
@@ -509,6 +621,118 @@ services:
     networks: [lds-network]
 
   # ===========================================================================
+  # Analytical query engines — DuckDB + Trino (profiles: duckdb | trino, all)
+  #   duckdb : embedded OLAP engine — official CLI image. Query Parquet, CSV,
+  #            JSON, and Arrow files directly. Use via docker exec.
+  #   trino  : full distributed SQL query engine. Federated queries across MySQL,
+  #            Postgres, Kafka, and Parquet (via Hive Metastore). Built-in web UI
+  #            at :4451/ui. TPCH/TPCDS sample data included for testing.
+  #   hive-metastore : Hive Metastore (apache/hive:4.0.0 official image) backing
+  #                    Trino's Hive connector. Stores schemas in LDS Postgres.
+  # All OFF by default. Trino requires postgres for the Hive Metastore.
+  # ===========================================================================
+  # DuckDB — embedded analytical SQL engine, persistent file-based.  (profile: duckdb, all)
+  # No REST API, no network port. DuckDB is an embedded database (like SQLite).
+  # The data.duckdb file lives on a persistent named volume shared with DBGate
+  # (read-only) so the GUI can query the same database.
+  #   docker exec -it lds-duckdb duckdb /data/data.duckdb
+  #   docker exec lds-duckdb duckdb -c "SELECT * FROM read_parquet('/data/sales.parquet')" /data/data.duckdb
+  duckdb:
+    build:
+      context: configs/duckdb
+      dockerfile: Dockerfile
+      args:
+        DUCKDB_VERSION: ${DUCKDB_VERSION:-1.2.0}
+    image: ${REGISTRY:-local}/local-dev-stack/duckdb:latest
+    container_name: lds-duckdb
+    profiles: [duckdb, all]
+    restart: *restart
+    <<: *dns
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+    volumes:
+      - duckdb-data:/data
+    mem_limit: ${DUCKDB_MEM_LIMIT:-256m}
+    networks: [lds-network]
+
+  # Trino — distributed SQL query engine.  (profile: trino, all)
+  trino:
+    image: trinodb/trino:${TRINO_VERSION:-latest}
+    container_name: lds-trino
+    profiles: [trino, all]
+    restart: *restart
+    <<: *dns
+    depends_on:
+      hive-metastore:
+        condition: service_started
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+    expose:
+      - "8080"
+    ports:
+      - "${TRINO_HOST_PORT:-4451}:8080"
+    volumes:
+      - ./configs/trino/config.properties:/etc/trino/config.properties:ro
+      - ./configs/trino/jvm.config:/etc/trino/jvm.config:ro
+      - ./configs/trino/catalog:/etc/trino/catalog:ro
+      - ./data/trino:/data/trino
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/v1/info >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    mem_limit: ${TRINO_MEM_LIMIT:-2g}
+    networks: [lds-network]
+
+  # Hive Metastore — catalog service for Trino's Hive connector.  (profile: trino, all)
+  # Uses the official apache/hive image directly. Initialises schema on first
+  # startup (idempotent). Backed by LDS Postgres (lds_hive_metastore database).
+  # The DB is created by hive-metastore-init (auto-run after compose up for the
+  # trino profile). Retries schematool to bridge the race until that DB exists.
+  hive-metastore:
+    image: apache/hive:4.0.0
+    container_name: lds-hive-metastore
+    profiles: [trino, all]
+    restart: *restart
+    <<: *dns
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        for i in $$(seq 1 30); do
+          if exec 3<>/dev/tcp/postgres/5432 2>/dev/null; then exec 3>&-; break; fi;
+          if [ "$$i" = "30" ]; then echo 'postgres not reachable'; exit 1; fi;
+          sleep 2;
+        done;
+        for i in $$(seq 1 24); do
+          if /opt/hive/bin/schematool -dbType postgres -initOrUpgradeSchema 2>&1; then
+            break;
+          fi;
+          if [ "$$i" = "24" ]; then
+            echo 'schematool failed after 24 retries';
+            exit 1;
+          fi;
+          echo "schematool failed (attempt $$i/24) — retrying in 5s...";
+          sleep 5;
+        done;
+        exec /opt/hive/bin/hive --service metastore
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+    expose:
+      - "9083"
+    volumes:
+      - ./configs/hive-metastore/metastore-site.xml:/opt/hive/conf/metastore-site.xml:ro
+      - ./configs/hive-metastore/metastore-log4j2.properties:/opt/hive/conf/hive-log4j2.properties:ro
+      # PostgreSQL JDBC driver for the metastore's metadata database.
+      - ./assets/jdbc/${HIVE_METASTORE_POSTGRES_DRIVER:-postgresql-42.7.4.jar}:/opt/hive/lib/${HIVE_METASTORE_POSTGRES_DRIVER:-postgresql-42.7.4.jar}:ro
+      - ./data/trino:/data/trino
+    mem_limit: ${HIVE_METASTORE_MEM_LIMIT:-512m}
+    networks: [lds-network]
+
+  # ===========================================================================
   # Code quality — static analysis (SAST).  (profiles: semgrep | semgrep-scan)
   #   semgrep      : the VIEWER — a tiny nginx serving the SARIF report + UI at
   #                  semgrep.test. Long-running; this is what `lds up semgrep` starts.
@@ -525,13 +749,15 @@ services:
     container_name: lds-semgrep
     profiles: [semgrep, all]
     restart: *restart
+    <<: *dns
     environment:
       VIRTUAL_HOST: ${SEMGREP_HOST:-semgrep.test}
       VIRTUAL_PORT: "80"
+      CERT_NAME: _.test
     expose:
       - "80"
     ports:
-      - "${SEMGREP_HOST_PORT:-4426}:80"
+      - "${SEMGREP_HOST_PORT:-4465}:80"
     volumes:
       - ./configs/semgrep/reports:/usr/share/nginx/html:ro
     mem_limit: ${SEMGREP_MEM_LIMIT:-64m}
@@ -562,6 +788,7 @@ services:
     container_name: lds-analytics-api
     profiles: [analytics, all]
     restart: *restart
+    <<: *dns
     environment:
       TZ: ${TZ:-Asia/Jakarta}
       PORT: "3001"
@@ -570,7 +797,7 @@ services:
     expose:
       - "3001"
     ports:
-      - "${ANALYTICS_API_HOST_PORT:-4428}:3001"
+      - "${ANALYTICS_API_HOST_PORT:-4480}:3001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -591,14 +818,16 @@ services:
     container_name: lds-analytics-ui
     profiles: [analytics, all]
     restart: *restart
+    <<: *dns
     environment:
       TZ: ${TZ:-Asia/Jakarta}
       VIRTUAL_HOST: ${ANALYTICS_HOST:-analytics.test}
+      CERT_NAME: _.test
       API_URL: http://analytics-api:3001
     expose:
       - "4173"
     ports:
-      - "${ANALYTICS_HOST_PORT:-4427}:4173"
+      - "${ANALYTICS_HOST_PORT:-4481}:4173"
     depends_on:
       analytics-api:
         condition: service_healthy
@@ -620,6 +849,7 @@ services:
     container_name: lds-tasks-api
     profiles: [tasks, all]
     restart: *restart
+    <<: *dns
     environment:
       TZ: ${TZ:-Asia/Jakarta}
       PORT: "3002"
@@ -628,7 +858,7 @@ services:
     expose:
       - "3002"
     ports:
-      - "${TASKS_API_HOST_PORT:-4436}:3002"
+      - "${TASKS_API_HOST_PORT:-4482}:3002"
     depends_on:
       postgres:
         condition: service_healthy
@@ -649,14 +879,16 @@ services:
     container_name: lds-tasks-ui
     profiles: [tasks, all]
     restart: *restart
+    <<: *dns
     environment:
       TZ: ${TZ:-Asia/Jakarta}
       VIRTUAL_HOST: ${TASKS_HOST:-tasks.test}
+      CERT_NAME: _.test
       API_URL: http://tasks-api:3002
     expose:
       - "4174"
     ports:
-      - "${TASKS_HOST_PORT:-4435}:4174"
+      - "${TASKS_HOST_PORT:-4483}:4174"
     depends_on:
       tasks-api:
         condition: service_healthy
@@ -673,6 +905,7 @@ services:
     container_name: lds-wiki-api
     profiles: [wiki, all]
     restart: *restart
+    <<: *dns
     environment:
       TZ: ${TZ:-Asia/Jakarta}
       PORT: "3003"
@@ -681,7 +914,7 @@ services:
     expose:
       - "3003"
     ports:
-      - "${WIKI_API_HOST_PORT:-4438}:3003"
+      - "${WIKI_API_HOST_PORT:-4484}:3003"
     depends_on:
       postgres:
         condition: service_healthy
@@ -702,14 +935,16 @@ services:
     container_name: lds-wiki-ui
     profiles: [wiki, all]
     restart: *restart
+    <<: *dns
     environment:
       TZ: ${TZ:-Asia/Jakarta}
       VIRTUAL_HOST: ${WIKI_HOST:-wiki.test}
+      CERT_NAME: _.test
       API_URL: http://wiki-api:3003
     expose:
       - "4175"
     ports:
-      - "${WIKI_HOST_PORT:-4437}:4175"
+      - "${WIKI_HOST_PORT:-4485}:4175"
     depends_on:
       wiki-api:
         condition: service_healthy
@@ -733,18 +968,20 @@ services:
     container_name: lds-vaultwarden
     profiles: [vaultwarden, all]
     restart: *restart
+    <<: *dns
     environment:
       TZ: ${TZ:-Asia/Jakarta}
       ROCKET_PORT: "80"
       VIRTUAL_HOST: ${VAULTWARDEN_HOST:-vaultwarden.test}
       VIRTUAL_PORT: "80"
+      CERT_NAME: _.test
       DOMAIN: ${VAULTWARDEN_DOMAIN:-http://vaultwarden.test}
       SIGNUPS_ALLOWED: "${VAULTWARDEN_SIGNUPS_ALLOWED:-false}"
       ADMIN_TOKEN: ${VAULTWARDEN_ADMIN_TOKEN:-vaultwarden-dev-admin-token-change-me}
     expose:
       - "80"
     ports:
-      - "${VAULTWARDEN_HOST_PORT:-4429}:80"
+      - "${VAULTWARDEN_HOST_PORT:-4466}:80"
     volumes:
       - vaultwarden-data:/data
     healthcheck:
@@ -783,6 +1020,7 @@ services:
     container_name: lds-soketi
     profiles: [soketi, all]
     restart: *restart
+    <<: *dns
     environment:
       TZ: ${TZ:-Asia/Jakarta}
       SOKETI_DEBUG: "${SOKETI_DEBUG:-0}"
@@ -794,10 +1032,11 @@ services:
       # Reachable at ws.test when the proxy profile is up (WS upgrade is handled).
       VIRTUAL_HOST: ${SOKETI_HOST:-ws.test}
       VIRTUAL_PORT: "6001"
+      CERT_NAME: _.test
     expose:
       - "6001"
     ports:
-      - "${SOKETI_HOST_PORT:-4430}:6001"
+      - "${SOKETI_HOST_PORT:-4440}:6001"
     healthcheck:
       # curl-less image — use the bundled node to confirm the port accepts TCP.
       test:
@@ -822,6 +1061,7 @@ services:
     container_name: lds-centrifugo
     profiles: [centrifugo, all]
     restart: *restart
+    <<: *dns
     command: centrifugo --admin --admin_insecure --client_insecure --api_insecure --health
     environment:
       TZ: ${TZ:-Asia/Jakarta}
@@ -832,10 +1072,11 @@ services:
       CENTRIFUGO_ADMIN_SECRET: ${CENTRIFUGO_ADMIN_SECRET:-admin-secret}
       VIRTUAL_HOST: ${CENTRIFUGO_HOST:-centrifugo.test}
       VIRTUAL_PORT: "8000"
+      CERT_NAME: _.test
     expose:
       - "8000"
     ports:
-      - "${CENTRIFUGO_HOST_PORT:-4431}:8000"
+      - "${CENTRIFUGO_HOST_PORT:-4441}:8000"
     ulimits:
       nofile:
         soft: 65536
@@ -866,10 +1107,11 @@ services:
     container_name: lds-mosquitto
     profiles: [mqtt, all]
     restart: *restart
+    <<: *dns
     command: ["mosquitto", "-c", "/mosquitto/config/mosquitto.conf"]
     ports:
-      - "${MQTT_HOST_PORT:-4432}:1883" # native MQTT (backends/devices, in-net: mosquitto:1883)
-      - "${MQTT_WS_HOST_PORT:-4433}:9001" # MQTT over WebSocket (browser clients)
+      - "${MQTT_HOST_PORT:-4442}:1883" # native MQTT (backends/devices, in-net: mosquitto:1883)
+      - "${MQTT_WS_HOST_PORT:-4443}:9001" # MQTT over WebSocket (browser clients)
     volumes:
       - ./configs/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
@@ -896,13 +1138,15 @@ services:
     container_name: lds-mqttx
     profiles: [mqtt, all]
     restart: *restart
+    <<: *dns
     environment:
       VIRTUAL_HOST: ${MQTT_HOST:-mqtt.test}
       VIRTUAL_PORT: "80"
+      CERT_NAME: _.test
     expose:
       - "80"
     ports:
-      - "${MQTTX_HOST_PORT:-4434}:80"
+      - "${MQTTX_HOST_PORT:-4444}:80"
     mem_limit: ${MQTTX_MEM_LIMIT:-128m}
     networks: [lds-network]
 
@@ -923,6 +1167,7 @@ services:
     container_name: lds-kafka-controller
     profiles: [kafka, all]
     restart: *restart
+    <<: *dns
     user: "0:0"
     environment:
       KAFKA_CLUSTER_ID: ${KAFKA_CLUSTER_ID:-MkU3OEVBNTcwNTJENDM2Qk}
@@ -936,6 +1181,7 @@ services:
     container_name: lds-kafka-broker
     profiles: [kafka, all]
     restart: *restart
+    <<: *dns
     user: "0:0"
     depends_on:
       kafka-controller:
@@ -943,7 +1189,7 @@ services:
     environment:
       KAFKA_CLUSTER_ID: ${KAFKA_CLUSTER_ID:-MkU3OEVBNTcwNTJENDM2Qk}
     ports:
-      - "${KAFKA_HOST_PORT:-4410}:29092"
+      - "${KAFKA_HOST_PORT:-4420}:29092"
     volumes:
       - ./configs/kafka/broker.properties:/opt/kafka/config/server.properties:ro
       - kafka-broker-data:/var/lib/kafka/data
@@ -968,11 +1214,12 @@ services:
     container_name: lds-kafka-schema-registry
     profiles: [kafka, all]
     restart: *restart
+    <<: *dns
     depends_on:
       kafka-broker:
         condition: service_healthy
     ports:
-      - "${SCHEMA_REGISTRY_HOST_PORT:-4411}:8080"
+      - "${SCHEMA_REGISTRY_HOST_PORT:-4421}:8080"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/q/health >/dev/null 2>&1 || exit 1"]
       interval: 15s
@@ -987,6 +1234,7 @@ services:
     container_name: lds-kafka-connect-debezium
     profiles: [kafka, all]
     restart: *restart
+    <<: *dns
     depends_on:
       kafka-broker:
         condition: service_healthy
@@ -1017,7 +1265,7 @@ services:
       # plugin.path.) Install with `lds kafka connect-plugin --debezium <name>`.
       CONNECT_PLUGIN_PATH: /kafka/connect,/kafka/connect-extra
     ports:
-      - "${CONNECT_HOST_PORT:-4413}:8083"
+      - "${CONNECT_HOST_PORT:-4423}:8083"
     volumes:
       - ./configs/kafka/connect-debezium:/debezium/connectors-config:ro
       - ./configs/kafka/connect-debezium/plugins:/kafka/connect-extra
@@ -1037,12 +1285,13 @@ services:
   # the Debezium worker above, but no bundled connectors). For non-CDC plugins
   # (JDBC/S3/Elasticsearch/HTTP sinks, etc.): drop JARs into the mounted
   # plugins dir. Uses its own group + state topics so it won't clash with
-  # `connect-debezium`. REST on host ${CONNECT_GENERIC_HOST_PORT:-4412}.
+  # `connect-debezium`. REST on host ${CONNECT_GENERIC_HOST_PORT:-4422}.
   connect-generic:
     image: ${DHI_REGISTRY:-dhi.io}/kafka:${KAFKA_VERSION:-4.3-debian13}
     container_name: lds-kafka-connect-generic
     profiles: [kafka, all]
     restart: *restart
+    <<: *dns
     depends_on:
       kafka-broker:
         condition: service_healthy
@@ -1052,7 +1301,7 @@ services:
       - ./configs/kafka/connect-generic/connect-distributed.properties:/etc/kafka-connect/connect-distributed.properties:ro
       - ./configs/kafka/connect-generic/plugins:/opt/kafka/connectors
     ports:
-      - "${CONNECT_GENERIC_HOST_PORT:-4412}:8083"
+      - "${CONNECT_GENERIC_HOST_PORT:-4422}:8083"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8083/connectors >/dev/null 2>&1 || exit 1"]
       interval: 15s
@@ -1066,6 +1315,7 @@ services:
     container_name: lds-kafka-ui
     profiles: [kafka, all]
     restart: *restart
+    <<: *dns
     depends_on:
       kafka-broker:
         condition: service_healthy
@@ -1079,12 +1329,174 @@ services:
       KAFKA_CLUSTERS_0_KAFKACONNECT_1_ADDRESS: http://connect-generic:8083
       DYNAMIC_CONFIG_ENABLED: "true"
     ports:
-      - "${KAFKA_UI_HOST_PORT:-4420}:8080"
+      - "${KAFKA_UI_HOST_PORT:-4424}:8080"
     networks: [lds-network]
 
   # NOTE: topic provisioning used to be a one-shot `kafka-init` service (it
   # lingered as an Exited container). It now lives in scripts/run/kafka-topics.*
   # (run by `lds up` for the kafka profile, or manually via `lds kafka-topics`).
+
+  # ===========================================================================
+  # Communication & storage tools (profiles: openwa | rustfs, all)
+  #   openwa : WhatsApp API gateway — self-hosted WhatsApp REST API.
+  #   rustfs : S3-compatible object storage server with web console.
+  #   Both are OFF by default and have their own profiles.
+  # ===========================================================================
+
+  # OpenWA — WhatsApp API gateway (rmyndharis fork).  (profile: openwa, all)
+  # Full-stack WhatsApp API gateway with NestJS backend + React dashboard.
+  # Supports multi-session management, webhooks, and pluggable WhatsApp engines
+  # (whatsapp-web.js / baileys). Integrates with the LDS Postgres + Redis
+  # services for production-grade persistence and caching.
+  # Image published to ghcr.io/rmyndharis/openwa (the rmyndharis/OpenWA fork).
+  openwa:
+    image: ${OPENWA_IMAGE:-ghcr.io/rmyndharis/openwa}:${OPENWA_VERSION:-latest}
+    container_name: lds-openwa
+    profiles: [openwa, all]
+    restart: *restart
+    <<: *dns
+    init: true   # zombie-process reaper (required by OpenWA's Node.js runtime)
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+      redis:
+        condition: service_healthy
+        required: false
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      NODE_ENV: ${OPENWA_NODE_ENV:-production}
+      LOG_LEVEL: ${OPENWA_LOG_LEVEL:-info}
+      PORT: "2785"
+      API_MASTER_KEY: ${OPENWA_MASTER_KEY:-openwa-dev-master-key-change-me}
+      # Database — LDS Postgres
+      DATABASE_TYPE: postgres
+      DATABASE_HOST: postgres
+      DATABASE_PORT: "5432"
+      DATABASE_NAME: ${OPENWA_POSTGRES_DB:-lds_openwa}
+      DATABASE_USERNAME: ${OPENWA_POSTGRES_USER:-app}
+      DATABASE_PASSWORD: ${OPENWA_POSTGRES_PASSWORD:-app}
+      # Cache — LDS Redis
+      REDIS_ENABLED: ${OPENWA_REDIS_ENABLED:-false}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      # Reverse proxy — use domain-specific cert file via CERT_NAME
+      # (nginx-proxy v1.6 doesn't trust default cert for HTTPS, so we
+      # explicitly point to the wildcard _.test cert)
+      VIRTUAL_HOST: ${OPENWA_HOST:-openwa.test}
+      VIRTUAL_PORT: "2785"
+      CERT_NAME: _.test
+    expose:
+      - "2785"
+    ports:
+      - "${OPENWA_HOST_PORT:-4467}:2785"
+    volumes:
+      - openwa-data:/app/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:2785/api/health/ready',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 40s
+    mem_limit: ${OPENWA_MEM_LIMIT:-512m}
+    networks: [lds-network]
+
+  # RustFS — S3-compatible object storage.  (profile: rustfs | duckdb | trino, all)
+  # High-performance distributed storage with S3 API + web console.
+  # When either duckdb or trino profile is active, RustFS auto-starts as their
+  # S3 backend. The S3 API is accessible at http://rustfs:9000 from within the
+  # Docker network (all services on lds-network).
+  # Bucket creation + seed data upload happens inline using curl --aws-sigv4
+  # (curl is already installed in the image). No root or Python needed.
+  rustfs:
+    image: ${RUSTFS_IMAGE:-rustfs/rustfs}:${RUSTFS_VERSION:-latest}
+    container_name: lds-rustfs
+    profiles: [rustfs, duckdb, trino, all]
+    restart: *restart
+    <<: *dns
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # Start RustFS server in the background
+        rustfs --address=:9000 --console-enable &
+        RUSTFS_PID=$$!
+
+        # Forward signals so docker stop shuts down RustFS gracefully
+        trap 'kill $$RUSTFS_PID 2>/dev/null; exit' TERM INT
+
+        # Wait for the S3 API to be ready
+        echo "Waiting for RustFS S3 API..."
+        for i in $$(seq 1 30); do
+          wget -q -O /dev/null http://127.0.0.1:9000/ 2>/dev/null && break
+          sleep 2
+        done
+        echo "RustFS S3 API ready — initializing bucket..."
+
+        # Create the S3 bucket (idempotent — 409 AlreadyExists is harmless)
+        echo "  Creating bucket '$${RUSTFS_BUCKET:-lds-data}'..."
+        curl -s -X PUT "http://127.0.0.1:9000/$${RUSTFS_BUCKET:-lds-data}" \
+          --aws-sigv4 "aws:amz:us-east-1:s3" \
+          --user "$$RUSTFS_ACCESS_KEY:$$RUSTFS_SECRET_KEY" \
+          -o /dev/null || true
+        echo "  Bucket ready"
+
+        # Upload seed data files from /data/duckdb/ (if any)
+        if [ -d /data/duckdb ]; then
+          for f in /data/duckdb/*; do
+            [ -f "$$f" ] || continue
+            filename=$$(basename "$$f")
+            case "$$filename" in
+              *.parquet|*.csv|*.json|*.arrow|*.tsv)
+                echo "  Uploading: $$filename"
+                curl -s -X PUT "http://127.0.0.1:9000/$${RUSTFS_BUCKET:-lds-data}/$$filename" \
+                  --aws-sigv4 "aws:amz:us-east-1:s3" \
+                  --user "$$RUSTFS_ACCESS_KEY:$$RUSTFS_SECRET_KEY" \
+                  --upload-file "$$f" \
+                  -o /dev/null && echo "    ✓ $$filename" || echo "    ✗ $$filename (skipped)"
+                ;;
+            esac
+          done
+        fi
+
+        echo "Init complete"
+
+        # Return to foreground
+        wait $$RUSTFS_PID
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      VIRTUAL_HOST: ${RUSTFS_HOST:-rustfs.test}
+      VIRTUAL_PORT: "9001"
+      CERT_NAME: _.test
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-lds-rustfs-admin}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-lds-rustfs-secret-change-me}
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_BUCKET: ${RUSTFS_BUCKET:-lds-data}
+    expose:
+      - "9001"
+    ports:
+      - "${RUSTFS_API_PORT:-4468}:9000"   # S3-compatible API
+      - "${RUSTFS_CONSOLE_PORT:-4469}:9001" # Web admin console
+    volumes:
+      - rustfs-data:/data
+      - ./data/duckdb:/data/duckdb:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -o /dev/null http://127.0.0.1:9000/ >/dev/null 2>&1 && curl -s -o /dev/null http://127.0.0.1:9001/ >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    mem_limit: ${RUSTFS_MEM_LIMIT:-256m}
+    networks: [lds-network]
 
 # -----------------------------------------------------------------------------
 # Shared network — INDEPENDENT (external). Create it once, ever:
@@ -1111,3 +1523,6 @@ volumes:
   kafka-broker-data:
   mosquitto-data:
   vaultwarden-data:
+  openwa-data:
+  rustfs-data:
+  duckdb-data:

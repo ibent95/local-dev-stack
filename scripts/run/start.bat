@@ -22,11 +22,11 @@ call "%~dp0init.bat"
 call :doneb
 
 call :banner "DOWN - stop/remove existing"
-call "%~dp0down.bat"
+call "%~dp0down.bat" %START_ARGS%
 call :doneb
 
 call :banner "RM - force-remove containers"
-call "%~dp0rm.bat"
+call "%~dp0rm.bat" %START_ARGS%
 call :doneb
 
 REM Build the lds/* bases ONLY if required core images are missing - distinct

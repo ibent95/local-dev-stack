@@ -32,7 +32,7 @@ if [ $# -gt 0 ]; then
 else
   profiles=()
   # Canonical profile order; each maps to LDS_ENABLE_<UPPER>=true in .env.
-  for p in proxy php mysql postgres mongo redis memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep vaultwarden analytics tasks wiki; do
+  for p in proxy php mysql postgres mongo redis memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep vaultwarden analytics tasks wiki openwa rustfs duckdb trino; do
     var="LDS_ENABLE_$(printf '%s' "$p" | tr '[:lower:]' '[:upper:]')"
     val="$(grep -E "^[[:space:]]*${var}=" .env 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/#.*//' | tr -d '[:space:]\r')"
     case "$val" in
@@ -95,11 +95,29 @@ case " ${profiles[*]} " in
     fi ;;
 esac
 
+# DuckDB service uses lds/duckdev (DHI alpine-base + DuckDB CLI binary).
+case " ${profiles[*]} " in
+  *" duckdb "*|*" all "*)
+    if ! docker image inspect "lds/duckdev:${DUCKDB_VERSION:-1.2.0}" >/dev/null 2>&1; then
+      sub "build lds/duckdev base (first run)"
+      ( cd "$ROOT" && docker buildx bake -f docker-bake.hcl --load duckdev )
+      subdone
+    fi ;;
+esac
+
 # Seed DBGate connections into its volume BEFORE it starts (fresh setups only;
 # skips if you already have connections). Keeps the stack DBs auto-listed.
 case " ${profiles[*]} " in
   *" dbgate "*|*" all "*) sub "dbgate-seed"; "$ROOT/scripts/run/dbgate-seed.sh" || true; subdone ;;
 esac
+
+# Seed sample Parquet/CSV/JSON data for DuckDB and Trino. Runs before compose
+# up so the files are available when the containers start. Skips if files exist.
+case " ${profiles[*]} " in
+  *" duckdb "*|*" trino "*|*" all "*) sub "seed-data"; "$ROOT/scripts/run/seed-data.sh" || true; subdone ;;
+esac
+
+
 
 up_flags=(-d --remove-orphans)
 if [ "$REBUILD" -eq 1 ]; then
@@ -120,15 +138,11 @@ fi
 docker compose "${compose_files[@]}" "${args[@]}" ps
 subdone
 
-# Ensure the MySQL app database + user (DHI mysql doesn't auto-create them).
-case " ${profiles[*]} " in
-  *" mysql "*|*" all "*) sub "mysql-init"; "$ROOT/scripts/run/mysql-init.sh" || true; subdone ;;
-esac
-
-# Ensure the Postgres app database + user and extra tool DB specs.
-case " ${profiles[*]} " in
-  *" postgres "*|*" analytics "*|*" tasks "*|*" wiki "*|*" all "*) sub "postgres-init"; "$ROOT/scripts/run/postgres-init.sh" || true; subdone ;;
-esac
+# LDS app DBs are now created inline by the postgres service (entrypoint wrapper).
+# The mysql-init.sh and postgres-init.sh scripts are kept for manual use:
+#   lds exec postgres /postgres-init.sh
+#   lds exec mysql /mysql-init.sh
+# Remove the old auto-run calls — the DB services self-initialize on startup.
 
 # Ensure the LDS Analytics DB/user spec exists.
 case " ${profiles[*]} " in
@@ -143,6 +157,13 @@ esac
 # Ensure the LDS Wiki DB/user spec exists.
 case " ${profiles[*]} " in
   *" wiki "*|*" all "*) sub "wiki-init"; "$ROOT/scripts/run/wiki-init.sh" || true; subdone ;;
+esac
+
+# Ensure the Hive Metastore DB/user exists. The metastore container's schematool
+# retries while waiting for this DB; without it schematool fails (the DB is never
+# created, since postgres-init no longer auto-runs). Runs before trino connects.
+case " ${profiles[*]} " in
+  *" trino "*|*" all "*) sub "hive-metastore-init"; "$ROOT/scripts/run/hive-metastore-init.sh" || true; subdone ;;
 esac
 
 # Initiate the Mongo replica set + users (single-node RS for CDC).

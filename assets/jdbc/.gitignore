@@ -1,0 +1,2 @@
+# Ignore JDBC driver JARs — download them from Maven Central (see README.md)
+*.jar

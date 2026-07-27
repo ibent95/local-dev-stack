@@ -63,7 +63,7 @@ Browser-based **ETL / data-integration pipeline designer** (Hop Web).
   `/ui/` is a 404.)
 - **MySQL driver.** Hop bundles many JDBC drivers (Postgres, MSSQL, …) but **not**
   MySQL Connector/J (GPL). It's added via a single-file mount from
-  `configs/hop/jdbc-drivers/` — see the README there to (re)fetch the jar
+  `assets/jdbc/` — see the shared [`assets/jdbc/README.md`](../../assets/jdbc/README.md) to (re)fetch the jar
   (`HOP_MYSQL_DRIVER` in `.env`). Postgres needs nothing; Kafka uses Hop's bundled
   *transforms* (not JDBC); MongoDB/Redis have no JDBC driver.
 - **No session timeout.** Hop Web (Eclipse RAP) ties its canvas to the HTTP
@@ -174,7 +174,130 @@ Self-hosted team project management/collaboration app (Angular frontend + Hono A
 - API: `http://localhost:4436`
 - DB bootstrap is automatic when this profile starts (`tasks-init` → `postgres-init`).
 
-## Documentation — LDS Wiki
+## Analytical query engines — DuckDB & Trino
+
+**Profiles:** `duckdb` (`LDS_ENABLE_DUCKDB`), `trino` (`LDS_ENABLE_TRINO`). **Off
+by default.** Two complementary analytical query engines for data exploration
+and reporting.
+
+### DuckDB — file engine (no network port)
+
+Embedded OLAP engine running on the persistent **`lds/duckdev`** base image
+(DHI alpine-base + DuckDB CLI binary). DuckDB is embedded like SQLite — no
+server, no REST API. The `data.duckdb` file lives on a persistent named volume
+shared with DBGate for GUI access.
+
+- **No network port:** DuckDB is not a server. Query it via `docker exec`:
+  ```sh
+  docker exec -it lds-duckdb duckdb /data/data.duckdb
+  docker exec lds-duckdb duckdb -c "SELECT * FROM read_parquet('/data/sales.parquet') LIMIT 10" /data/data.duckdb
+  ```
+
+- **DBGate connectivity:** DBGate's DuckDB plugin opens the same `data.duckdb`
+  file (read-only, mounted from the shared `duckdb-data` volume). Add a DuckDB
+  connection in DBGate pointing to `/data/data.duckdb` with **read-only** mode.
+
+- **Data directory:** `data/duckdb/` on the host. Drop `.parquet`, `.csv`,
+  `.json` files there. Inside the container they appear at `/data/`. Query them
+  with `read_parquet('/data/filename.parquet')`.
+
+- **Persistent database file:** The `data.duckdb` file lives on the Docker
+  named volume `duckdb-data`. Survives restarts. Populate it:
+  ```sh
+  docker exec lds-duckdb duckdb /data/data.duckdb -c "CREATE TABLE sales AS SELECT * FROM read_parquet('/data/sales.parquet')"
+  ```
+
+- **Image:** `lds/duckdev:${DUCKDB_VERSION}` — built FROM DHI alpine-base,
+  installs the official DuckDB CLI binary. Lightweight — `${DUCKDB_MEM_LIMIT}`
+  (default `256m`).
+
+- **Seed data:** Run `lds seed-data` to generate sample files into `data/duckdb/`.`
+
+### Trino — `localhost:4451`
+
+Full distributed SQL query engine with built-in web UI. Queries Parquet files
+(via Hive connector with Hive Metastore), plus federated queries across MySQL,
+Postgres, Kafka, and more. ANSI SQL, parallel execution, connector ecosystem.
+
+- **Web UI:** `http://localhost:4451/ui` — query editor, query history, cluster
+  overview.
+- **JDBC:** Connect BI tools (Superset, Hop, Tableau) via Trino's JDBC driver.
+  The connection string is `jdbc:trino://trino:8080/{catalog}/{schema}` (within
+  the Docker network) or `jdbc:trino://localhost:4451/{catalog}/{schema}` (from the host).
+
+#### Connecting Apache Superset to Trino
+
+1. Start both profiles: `./lds.sh up superset trino`
+2. Open Superset at `http://superset.test` (login `admin` / `admin`)
+3. Go to **Data → Databases → + Database**
+4. Choose **Trino** from the dropdown
+5. Enter the **SQLAlchemy URI**:
+   ```
+   trino://trino:8080/hive/default
+   ```
+   (from the host, use `trino://localhost:4451/hive/default`)
+6. Click **Test Connection** → **Save**
+
+> The `trino` Python driver is auto-installed at Superset startup via the
+> entrypoint (`pip install trino`). No manual steps needed.
+
+#### Connecting Apache Hop to Trino
+
+Apache Hop connects to Trino via JDBC using the **Generic database** type. The
+Trino JDBC driver (`trino-jdbc-483.jar`) is mounted into the Hop container from
+the shared `assets/jdbc/` directory.
+
+1. Fetch the driver once:
+   ```bash
+   curl -fsSL -o assets/jdbc/trino-jdbc-483.jar \
+     https://repo1.maven.org/maven2/io/trino/trino-jdbc/483/trino-jdbc-483.jar
+   ```
+2. Start both profiles: `./lds.sh up hop trino`
+3. Open Hop at `http://hop.test/ui`
+4. In the **Metadata** perspective, right-click **Relational Database Connections**
+   → **New**
+5. Set:
+   - **Connection Name:** `Trino`
+   - **Connection Type:** `Generic`
+   - **Access:** `Native (JDBC)`
+   - **Driver Class:** `io.trino.jdbc.TrinoDriver`
+   - **Custom Connection URL:** `jdbc:trino://trino:8080/hive/default`
+6. Click **Test** to verify, then **Save**
+
+- **Hive connector for Parquet:** Trino accesses Parquet files through the
+  Hive Metastore. You register tables via `CREATE TABLE` SQL:
+  ```sql
+  CREATE TABLE hive.parquet_schema.sales (
+    date DATE,
+    product VARCHAR,
+    revenue DOUBLE
+  ) WITH (
+    format = 'PARQUET',
+    external_location = 'local:///data/trino/sales/'
+  );
+  ```
+
+- **Sample data:** Trino ships with `tpch` and `tpcds` connectors for testing:
+  ```sql
+  SELECT * FROM tpch.tiny.orders LIMIT 10;
+  ```
+
+- **Federated queries:** Query across all LDS data sources in one SQL statement:
+  ```sql
+  SELECT * FROM tpch.tiny.orders o
+  JOIN mysql.mysql_app.users u ON o.custkey = u.id;
+  ```
+
+- **Image:** Official `trinodb/trino:${TRINO_VERSION}`.
+- **Metastore:** `hive-metastore` (official `apache/hive:4.0.0` image),
+  auto-started with the `trino` profile. Backed by the shared LDS Postgres
+  (`lds_hive_metastore` database).
+
+- **Data directory:** `data/trino/` — Parquet files for Trino to query.
+
+- **Caps:** `${TRINO_MEM_LIMIT}` (default `2g`).
+
+
 
 **Profile:** `wiki` (`LDS_ENABLE_WIKI`). **Off by default.**
 

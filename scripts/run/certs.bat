@@ -8,14 +8,14 @@ set "CERT_DIR=%CD%\configs\proxy\certs"
 REM Named after the TLD: nginx-proxy matches vhost <name>.test to test.crt by
 REM stripping the leftmost label. The php container also sets CERT_NAME=test
 REM (in docker-compose.https.yml) so its localhost + regex *.test vhosts use it.
-set "CRT=%CERT_DIR%\test.crt"
-set "KEY=%CERT_DIR%\test.key"
+set "CRT=%CERT_DIR%\_.test.crt"
+set "KEY=%CERT_DIR%\_.test.key"
 if not exist "%CERT_DIR%" mkdir "%CERT_DIR%"
 
-if /I "%~1"=="--force" del /q "%CRT%" "%KEY%" 2>nul
+if /I "%~1"=="--force" del /q "%CRT%" "%KEY%" "%CERT_DIR%\default.crt" "%CERT_DIR%\default.key" 2>nul
 
 if exist "%CRT%" if exist "%KEY%" (
-  echo Cert already present: %CRT%  ^(use --force to regenerate^)
+  echo Wildcard cert already present: %CRT%  ^(use --force to regenerate^)
   popd & endlocal & exit /b 0
 )
 
@@ -25,7 +25,7 @@ if %errorlevel%==0 (
   mkcert -install
   mkcert -cert-file "%CRT%" -key-file "%KEY%" *.test test localhost 127.0.0.1 ::1
   echo Done - browsers will trust https://*.test
-  goto reload
+  goto copy_default
 )
 
 where openssl >nul 2>&1
@@ -35,12 +35,21 @@ if %errorlevel%==0 (
   echo    https://github.com/FiloSottile/mkcert ^)
   openssl req -x509 -newkey rsa:2048 -nodes -days 825 -keyout "%KEY%" -out "%CRT%" -subj "/CN=*.test/O=local-dev-stack" -addext "subjectAltName=DNS:*.test,DNS:test,DNS:localhost,IP:127.0.0.1,IP:0:0:0:0:0:0:0:1"
   echo Done ^(self-signed^): %CRT%
-  goto reload
+  goto copy_default
 )
 
 echo ERROR: neither mkcert nor openssl is installed.
 echo Install mkcert ^(recommended^): https://github.com/FiloSottile/mkcert
 popd & endlocal & exit /b 1
+
+:copy_default
+REM Copy to default.crt/default.key so nginx-proxy serves this wildcard cert
+REM for ALL .test vhosts (the template's parent-hostname fallback only works for
+REM 3+-part hostnames; .test domains are 2-part so default fallback is needed).
+REM The proxy has TRUST_DEFAULT_CERT=true to enable the fallback.
+echo Copying cert to default.crt/default.key for proxy fallback...
+copy /Y "%CRT%" "%CERT_DIR%\default.crt" >nul
+copy /Y "%KEY%" "%CERT_DIR%\default.key" >nul
 
 :reload
 REM nginx re-reads cert files on reload, but a bind-mounted cert change does NOT

@@ -18,9 +18,10 @@ variable "NODE_VERSION"   { default = "26.3" }
 variable "PYTHON_VERSION" { default = "3.14" }
 variable "JAVA_VERSION"   { default = "25" }
 variable "NGINX_VERSION" { default = "1.27" }
+variable "DUCKDB_VERSION" { default = "1.2.0" }
 
 group "default" {
-  targets = ["php", "go-dev", "rust-dev", "node-dev", "python-dev", "java-dev", "nginx"]
+  targets = ["php", "go-dev", "rust-dev", "node-dev", "python-dev", "java-dev", "nginx", "duckdev"]
 }
 
 # The ONE PHP base — context is the repo root so it can bake configs/php-app/*.
@@ -73,4 +74,11 @@ target "nginx" {
   dockerfile = "base-images/nginx/Dockerfile"
   args       = { NGINX_VERSION = "${NGINX_VERSION}", DHI_REGISTRY = "${DHI_REGISTRY}" }
   tags       = ["lds/nginx:${NGINX_VERSION}"]
+}
+
+target "duckdev" {
+  context    = "."
+  dockerfile = "base-images/duckdev/Dockerfile"
+  args       = { DUCKDB_VERSION = "${DUCKDB_VERSION}", DHI_REGISTRY = "${DHI_REGISTRY}" }
+  tags       = ["lds/duckdev:${DUCKDB_VERSION}"]
 }

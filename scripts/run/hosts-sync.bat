@@ -21,6 +21,9 @@ if "%ANALYTICS_HOST%"=="" set "ANALYTICS_HOST=analytics.test"
 if "%VAULTWARDEN_HOST%"=="" set "VAULTWARDEN_HOST=vaultwarden.test"
 if "%TASKS_HOST%"=="" set "TASKS_HOST=tasks.test"
 if "%WIKI_HOST%"=="" set "WIKI_HOST=wiki.test"
+if "%OPENWA_HOST%"=="" set "OPENWA_HOST=openwa.test"
+if "%RUSTFS_HOST%"=="" set "RUSTFS_HOST=rustfs.test"
+if "%DUCKDB_HOST%"=="" set "DUCKDB_HOST=duckdb.test"
 set "PROJDIR=%PHP_PROJECTS_PATH:/=\%"
 
 set "HOSTS=%WINDIR%\System32\drivers\etc\hosts"
@@ -63,10 +66,11 @@ call :add %DB_ADMIN_HOST%
 call :sec "Security & auth"
 call :add %VAULTWARDEN_HOST%
 call :sec "Database design"
-call :add %DRAWDB_HOST% "(open via http://localhost:4423 - needs a secure context)"
+call :add %DRAWDB_HOST% "(open via http://localhost:4462 - needs a secure context)"
 call :sec "Data warehouse & BI"
 call :add %SUPERSET_HOST%
 call :add %HOP_HOST%
+call :add %DUCKDB_HOST%
 call :sec "Code quality"
 call :add %SEMGREP_HOST%
 call :sec "Web analytics"
@@ -79,6 +83,9 @@ call :sec "Realtime & messaging"
 call :add %SOKETI_HOST%
 call :add %CENTRIFUGO_HOST%
 call :add %MQTT_HOST%
+call :sec "Communication & storage"
+call :add %OPENWA_HOST%
+call :add %RUSTFS_HOST%
 
 >> "%TMP%" echo # ===== end local-dev-stack =====   %MARKER%
 

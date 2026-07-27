@@ -69,7 +69,7 @@ bind-mounted, so changes are live (no restart).
   HTTPS). The dashboard links it to the localhost port for this reason.
 - **Apache Hop** → use image `apache/hop-web` (Tomcat, no login, served at
   `/ui`), NOT `apache/hop` (headless hop-server, Basic auth). MySQL Connector/J
-  isn't bundled (GPL) — it's single-file-mounted from `configs/hop/jdbc-drivers/`
+  isn't bundled (GPL) — it's single-file-mounted from `assets/jdbc/`
   (`HOP_MYSQL_DRIVER` in `.env`; see the README there to fetch the jar). Postgres
   is bundled; Kafka uses bundled *transforms*; Mongo/Redis have no JDBC driver.
   The session timeout is set to never expire via a `command` wrapper. Folder-per-project:

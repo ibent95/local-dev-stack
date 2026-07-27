@@ -1,0 +1,4 @@
+# Vendored DuckDB CLI binary (glibc, ~50MB) — download via:
+#   curl -fsSL https://github.com/duckdb/duckdb/releases/download/v1.2.0/duckdb_cli-linux-amd64.zip \
+#     | bsdtar -xvf- -C assets/duckdb/
+duckdb

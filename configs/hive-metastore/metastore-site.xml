@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+  <!-- Connect to LDS Postgres for metastore metadata -->
+  <property>
+    <name>javax.jdo.option.ConnectionURL</name>
+    <value>jdbc:postgresql://postgres:5432/lds_hive_metastore</value>
+  </property>
+  <property>
+    <name>javax.jdo.option.ConnectionDriverName</name>
+    <value>org.postgresql.Driver</value>
+  </property>
+  <property>
+    <name>javax.jdo.option.ConnectionUserName</name>
+    <value>app</value>
+  </property>
+  <property>
+    <name>javax.jdo.option.ConnectionPassword</name>
+    <value>app</value>
+  </property>
+
+  <!-- Metastore thrift service -->
+  <property>
+    <name>hive.metastore.uris</name>
+    <value>thrift://0.0.0.0:9083</value>
+  </property>
+
+  <!-- Warehouse dir for managed tables (local filesystem, no HDFS) -->
+  <property>
+    <name>hive.metastore.warehouse.dir</name>
+    <value>file:///data/trino/warehouse</value>
+  </property>
+
+  <!-- Init schema automatically on first boot (dev only) -->
+  <property>
+    <name>datanucleus.schema.autoCreateAll</name>
+    <value>true</value>
+  </property>
+</configuration>

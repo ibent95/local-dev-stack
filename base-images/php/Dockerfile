@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         php8.4-mysql php8.4-pgsql php8.4-intl php8.4-bcmath php8.4-gd \
         php8.4-zip php8.4-mbstring php8.4-curl \
         php8.4-sockets php8.4-xml \
+        php8.4-ldap \
         php-redis php-memcached \
         librdkafka1 \
         php8.4-dev php-pear gcc make autoconf librdkafka-dev \
@@ -52,10 +53,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     # --- Compat shims for compose mounts and supervisord ---
-    # 1) FPM pool: listen on TCP 127.0.0.1:9000, run as www-data (Debian web
-    #    user) so served apps can write to the filesystem
+    # 1) FPM pool: listen on Unix socket (faster than TCP loopback — avoids the
+    #    entire TCP/IP stack). Run as www-data so served apps can write to fs.
     && sed -ri \
-        's#^listen = .*#listen = 127.0.0.1:9000#; s#^user = .*#user = www-data#; s#^group = .*#group = www-data#' \
+        's#^listen = .*#listen = /run/php/php8.4-fpm.sock#; s#^user = .*#user = www-data#; s#^group = .*#group = www-data#' \
+        /etc/php/8.4/fpm/pool.d/www.conf \
+    && sed -ri \
+        '/^listen /alisten.mode = 0666\nlisten.owner = www-data\nlisten.group = www-data' \
         /etc/php/8.4/fpm/pool.d/www.conf \
     # 2) /usr/local/etc/php/conf.d -> Debian's FPM conf.d (where the compose
     #    php service mounts php.ini / opcache.ini). Make CLI share the same
