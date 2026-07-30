@@ -27,7 +27,7 @@ USER root
 # librdkafka1 is explicitly apt-mark'd as manually installed so it survives
 # the autoremove (rdkafka.so needs librdkafka1 at runtime).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        nginx supervisor git curl wget unzip ca-certificates \
+        nginx supervisor git curl wget unzip ca-certificates curl gnupg \
         php8.4-fpm \
         php8.4-mysql php8.4-pgsql php8.4-intl php8.4-bcmath php8.4-gd \
         php8.4-zip php8.4-mbstring php8.4-curl \
@@ -51,6 +51,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get purge -y $BUILD_DEPS \
     && apt-get autoremove -y --purge \
     && apt-get clean \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/* \
     # --- Compat shims for compose mounts and supervisord ---
     # 1) FPM pool: listen on Unix socket (faster than TCP loopback — avoids the
