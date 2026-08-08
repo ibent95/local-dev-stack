@@ -50,40 +50,46 @@ if [ "$proj" -eq 0 ]; then bann "#   (no project folders yet)"; printf '    (non
 # --- Tools & UIs: stack services routed by VIRTUAL_HOST (not www folders).
 # Grouped to mirror the localhost control panel. Entries are harmless when the
 # matching profile is off — the proxy just has nothing to route there yet. ---
-group "Data tools"
+group "Admin tools"
 add "${CACHE_ADMIN_HOST:-cache.test}"
 add "${DB_ADMIN_HOST:-db.test}"
 
-group "Security & auth"
+group "Auth"
 add "${VAULTWARDEN_HOST:-vaultwarden.test}"
 
-group "Database design"
+group "Communication tools"
+add "${MAIL_HOST:-mail.test}"
+add "${OPENWA_HOST:-openwa.test}"
+
+group "Designers"
+add "${PENPOT_HOST:-penpot.test}"
 add "${DRAWDB_HOST:-drawdb.test}" "(open via http://localhost:4462 — needs a secure context)"
 
-group "Data warehouse & BI"
+group "Data tools"
 add "${SUPERSET_HOST:-superset.test}"
 add "${HOP_HOST:-hop.test}"
-add "${DUCKDB_HOST:-duckdb.test}"
 
 group "Code quality"
 add "${SEMGREP_HOST:-semgrep.test}"
 
-group "Web analytics"
+group "Security tools"
+add "${TRIVY_HOST:-trivy.test}"
+add "${ZAP_HOST:-zap.test}"
+
+group "LDS apps"
 add "${ANALYTICS_HOST:-analytics.test}"
-
-group "Project management"
 add "${TASKS_HOST:-tasks.test}"
-
-group "Documentation"
 add "${WIKI_HOST:-wiki.test}"
 
-group "Realtime & messaging"
+group "Analytical query engines"
+add "${DUCKDB_HOST:-duckdb.test}"
+
+group "Realtime dashboards"
 add "${SOKETI_HOST:-ws.test}"
 add "${CENTRIFUGO_HOST:-centrifugo.test}"
 add "${MQTT_HOST:-mqtt.test}"
 
-group "Communication & storage"
-add "${OPENWA_HOST:-openwa.test}"
+group "Storage tools"
 add "${RUSTFS_HOST:-rustfs.test}"
 
 bann "# ===== end local-dev-stack ====="

@@ -32,7 +32,7 @@ if [ $# -gt 0 ]; then
 else
   profiles=()
   # Canonical profile order; each maps to LDS_ENABLE_<UPPER>=true in .env.
-  for p in proxy php mysql postgres mongo redis memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep vaultwarden analytics tasks wiki openwa rustfs duckdb trino; do
+  for p in proxy php mysql postgres mongo redis valkey memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep zap trivy vaultwarden mail penpot analytics tasks wiki openwa rustfs duckdb trino; do
     var="LDS_ENABLE_$(printf '%s' "$p" | tr '[:lower:]' '[:upper:]')"
     val="$(grep -E "^[[:space:]]*${var}=" .env 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/#.*//' | tr -d '[:space:]\r')"
     case "$val" in
@@ -49,15 +49,36 @@ args=(); for p in "${profiles[@]}"; do args+=(--profile "$p"); done
 # sure a dev cert exists. Off / no-proxy → plain http only (base file alone).
 compose_files=(-f docker-compose.yml)
 https="$(grep -E '^[[:space:]]*LDS_ENABLE_HTTPS=' .env 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/#.*//' | tr -d '[:space:]\r')"
+HTTPS_ACTIVE=0
 case "$https" in
   true|TRUE|True|1|yes|on|y)
     case " ${profiles[*]} " in
       *" proxy "*|*" php "*|*" all "*)
         [ -s configs/proxy/certs/test.crt ] || "$ROOT/scripts/run/certs.sh" || true
         compose_files+=(-f docker-compose.https.yml)
+        HTTPS_ACTIVE=1
         echo "HTTPS overlay enabled (proxy TLS on :${WEB_HTTPS_PORT:-443})." ;;
       *) echo "LDS_ENABLE_HTTPS=true but no proxy/php profile selected — HTTPS overlay skipped." ;;
     esac ;;
+esac
+
+# Keep public-facing Penpot URI in sync with the active edge scheme to avoid
+# mixed-content/CORS-looking browser failures when HTTPS is enabled.
+case " ${profiles[*]} " in
+  *" penpot "*|*" all "*)
+    penpot_host="$(grep -E '^[[:space:]]*PENPOT_HOST=' .env 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/#.*//' | tr -d '[:space:]\r')"
+    [ -n "$penpot_host" ] || penpot_host="penpot.test"
+    penpot_uri="$(grep -E '^[[:space:]]*PENPOT_PUBLIC_URI=' .env 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/#.*//' | tr -d '\r')"
+    [ -n "$penpot_uri" ] || penpot_uri="http://${penpot_host}"
+    scheme="http"; [ "$HTTPS_ACTIVE" -eq 1 ] && scheme="https"
+    if printf '%s' "$penpot_uri" | grep -Eq '^https?://'; then
+      penpot_uri="$(printf '%s' "$penpot_uri" | sed -E "s#^https?://#${scheme}://#")"
+    else
+      penpot_uri="${scheme}://${penpot_host}"
+    fi
+    export PENPOT_PUBLIC_URI="$penpot_uri"
+    echo "Penpot public URI resolved to ${PENPOT_PUBLIC_URI} (scheme: ${scheme})."
+    ;;
 esac
 
 # --- sub-step banners (subordinate to start's [n/5] banners) ---------------
@@ -75,9 +96,9 @@ case " ${profiles[*]} " in
     fi ;;
 esac
 
-# The Semgrep viewer uses lds/nginx — build it once if missing.
+# The Semgrep + Trivy viewers use lds/nginx — build it once if missing.
 case " ${profiles[*]} " in
-  *" semgrep "*|*" all "*)
+  *" semgrep "*|*" trivy "*|*" all "*)
     if ! docker image inspect "lds/nginx:${NGINX_VERSION:-1.27}" >/dev/null 2>&1; then
       sub "build lds/nginx base (first run)"
       ( cd "$ROOT" && docker buildx bake -f docker-bake.hcl --load nginx )
@@ -184,6 +205,14 @@ case " ${profiles[*]} " in
   *" semgrep "*|*" all "*)
     sub "semgrep-scan: pre-pull scanner image"
     docker compose "${compose_files[@]}" --profile semgrep-scan pull semgrep-scan || true
+    subdone ;;
+esac
+
+# Pre-pull the Trivy scanner (same rationale as semgrep-scan above).
+case " ${profiles[*]} " in
+  *" trivy "*|*" all "*)
+    sub "trivy-scan: pre-pull scanner image"
+    docker compose "${compose_files[@]}" --profile trivy-scan pull trivy-scan || true
     subdone ;;
 esac
 

@@ -86,7 +86,7 @@ talk to them.
 <tr>
 <td>DB design</td>
 <td>`drawdb`</td>
-<td>DrawDB — ER diagram designer (open at `localhost:4423`)</td>
+<td>DrawDB — ER diagram designer (open at `localhost:4462`)</td>
 <td>4423</td>
 </tr>
 <tr>
@@ -100,6 +100,18 @@ talk to them.
 <td>`semgrep`</td>
 <td>Semgrep SARIF viewer (`lds tools semgrep` runs the scan)</td>
 <td>4426</td>
+</tr>
+<tr>
+<td>Vulnerability scanning</td>
+<td>`zap`</td>
+<td>OWASP ZAP — DAST web app scanner (UI at `zap.test`, proxy/API :4472)</td>
+<td>4470, 4472</td>
+</tr>
+<tr>
+<td></td>
+<td>`trivy`</td>
+<td>Trivy CVE scanner — containers, filesystems, deps (`lds tools trivy` runs the scan)</td>
+<td>4471</td>
 </tr>
 <tr>
 <td>Security/Auth</td>
@@ -300,7 +312,7 @@ From other containers on `lds-network`, use the service name + its internal port
 <tr>
 <td></td>
 <td>DrawDB</td>
-<td>`localhost:4423` (**not** `drawdb.test`)</td>
+<td>`localhost:4462` (**not** `drawdb.test`)</td>
 <td>`drawdb:80`</td>
 </tr>
 <tr>
@@ -319,7 +331,25 @@ From other containers on `lds-network`, use the service name + its internal port
 <td></td>
 <td>Semgrep viewer</td>
 <td>`localhost:4426` (`semgrep.test`)</td>
-<td>`semgrep:80`</td>
+<td>`semgrep:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>OWASP ZAP — UI</td>
+<td>`localhost:4470` (`zap.test`)</td>
+<td>`zap:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>OWASP ZAP — proxy/API</td>
+<td>`localhost:4472`</td>
+<td>`zap:8090`</td>
+</tr>
+<tr>
+<td></td>
+<td>Trivy viewer</td>
+<td>`localhost:4471` (`trivy.test`)</td>
+<td>`trivy:8080`</td>
 </tr>
 <tr>
 <td></td>

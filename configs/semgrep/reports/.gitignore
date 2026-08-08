@@ -1,4 +1,4 @@
-# Generated scan output — don't commit. Keep the viewer page + this file.
+# Static viewer assets only; scan output now lives in data/semgrep/reports/.
 *
 !.gitignore
 !index.html

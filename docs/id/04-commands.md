@@ -53,7 +53,7 @@
 </tr>
 <tr>
 <td>`tools &lt;sub&gt;`</td>
-<td>`semgrep [path]` — jalankan scan Semgrep; lihat di `semgrep.test` (`up semgrep`)</td>
+<td>`semgrep [path\|clear]` — jalankan/hapus report Semgrep · `trivy [path\|clear]` / `trivy image &lt;name&gt;` — jalankan/hapus report Trivy; lihat di `semgrep.test` / `trivy.test`</td>
 </tr>
 <tr>
 <td>`certs [--force]`</td>

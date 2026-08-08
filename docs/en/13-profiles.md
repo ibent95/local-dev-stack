@@ -64,6 +64,12 @@ when you'd turn it on.
 <td>`redis`</td>
 </tr>
 <tr>
+<td>`valkey`</td>
+<td>`LDS_ENABLE_VALKEY`</td>
+<td>❌</td>
+<td>`valkey`</td>
+</tr>
+<tr>
 <td>`memcached`</td>
 <td>`LDS_ENABLE_MEMCACHED`</td>
 <td>❌</td>
@@ -109,7 +115,7 @@ when you'd turn it on.
 <td>`drawdb`</td>
 <td>`LDS_ENABLE_DRAWDB`</td>
 <td>❌</td>
-<td>`drawdb` — DB schema designer (open at `localhost:4423`)</td>
+<td>`drawdb` — DB schema designer (open at `localhost:4462`)</td>
 </tr>
 <tr>
 <td>`hop`</td>
@@ -130,6 +136,18 @@ when you'd turn it on.
 <td>`semgrep` — SARIF viewer (`lds tools semgrep` runs the scan)</td>
 </tr>
 <tr>
+<td>`zap`</td>
+<td>`LDS_ENABLE_ZAP`</td>
+<td>❌</td>
+<td>`zap` — OWASP ZAP DAST scanner, browser UI at `zap.test` (:4470 UI, :4472 proxy/API)</td>
+</tr>
+<tr>
+<td>`trivy`</td>
+<td>`LDS_ENABLE_TRIVY`</td>
+<td>❌</td>
+<td>`trivy` — report viewer at `trivy.test` (`lds tools trivy` runs the scan)</td>
+</tr>
+<tr>
 <td>`analytics`</td>
 <td>`LDS_ENABLE_ANALYTICS`</td>
 <td>❌</td>
@@ -140,6 +158,18 @@ when you'd turn it on.
 <td>`LDS_ENABLE_VAULTWARDEN`</td>
 <td>❌</td>
 <td>`vaultwarden` — password manager</td>
+</tr>
+<tr>
+<td>`mail`</td>
+<td>`LDS_ENABLE_MAIL`</td>
+<td>❌</td>
+<td>`mailpit` — local SMTP sink + web inbox</td>
+</tr>
+<tr>
+<td>`penpot`</td>
+<td>`LDS_ENABLE_PENPOT`</td>
+<td>❌</td>
+<td>`penpot-frontend`, `penpot-backend`, `penpot-exporter` — collaborative design</td>
 </tr>
 <tr>
 <td>`duckdb`</td>
@@ -174,7 +204,7 @@ when you'd turn it on.
 </tbody>
 </table>
 
-> **Custom apps** (`analytics`, `tasks`, `wiki`) and **data tools** (`drawdb`, `hop`, `superset`, `semgrep`, `vaultwarden`) get their own page —
+> **Custom apps** (`analytics`, `tasks`, `wiki`) and **data tools** (`drawdb`, `hop`, `superset`, `semgrep`, `zap`, `trivy`, `vaultwarden`, `mail`, `penpot`) get their own page —
 > see [15 · Dashboard & data tools](15-data-tools.md). The `http://localhost`
 > control panel links them all with live status.
 
@@ -281,6 +311,15 @@ See [06](06-php-multiproject.md).
 - **Volume:** `redis-data`.
 - Inspect it visually with the `phpcacheadmin` profile.
 
+## `valkey` — Valkey (Redis-compatible)
+
+**Starts:** `valkey`. **Toggle:** `LDS_ENABLE_VALKEY`. **Off by default.**
+
+- **Image:** `valkey/valkey:${VALKEY_VERSION}`.
+- **Port:** host `${VALKEY_HOST_PORT}` (default `4405`) → container `6379`.
+- **Storage:** appendonly persistence on volume `valkey-data`.
+- Redis protocol compatible; use it as a drop-in cache/data store.
+
 ## `memcached` — Memcached 1.6
 
 **Starts:** `memcached`. **Toggle:** `LDS_ENABLE_MEMCACHED`. **Off by default.**
@@ -328,16 +367,16 @@ independently (there is no `tools` umbrella). Both are reachable via the proxy
 data profile is also up.
 
 > For the `.test` URLs you also need `proxy` (or `php`) running; for actual data,
-> run the matching `mysql` / `postgres` / `redis` / `memcached` profile.
+> run the matching `mysql` / `postgres` / `redis` / `valkey` / `memcached` profile.
 
-### `phpcacheadmin` — Redis + Memcached browser
+### `phpcacheadmin` — Redis + Valkey + Memcached browser
 
 **Starts:** `phpcacheadmin`. **Toggle:** `LDS_ENABLE_PHPCACHEADMIN`. **Off by
 default** (turn it on when you run `redis`/`memcached`).
 
-- Redis + Memcached + OPcache/APCu browser. `${CACHE_ADMIN_HOST}` (default
+- Redis + Valkey + Memcached + OPcache/APCu browser. `${CACHE_ADMIN_HOST}` (default
   `cache.test`) / host `${CACHE_ADMIN_HOST_PORT}` (default `4421`).
-- Pre-pointed at the `redis` and `memcached` services — start one (or both) to
+- Pre-pointed at the `redis`, `valkey`, and `memcached` services — start one (or more) to
   see data. No volume (stateless UI).
 
 ### `dbgate` — web DB client
@@ -410,6 +449,24 @@ serves unlimited channels/topics; you never run a second instance per channel.
 - **Storage:** persistent sqlite-backed volume (`vaultwarden-data`).
 - **Defaults:** signups off by default (`VAULTWARDEN_SIGNUPS_ALLOWED=false`);
   admin panel gated by `VAULTWARDEN_ADMIN_TOKEN`.
+
+## `mail` — Mailpit (local SMTP + inbox)
+
+**Starts:** `mailpit`. **Toggle:** `LDS_ENABLE_MAIL`. **Off by default.**
+
+- **Image:** `axllent/mailpit:${MAILPIT_VERSION}`.
+- **Web UI:** `${MAIL_HOST}` (default `mail.test`) / `${MAIL_HOST_PORT}` (default `4473`).
+- **SMTP:** host `${MAIL_SMTP_HOST_PORT}` (default `4474`) → container `1025`.
+- **Storage:** persisted in `data/mailpit/` (`MP_DATA_FILE`).
+
+## `penpot` — collaborative design tool
+
+**Starts:** `penpot-frontend`, `penpot-backend`, `penpot-exporter`. **Toggle:** `LDS_ENABLE_PENPOT`. **Off by default.**
+
+- **UI:** `${PENPOT_HOST}` (default `penpot.test`) / `${PENPOT_HOST_PORT}` (default `4478`).
+- **Dependencies:** reuses shared `postgres` and `valkey` (included by the `penpot` profile).
+- **DB defaults:** reuses `${PENPOT_POSTGRES_DB:-app}` with `${PENPOT_POSTGRES_USER:-app}`.
+- **Assets:** persisted on host at `data/penpot/assets`.
 
 
 ## `all` — everything

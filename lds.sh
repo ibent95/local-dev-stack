@@ -22,7 +22,8 @@ case "$cmd" in
     sub="${1:-}"; shift 2>/dev/null || true
     case "$sub" in
       semgrep) exec "$ROOT/scripts/run/semgrep.sh" "$@" ;;
-      *) echo "usage: lds tools <semgrep [path]>"; exit 1 ;;
+      trivy)   exec "$ROOT/scripts/run/trivy.sh" "$@" ;;
+      *) echo "usage: lds tools <semgrep [path|clear] | trivy [path|clear] | trivy image <name>>"; exit 1 ;;
     esac ;;
   db)
     sub="${1:-}"; shift 2>/dev/null || true
@@ -82,15 +83,16 @@ local-dev-stack — usage: ./lds.sh <command> [args]
   start [profiles...]           full lifecycle: init, down, rm, build-bases
                                   (if missing), up (default: all)
   logs [service]                tail logs (all, or one service)
-  restart [profiles...]         stop + start containers (default: enabled toggles)
-                                  e.g. restart php | restart --rebuild kafka
+  restart [profiles...]         restart services matched by profile (default: all)
+                                  e.g. restart postgres | restart penpot
   ps                            status of all services
   exec <service> [cmd...]       run a command (or open a shell) in a service container
 
  kafka <sub>                    topics | connect-plugin [--generic|--debezium] <name>
                                   | register-connectors | init (topics + connectors)
  db <sub>                       init [mysql|postgres|mongo|all] | seed (DBGate connections)
- tools <sub>                    semgrep [path]  (scan; view at semgrep.test via `up semgrep`)
+ tools <sub>                    semgrep [path|clear] | trivy [path|clear] | trivy image <name>
+                                  (scan; view at semgrep.test / trivy.test via `up semgrep` / `up trivy`)
 
   certs [--force]               mint the wildcard *.test dev TLS cert (for LDS_ENABLE_HTTPS)
   hosts-sync                    write www/ projects into the hosts file (fallback)

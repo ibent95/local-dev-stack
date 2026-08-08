@@ -1,10 +1,20 @@
 @echo off
 REM Run a Semgrep scan and write SARIF for the viewer.  (lds tools semgrep [path])
-REM   default path = current directory. Results -> configs\semgrep\reports\report.sarif,
+REM   default path = current directory. Results -> data\semgrep\reports\report.sarif,
 REM   viewed at http://semgrep.test (start the viewer: lds up semgrep).
+REM   lds tools semgrep clear removes the current report + metadata.
 setlocal enabledelayedexpansion
 set "TARGET=%~1"
 if not defined TARGET set "TARGET=%CD%"
+if /I "%TARGET%"=="clear" (
+  pushd "%~dp0..\.."
+  set "REPORTS=%CD%\data\semgrep\reports"
+  if exist "!REPORTS!\report.sarif" del /q "!REPORTS!\report.sarif"
+  if exist "!REPORTS!\scan-meta.json" del /q "!REPORTS!\scan-meta.json"
+  echo Cleared !REPORTS!\report.sarif and scan metadata.
+  popd
+  endlocal & exit /b 0
+)
 REM Resolve TARGET to an ABSOLUTE path against the caller's cwd BEFORE we pushd to
 REM the project root. docker -v needs an absolute source; a relative '.\x' would
 REM otherwise resolve against the project root after pushd and mount an empty dir
@@ -26,7 +36,7 @@ REM hangs on slow/offline links). Metrics off by default; on only for auto.
 set "SEMGREP_METRICS=off"
 if /I "%SEMGREP_RULES%"=="auto" set "SEMGREP_METRICS=on"
 if "%SEMGREP_HOST%"==""   set "SEMGREP_HOST=semgrep.test"
-set "REPORTS=%CD%\configs\semgrep\reports"
+set "REPORTS=%CD%\data\semgrep\reports"
 if not exist "%REPORTS%" mkdir "%REPORTS%"
 
 REM Run the SAME pinned image as the `semgrep-scan` compose service (declared
@@ -42,6 +52,15 @@ echo Scanning %TARGET% with Semgrep (rules: %SEMGREP_RULES%, metrics: %SEMGREP_M
 docker run --rm --name !SCAN_NAME! -v "%TARGET%:/src" -v "%REPORTS%:/out" -w /src ^
   %SEMGREP_IMAGE%:%SEMGREP_VERSION% ^
   semgrep scan --metrics %SEMGREP_METRICS% --config %SEMGREP_RULES% --sarif --output /out/report.sarif
+
+set "SCAN_META=%REPORTS%\scan-meta.json"
+set "SCAN_TARGET=%TARGET%"
+set "SCAN_RULES=%SEMGREP_RULES%"
+set "SCAN_METRICS=%SEMGREP_METRICS%"
+powershell -NoProfile -Command ^
+  "$obj=[ordered]@{tool='semgrep';mode='fs';target=$env:SCAN_TARGET;rules=$env:SCAN_RULES;metrics=$env:SCAN_METRICS;scanned_at=(Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')};" ^
+  "$json=$obj | ConvertTo-Json -Compress;" ^
+  "[System.IO.File]::WriteAllText($env:SCAN_META,$json,[System.Text.UTF8Encoding]::new($false))"
 
 echo Wrote %REPORTS%\report.sarif
 echo View at http://%SEMGREP_HOST%  (run 'lds up semgrep' if the viewer isn't running).

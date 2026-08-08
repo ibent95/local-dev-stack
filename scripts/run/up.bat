@@ -28,7 +28,7 @@ REM "all". Canonical profile order; each maps to LDS_ENABLE_<NAME> (matched
 REM case-insensitively).
 if "%PROFILES%"=="" (
   set "PROFILES="
-  for %%p in (proxy php mysql postgres mongo redis memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep vaultwarden analytics tasks wiki openwa rustfs duckdb trino) do (
+  for %%p in (proxy php mysql postgres mongo redis valkey memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep zap trivy vaultwarden mail penpot analytics tasks wiki openwa rustfs duckdb trino) do (
     set "VAL="
     if exist .env for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do if /I "%%a"=="LDS_ENABLE_%%p" set "VAL=%%b"
     set "VAL=!VAL: =!"
@@ -50,13 +50,42 @@ set "HTTPS_ON="
 if exist .env for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do if /I "%%a"=="LDS_ENABLE_HTTPS" set "HTTPS_ON=%%b"
 set "HTTPS_ON=!HTTPS_ON: =!"
 set "PROXY_SEL="
+set "HTTPS_ACTIVE=0"
 echo %PROFILES% | findstr /I /C:"proxy" /C:"php" /C:"all" >nul && set "PROXY_SEL=1"
 if /I "!HTTPS_ON!"=="true" if defined PROXY_SEL (
   if not exist "configs\proxy\certs\test.crt" call "%~dp0certs.bat"
   set "CFILES=-f docker-compose.yml -f docker-compose.https.yml"
+  set "HTTPS_ACTIVE=1"
   echo HTTPS overlay enabled ^(proxy TLS on :443^)
 )
 if /I "!HTTPS_ON!"=="true" if not defined PROXY_SEL echo LDS_ENABLE_HTTPS=true but no proxy/php profile selected - HTTPS overlay skipped.
+
+REM Keep public-facing Penpot URI in sync with the active edge scheme to avoid
+REM mixed-content/CORS-looking browser failures when HTTPS is enabled.
+set "PENPOT_SEL="
+echo %PROFILES% | findstr /I /C:"penpot" /C:"all" >nul && set "PENPOT_SEL=1"
+if defined PENPOT_SEL (
+  set "SCHEME=http"
+  if "!HTTPS_ACTIVE!"=="1" set "SCHEME=https"
+  set "PENPOT_HOST_VAL="
+  set "PENPOT_PUBLIC_URI_VAL="
+  if exist .env for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do (
+    if /I "%%a"=="PENPOT_HOST" set "PENPOT_HOST_VAL=%%b"
+    if /I "%%a"=="PENPOT_PUBLIC_URI" set "PENPOT_PUBLIC_URI_VAL=%%b"
+  )
+  set "PENPOT_HOST_VAL=!PENPOT_HOST_VAL: =!"
+  if "!PENPOT_HOST_VAL!"=="" set "PENPOT_HOST_VAL=penpot.test"
+  if "!PENPOT_PUBLIC_URI_VAL!"=="" set "PENPOT_PUBLIC_URI_VAL=http://!PENPOT_HOST_VAL!"
+  if /I "!PENPOT_PUBLIC_URI_VAL:~0,8!"=="https://" (
+    if /I "!SCHEME!"=="http" set "PENPOT_PUBLIC_URI_VAL=http://!PENPOT_PUBLIC_URI_VAL:~8!"
+  ) else if /I "!PENPOT_PUBLIC_URI_VAL:~0,7!"=="http://" (
+    if /I "!SCHEME!"=="https" set "PENPOT_PUBLIC_URI_VAL=https://!PENPOT_PUBLIC_URI_VAL:~7!"
+  ) else (
+    set "PENPOT_PUBLIC_URI_VAL=!SCHEME!://!PENPOT_HOST_VAL!"
+  )
+  set "PENPOT_PUBLIC_URI=!PENPOT_PUBLIC_URI_VAL!"
+  echo Penpot public URI resolved to !PENPOT_PUBLIC_URI! ^(scheme: !SCHEME!^).
+)
 
 REM The php/all profile needs the lds/php base image - build it once if missing.
 if "%PHP_VERSION%"=="" set "PHP_VERSION=8.4"
@@ -69,9 +98,9 @@ if not errorlevel 1 (
   )
 )
 
-REM The Semgrep viewer uses lds/nginx - build it once if missing.
+REM The Semgrep + Trivy viewers use lds/nginx - build it once if missing.
 if "%NGINX_VERSION%"=="" set "NGINX_VERSION=1.27"
-echo %PROFILES% | findstr /I /C:"semgrep" /C:"all" >nul
+echo %PROFILES% | findstr /I /C:"semgrep" /C:"trivy" /C:"all" >nul
 if not errorlevel 1 (
   docker image inspect "lds/nginx:%NGINX_VERSION%" >nul 2>&1 || (
     call :sub "build lds/nginx base - first run"
@@ -188,6 +217,14 @@ echo %PROFILES% | findstr /I /C:"semgrep" /C:"all" >nul
 if not errorlevel 1 (
   call :sub "semgrep-scan: pre-pull scanner image"
   docker compose !CFILES! --profile semgrep-scan pull semgrep-scan
+  call :subdone
+)
+
+REM Pre-pull the Trivy scanner (same rationale as semgrep-scan above).
+echo %PROFILES% | findstr /I /C:"trivy" /C:"all" >nul
+if not errorlevel 1 (
+  call :sub "trivy-scan: pre-pull scanner image"
+  docker compose !CFILES! --profile trivy-scan pull trivy-scan
   call :subdone
 )
 

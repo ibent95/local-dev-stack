@@ -44,6 +44,12 @@ else on your machine. Each one is set by a `*_HOST_PORT` variable in `.env`.
 </tr>
 <tr>
 <td></td>
+<td>Valkey</td>
+<td><code>localhost:4405</code></td>
+<td><code>valkey:6379</code></td>
+</tr>
+<tr>
+<td></td>
 <td>Memcached</td>
 <td><code>localhost:4404</code></td>
 <td><code>memcached:11211</code></td>
@@ -174,13 +180,49 @@ else on your machine. Each one is set by a `*_HOST_PORT` variable in `.env`.
 <td></td>
 <td>Semgrep viewer</td>
 <td><code>localhost:4465</code> (<code>semgrep.test</code>)</td>
-<td><code>semgrep:80</code></td>
+<td><code>semgrep:8080</code></td>
+</tr>
+<tr>
+<td></td>
+<td>OWASP ZAP — UI</td>
+<td><code>localhost:4470</code> (<code>zap.test</code>)</td>
+<td><code>zap:8080</code></td>
+</tr>
+<tr>
+<td></td>
+<td>OWASP ZAP — proxy/API</td>
+<td><code>localhost:4472</code></td>
+<td><code>zap:8090</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Trivy viewer</td>
+<td><code>localhost:4471</code> (<code>trivy.test</code>)</td>
+<td><code>trivy:8080</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Mailpit — web inbox</td>
+<td><code>localhost:4473</code> (<code>mail.test</code>)</td>
+<td><code>mailpit:8025</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Mailpit — SMTP</td>
+<td><code>localhost:4474</code></td>
+<td><code>mailpit:1025</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Vaultwarden</td>
 <td><code>localhost:4466</code> (<code>vaultwarden.test</code>)</td>
 <td><code>vaultwarden:80</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Penpot</td>
+<td><code>localhost:4478</code> (<code>penpot.test</code>)</td>
+<td><code>penpot-frontend:8080</code></td>
 </tr>
 <tr>
 <td></td>

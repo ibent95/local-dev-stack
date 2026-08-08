@@ -169,7 +169,7 @@ gated behind **profiles** and share one external network `lds-network`.
   (`01-overview.md` … `10-databases.md`) with a `README.md` index in each.
 
 ## Profiles`proxy` `php` `mysql` `postgres` `mongo` `redis` `memcached` `kafka`
-`phpcacheadmin` `dbgate` `drawdb` `hop` `superset` `semgrep` `soketi` `centrifugo` `emqx` `duckdb` `trino` `all`
+`phpcacheadmin` `dbgate` `drawdb` `hop` `superset` `semgrep` `zap` `trivy` `soketi` `centrifugo` `emqx` `duckdb` `trino` `all`
 
 `phpcacheadmin` and `dbgate` are the two web admin UIs, each on its OWN profile
 (no `tools` umbrella — toggle them independently): **phpCacheAdmin** (`cache.test`
@@ -188,7 +188,7 @@ dashboard `mqtt.test` / :4434, anonymous allowed in dev, wildcard `#` lets the
 dashboard watch every topic). One broker serves unlimited channels/topics.
 
 Data tools (all **off by default**, own profiles): **DrawDB** = browser ER/schema
-designer (`drawdb`, :4423 — open at `localhost:4423`, NOT `drawdb.test`: it needs
+designer (`drawdb`, :4462 — open at `localhost:4462`, NOT `drawdb.test`: it needs
 `crypto.randomUUID` which requires a secure context). **Apache Hop** = ETL designer
 (`hop`, `hop.test` / :4424, image `apache/hop-web` Tomcat — NOT `apache/hop`
 hop-server; no login, served at `/ui`; session timeout disabled; MySQL Connector/J
@@ -202,8 +202,20 @@ Data lives directly on disk via bind mount — no export/import needed; Superset
 reads and writes to `data/superset/` directly (like Hop's project mechanism).
 **Semgrep** = SAST, two services: `semgrep` (nginx SARIF viewer, `semgrep.test` /
 :4426) + `semgrep-scan` (pinned `semgrep/semgrep` CLI, its own run-only profile so
-it never auto-starts). `lds tools semgrep [path]` scans via `docker compose run
---rm semgrep-scan` → `report.sarif`, shown by the viewer.
+it never auto-starts). `lds tools semgrep [path]` scans via `docker run` and
+writes `data/semgrep/reports/report.sarif`, shown by the viewer.
+
+**ZAP** + **Trivy** = the vulnerability scanners. **ZAP** = DAST (OWASP Top 10)
+against RUNNING apps: the desktop UI in the browser (WebSwing) at `zap.test` /
+:4470 (UI) + :4472 (ZAP proxy/API), command `zap-webswing.sh`, bind-mounted
+runtime data at `data/zap/` (`/zap/wrk` + `/home/zap`). It resolves `*.test` through a SECOND dnsmasq view inside the
+`dns` container (10.99.0.53 on the compose-defined `lds-dnsnet` network) that
+answers `*.test` with the PROXY container IP (the host-facing view still answers
+127.0.0.1), so ZAP can scan local apps from inside the network. **Trivy** = CVE/SCA
+of containers/filesystems/deps, mirroring the semgrep split: `trivy` viewer at
+`trivy.test` / :4471 + one-shot `trivy-scan` (own profile, never auto-starts),
+invoked by `lds tools trivy [path]` / `lds tools trivy image <name>` → HTML
+report served by the viewer; the vuln DB is cached in `data/trivy/cache`.
 Full detail: `docs/en/15-data-tools.md`. The `http://localhost` control panel
 (`configs/web/dashboard/index.php`, served from `/var/lds-dashboard` outside the
 project path) links every tool/project with live status — there is no

@@ -76,7 +76,8 @@ goto end
 :tools
 for /f "tokens=1*" %%a in ("%REST%") do ( set "SUB=%%a" & set "SUBREST=%%b" )
 if /I "!SUB!"=="semgrep" ( call "%ROOT%scripts\run\semgrep.bat" !SUBREST! & goto end )
-echo usage: lds tools ^<semgrep [path]^>
+if /I "!SUB!"=="trivy"   ( call "%ROOT%scripts\run\trivy.bat" !SUBREST! & goto end )
+echo usage: lds tools ^<semgrep [path^|clear] ^| trivy [path^|clear] ^| trivy image ^<name^>^>
 goto end
 
 :help
@@ -92,14 +93,15 @@ echo   stop                          stop running containers but KEEP them (fast
 echo   down [-v]                     remove containers (-v also wipes data volumes)
 echo   rm [profiles...]              force-remove containers (default: all)
 echo   start [profiles...]           full lifecycle: init, down, rm, build-bases, up
-echo   restart [profiles...]         stop + start containers (default: enabled toggles)
+echo   restart [profiles...]         restart services matched by profile (default: all)
 echo   logs [service]                tail logs (all, or one service)
 echo   ps                            status of all services
 echo   exec ^<service^> [cmd...]       run a command (or open a shell) in a service container
 echo.
 echo  kafka ^<sub^>                    topics ^| connect-plugin [--generic^|--debezium] ^<name^> ^| register-connectors ^| init
 echo  db ^<sub^>                       init [mysql^|postgres^|mongo^|all] ^| seed (DBGate connections)
-echo  tools ^<sub^>                    semgrep [path]  (scan; view at semgrep.test via up semgrep)
+echo  tools ^<sub^>                    semgrep [path^|clear] ^| trivy [path^|clear] ^| trivy image ^<name^>
+echo                                 (scan; view at semgrep.test / trivy.test via up semgrep / up trivy)
 echo.
 echo   certs [--force]               mint the wildcard *.test dev TLS cert (for LDS_ENABLE_HTTPS)
 echo   hosts-sync                    write www/ projects into the hosts file

@@ -38,7 +38,8 @@ lds exec <svc> [cmd…]     shell/command in a container
 lds hosts-sync            write projects + tool hosts into the hosts file (admin)
 lds db init [mysql|postgres|mongo|all] | seed     create default db/users (+ optional `*_INIT_SPECS`) | DBGate conns
 lds kafka topics | connect-plugin [--generic] <name> | register-connectors | init
-lds tools semgrep [path]  run a Semgrep scan → configs/semgrep/reports/report.sarif
+lds tools semgrep [path|clear]  run/clear a Semgrep scan → data/semgrep/reports/report.sarif
+lds tools trivy [path|clear] | trivy image <name>  run/clear a Trivy scan → data/trivy/reports/report.html
 lds certs [--force]       mint the wildcard *.test dev TLS cert (LDS_ENABLE_HTTPS)
 ```
 
@@ -48,9 +49,9 @@ Old flat names (`kafka-topics`, `mysql-init`, `mongo-init`, `register-connectors
 ## Layout / ordering
 
 `docker-compose.yml` is ordered by importance of usage: **web foundation**
-(proxy, dns, php) → **databases** (mysql, postgres, mongo, redis, memcached) →
+(proxy, dns, php) → **databases** (mysql, postgres, mongo, redis, valkey, memcached) →
 **admin UIs** (phpcacheadmin, dbgate) → **data tools** (drawdb, hop, superset,
-semgrep, vaultwarden, analytics, tasks, wiki) → **realtime brokers** (soketi, centrifugo, mqtt) → **Kafka** (last,
+semgrep, zap, trivy, vaultwarden, mailpit, penpot, analytics, tasks, wiki) → **realtime brokers** (soketi, centrifugo, mqtt) → **Kafka** (last,
 heaviest, off by default). Each group has a `# ===` banner. Host ports live in
 the `44xx` block (see `docs/en/12-ports.md`).
 
@@ -64,7 +65,7 @@ bind-mounted, so changes are live (no restart).
 
 ## Known gotchas & fixes
 
-- **DrawDB blank page** → open `http://localhost:4423`, NOT `drawdb.test`. It
+- **DrawDB blank page** → open `http://localhost:4462`, NOT `drawdb.test`. It
   calls `crypto.randomUUID()`, exposed only in a secure context (localhost or
   HTTPS). The dashboard links it to the localhost port for this reason.
 - **Apache Hop** → use image `apache/hop-web` (Tomcat, no login, served at
@@ -82,12 +83,23 @@ bind-mounted, so changes are live (no restart).
   Desktop this is a non-issue. Login `admin`/`admin`. Data lives directly on
   disk (like Hop's project mechanism) — no export/import needed.
 - **Semgrep** = two services: `semgrep` (nginx viewer at `semgrep.test`, serving
-  `configs/semgrep/reports/`) and `semgrep-scan` (pinned `semgrep/semgrep` CLI in
+  `data/semgrep/reports/`) and `semgrep-scan` (pinned `semgrep/semgrep` CLI in
   its own run-only profile — never auto-starts). `lds tools semgrep [path]` runs
   that pinned image via `docker run -v <path>:/src` → `report.sarif`; then refresh
   the viewer. (Not `docker compose run` — Compose's -v splits on ':' and chokes on
   Windows `D:\…` paths, leaving /src empty.) Empty viewer = no scan has run yet.
   `lds up semgrep` pre-pulls the scanner image (best-effort).
+- **ZAP** (DAST) = `zap` service, UI at `zap.test` / :4470 (ZAP proxy/API :4472).
+  **Requires the proxy: `lds up proxy zap`** — the dns container ships with the
+  proxy/php profiles, and ZAP's in-network `*.test` DNS is a SECOND dnsmasq view
+  in the dns container (10.99.0.53 on the compose-defined `lds-dnsnet` network,
+  answering `*.test` with the proxy IP). After pulling an update, rebuild the dns
+  image once (`lds up --rebuild proxy` or `docker compose build dns`) or the old
+  single-dnsmasq image keeps running and zap's DNS is dead.
+- **Trivy** (CVE/SCA) = same split as Semgrep: `trivy` viewer at `trivy.test` /
+  :4471 + one-shot `trivy-scan` invoked by `lds tools trivy [path]` / `lds tools
+  trivy image <name>` → `data/trivy/reports/report.html` (vuln DB cached in
+  `data/trivy/cache`). Also uses `docker run` for Windows path handling.
 - **Analytics** reuses shared `postgres` (no extra DB container); `analytics-init`
   augments `POSTGRES_INIT_SPECS` and delegates to `postgres-init` so the configured
   `ANALYTICS_POSTGRES_DB/USER/PASSWORD` exist. UI at `analytics.test` / :4440.

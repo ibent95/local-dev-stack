@@ -64,6 +64,12 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 <td>`redis`</td>
 </tr>
 <tr>
+<td>`valkey`</td>
+<td>`LDS_ENABLE_VALKEY`</td>
+<td>❌</td>
+<td>`valkey`</td>
+</tr>
+<tr>
 <td>`memcached`</td>
 <td>`LDS_ENABLE_MEMCACHED`</td>
 <td>❌</td>
@@ -109,7 +115,7 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 <td>`drawdb`</td>
 <td>`LDS_ENABLE_DRAWDB`</td>
 <td>❌</td>
-<td>`drawdb` — perancang skema DB (buka di `localhost:4423`)</td>
+<td>`drawdb` — perancang skema DB (buka di `localhost:4462`)</td>
 </tr>
 <tr>
 <td>`hop`</td>
@@ -130,6 +136,18 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 <td>`semgrep` — viewer SARIF (`lds tools semgrep` menjalankan scan)</td>
 </tr>
 <tr>
+<td>`zap`</td>
+<td>`LDS_ENABLE_ZAP`</td>
+<td>❌</td>
+<td>`zap` — pemindai DAST OWASP ZAP, UI browser di `zap.test` (:4470 UI, :4472 proxy/API)</td>
+</tr>
+<tr>
+<td>`trivy`</td>
+<td>`LDS_ENABLE_TRIVY`</td>
+<td>❌</td>
+<td>`trivy` — viewer laporan di `trivy.test` (`lds tools trivy` menjalankan scan)</td>
+</tr>
+<tr>
 <td>`analytics`</td>
 <td>`LDS_ENABLE_ANALYTICS`</td>
 <td>❌</td>
@@ -140,6 +158,18 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 <td>`LDS_ENABLE_VAULTWARDEN`</td>
 <td>❌</td>
 <td>`vaultwarden` — password manager</td>
+</tr>
+<tr>
+<td>`mail`</td>
+<td>`LDS_ENABLE_MAIL`</td>
+<td>❌</td>
+<td>`mailpit` — local SMTP sink + web inbox</td>
+</tr>
+<tr>
+<td>`penpot`</td>
+<td>`LDS_ENABLE_PENPOT`</td>
+<td>❌</td>
+<td>`penpot-frontend`, `penpot-backend`, `penpot-exporter` — collaborative design</td>
 </tr>
 <tr>
 <td>`tasks`</td>
@@ -162,7 +192,7 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 </tbody>
 </table>
 
-> **Aplikasi kustom** (`analytics`, `tasks`, `wiki`) dan **tool data** (`drawdb`, `hop`, `superset`, `semgrep`, `vaultwarden`) punya halaman sendiri —
+> **Aplikasi kustom** (`analytics`, `tasks`, `wiki`) dan **tool data** (`drawdb`, `hop`, `superset`, `semgrep`, `zap`, `trivy`, `vaultwarden`, `mail`, `penpot`) punya halaman sendiri —
 > lihat [15 · Dashboard & data tools](15-data-tools.md). Panel kontrol di
 > `http://localhost` menautkan semuanya lengkap dengan status langsung.
 
@@ -275,6 +305,15 @@ default.**
 - **Volume:** `redis-data`.
 - Inspeksi secara visual dengan profile `phpcacheadmin`.
 
+## `valkey` — Valkey (kompatibel Redis)
+
+**Menjalankan:** `valkey`. **Toggle:** `LDS_ENABLE_VALKEY`. **Mati secara default.**
+
+- **Image:** `valkey/valkey:${VALKEY_VERSION}`.
+- **Port:** host `${VALKEY_HOST_PORT}` (default `4405`) → container `6379`.
+- **Storage:** appendonly persisten pada volume `valkey-data`.
+- Kompatibel protokol Redis (drop-in cache/data store).
+
 ## `memcached` — Memcached 1.6
 
 **Menjalankan:** `memcached`. **Toggle:** `LDS_ENABLE_MEMCACHED`. **Mati secara
@@ -325,16 +364,16 @@ secara independen (tidak ada lagi umbrella `tools`). Keduanya dijangkau via prox
 data yang sesuai juga jalan.
 
 > Untuk URL `.test` Anda juga perlu `proxy` (atau `php`) jalan; untuk data nyata,
-> jalankan profile `mysql` / `postgres` / `redis` / `memcached` yang sesuai.
+> jalankan profile `mysql` / `postgres` / `redis` / `valkey` / `memcached` yang sesuai.
 
-### `phpcacheadmin` — browser Redis + Memcached
+### `phpcacheadmin` — browser Redis + Valkey + Memcached
 
 **Menjalankan:** `phpcacheadmin`. **Toggle:** `LDS_ENABLE_PHPCACHEADMIN`. **Mati
 secara default** (aktifkan saat Anda menjalankan `redis`/`memcached`).
 
-- Browser Redis + Memcached + OPcache/APCu. `${CACHE_ADMIN_HOST}` (default
+- Browser Redis + Valkey + Memcached + OPcache/APCu. `${CACHE_ADMIN_HOST}` (default
   `cache.test`) / host `${CACHE_ADMIN_HOST_PORT}` (default `4421`).
-- Sudah diarahkan ke layanan `redis` dan `memcached` — jalankan salah satu (atau
+- Sudah diarahkan ke layanan `redis`, `valkey`, dan `memcached` — jalankan salah satu (atau
   keduanya) untuk melihat data. Tanpa volume (UI stateless).
 
 ### `dbgate` — client DB web
@@ -407,6 +446,24 @@ perlu instance kedua per channel.
 - **Storage:** volume persisten berbasis sqlite (`vaultwarden-data`).
 - **Default:** signup nonaktif (`VAULTWARDEN_SIGNUPS_ALLOWED=false`);
   panel admin dilindungi `VAULTWARDEN_ADMIN_TOKEN`.
+
+## `mail` — Mailpit (SMTP lokal + inbox)
+
+**Menjalankan:** `mailpit`. **Toggle:** `LDS_ENABLE_MAIL`. **Mati secara default.**
+
+- **Image:** `axllent/mailpit:${MAILPIT_VERSION}`.
+- **Web UI:** `${MAIL_HOST}` (default `mail.test`) / `${MAIL_HOST_PORT}` (default `4473`).
+- **SMTP:** host `${MAIL_SMTP_HOST_PORT}` (default `4474`) → container `1025`.
+- **Storage:** persisten di `data/mailpit/` (`MP_DATA_FILE`).
+
+## `penpot` — collaborative design tool
+
+**Menjalankan:** `penpot-frontend`, `penpot-backend`, `penpot-exporter`. **Toggle:** `LDS_ENABLE_PENPOT`. **Mati secara default.**
+
+- **UI:** `${PENPOT_HOST}` (default `penpot.test`) / `${PENPOT_HOST_PORT}` (default `4478`).
+- **Dependensi:** memakai `postgres` dan `valkey` bersama (terikut profile `penpot`).
+- **Default DB:** reuse `${PENPOT_POSTGRES_DB:-app}` dengan `${PENPOT_POSTGRES_USER:-app}`.
+- **Assets:** persisten di host `data/penpot/assets`.
 
 ## `all` — semuanya
 

@@ -17,6 +17,10 @@ if "%DRAWDB_HOST%"=="" set "DRAWDB_HOST=drawdb.test"
 if "%HOP_HOST%"=="" set "HOP_HOST=hop.test"
 if "%SUPERSET_HOST%"=="" set "SUPERSET_HOST=superset.test"
 if "%SEMGREP_HOST%"=="" set "SEMGREP_HOST=semgrep.test"
+if "%TRIVY_HOST%"=="" set "TRIVY_HOST=trivy.test"
+if "%ZAP_HOST%"=="" set "ZAP_HOST=zap.test"
+if "%MAIL_HOST%"=="" set "MAIL_HOST=mail.test"
+if "%PENPOT_HOST%"=="" set "PENPOT_HOST=penpot.test"
 if "%ANALYTICS_HOST%"=="" set "ANALYTICS_HOST=analytics.test"
 if "%VAULTWARDEN_HOST%"=="" set "VAULTWARDEN_HOST=vaultwarden.test"
 if "%TASKS_HOST%"=="" set "TASKS_HOST=tasks.test"
@@ -60,31 +64,36 @@ if "!PROJ!"=="0" (
 
 REM --- Tools & UIs: stack services routed by VIRTUAL_HOST (not folders). Grouped
 REM to mirror the localhost control panel. Harmless when the profile is off. ---
-call :sec "Data tools"
+call :sec "Admin tools"
 call :add %CACHE_ADMIN_HOST%
 call :add %DB_ADMIN_HOST%
-call :sec "Security & auth"
+call :sec "Auth"
 call :add %VAULTWARDEN_HOST%
-call :sec "Database design"
+call :sec "Communication tools"
+call :add %MAIL_HOST%
+call :add %OPENWA_HOST%
+call :sec "Designers"
+call :add %PENPOT_HOST%
 call :add %DRAWDB_HOST% "(open via http://localhost:4462 - needs a secure context)"
-call :sec "Data warehouse & BI"
+call :sec "Data tools"
 call :add %SUPERSET_HOST%
 call :add %HOP_HOST%
-call :add %DUCKDB_HOST%
 call :sec "Code quality"
 call :add %SEMGREP_HOST%
-call :sec "Web analytics"
+call :sec "Security tools"
+call :add %TRIVY_HOST%
+call :add %ZAP_HOST%
+call :sec "LDS apps"
 call :add %ANALYTICS_HOST%
-call :sec "Project management"
 call :add %TASKS_HOST%
-call :sec "Documentation"
 call :add %WIKI_HOST%
-call :sec "Realtime & messaging"
+call :sec "Analytical query engines"
+call :add %DUCKDB_HOST%
+call :sec "Realtime dashboards"
 call :add %SOKETI_HOST%
 call :add %CENTRIFUGO_HOST%
 call :add %MQTT_HOST%
-call :sec "Communication & storage"
-call :add %OPENWA_HOST%
+call :sec "Storage tools"
 call :add %RUSTFS_HOST%
 
 >> "%TMP%" echo # ===== end local-dev-stack =====   %MARKER%

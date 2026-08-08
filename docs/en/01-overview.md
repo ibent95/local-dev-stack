@@ -10,8 +10,8 @@ project a `<name>.test` hostname, and a library of **templates** scaffolds new
 projects across many languages and frameworks.
 
 - Services are gated by profiles: `proxy`, `php`, `mysql`, `postgres`, `mongo`,
-  `redis`, `memcached`, `kafka`, `phpcacheadmin`, `dbgate`, `drawdb`, `hop`,
-  `superset`, `semgrep`, `vaultwarden`, `analytics`, `tasks`, `wiki`, `soketi`,
+  `redis`, `valkey`, `memcached`, `kafka`, `phpcacheadmin`, `dbgate`, `drawdb`, `hop`,
+  `superset`, `semgrep`, `zap`, `trivy`, `vaultwarden`, `mail`, `penpot`, `analytics`, `tasks`, `wiki`, `soketi`,
   `centrifugo`, `mqtt`, `all`.
   Each one is described in detail in
   [13 · Profiles](13-profiles.md).

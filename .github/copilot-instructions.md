@@ -65,13 +65,21 @@ Use `./lds.sh` on bash/Linux/macOS or `lds.bat` on Windows `cmd`.
 <td>`./lds.sh tools semgrep ./scripts/run`</td>
 </tr>
 <tr>
+<td>Vulnerability scan — fs / repo / deps</td>
+<td>`./lds.sh tools trivy [path]`</td>
+</tr>
+<tr>
+<td>Vulnerability scan — container image</td>
+<td>`./lds.sh tools trivy image <name>`</td>
+</tr>
+<tr>
 <td>Validate compose changes</td>
 <td>`docker compose config --quiet`</td>
 </tr>
 </tbody>
 </table>
 
-There is no repository-wide unit/integration test runner at repo root; validation is done via Compose/service health plus targeted Semgrep scans.
+There is no repository-wide unit/integration test runner at repo root; validation is done via Compose/service health plus targeted Semgrep/Trivy scans.
 
 ## High-level architecture
 
@@ -83,9 +91,9 @@ There is no repository-wide unit/integration test runner at repo root; validatio
    - **Plain PHP folders** in `PHP_PROJECTS_PATH` are served by one shared `php` container via mass vhost (docroot auto-detect: `public/` -> `htdocs/` -> root).
    - **Non-PHP apps** are independent template projects (`templates/*`) with their own compose files using `VIRTUAL_HOST`/`VIRTUAL_PORT` on `lds-network`.
 6. **`up` performs post-start initialization hooks.** After compose up, scripts auto-run profile-coupled tasks such as `dbgate-seed`, `mysql-init`, `mongo-init`, `kafka-topics`, and `hop-register`.
-7. **Kafka and Semgrep are split intentionally.**
+7. **Kafka, Semgrep and Trivy are split intentionally.**
    - Kafka uses KRaft controller+broker, Apicurio registry, and two Connect workers (`connect-debezium`, `connect-generic`).
-   - Semgrep separates long-running viewer (`semgrep`) from one-shot scanner (`semgrep-scan`), invoked by `lds tools semgrep`.
+   - Semgrep and Trivy each separate a long-running viewer (`semgrep`, `trivy`) from a one-shot scanner (`semgrep-scan`, `trivy-scan`), invoked by `lds tools semgrep` / `lds tools trivy`.
 
 ## Key conventions for this repository
 
@@ -96,4 +104,4 @@ There is no repository-wide unit/integration test runner at repo root; validatio
 - **`http://localhost` dashboard is served from `configs/web/dashboard` outside project roots** (no `__dashboard.test` host).
 - **If changing the dev TLD, update both** `configs/nginx/default.conf` **and** `configs/dns/dnsmasq.conf`.
 - **Prefer targeted profile operations** (`lds up <profile>`) over `lds up all`; `all` is heavy.
-- **Semgrep scanning on Windows intentionally uses `docker run` in script wrappers** for reliable volume mounting with drive-letter paths.
+- **Semgrep/Trivy scanning on Windows intentionally uses `docker run` in script wrappers** for reliable volume mounting with drive-letter paths.

@@ -38,9 +38,11 @@ $serviceGroups = [
         'MySQL'      => ['mysql', 3306],
         'PostgreSQL' => ['postgres', 5432],
         'MongoDB'    => ['mongo', 27017],
+        'DuckDB'     => ['duckdb', null], // embedded file engine — no network port
     ],
     'Cache' => [
         'Redis'     => ['redis', 6379],
+        'Valkey'    => ['valkey', 6379],
         'Memcached' => ['memcached', 11211],
     ],
     'Kafka' => [
@@ -62,47 +64,44 @@ $serviceGroups = [
 // page's scheme — http normally, https when the HTTPS overlay is on (no extra
 // http->https redirect hop). Direct host:port links stay http (not proxied).
 $uiGroups = [
-    'Data tools' => [
-        ['label' => 'phpCacheAdmin', 'desc' => 'Redis · Memcached',  'url' => '//cache.test', 'alt' => 'localhost:4460', 'health' => ['phpcacheadmin', 80]],
-        ['label' => 'DBGate',        'desc' => 'MySQL · PostgreSQL',  'url' => '//db.test',    'alt' => 'localhost:4461', 'health' => ['dbgate', 3000]],
-        ['label' => 'Vaultwarden',   'desc' => 'password manager',     'url' => '//vaultwarden.test', 'alt' => 'localhost:4466', 'health' => ['vaultwarden', 80]],
-    ],
-    'Database design' => [
-        // DrawDB uses crypto.randomUUID(), which only exists in a secure context,
-        // so it MUST be opened on localhost (or HTTPS) — NOT drawdb.test over http.
-        ['label' => 'DrawDB', 'desc' => 'ER diagrams · open on localhost', 'url' => 'http://localhost:4462', 'alt' => null, 'health' => ['drawdb', 80]],
-    ],
-    'Data warehouse & BI' => [
-        ['label' => 'Apache Superset', 'desc' => 'BI dashboards · admin/admin', 'url' => '//superset.test', 'alt' => 'localhost:4464', 'health' => ['superset', 8088]],
-        ['label' => 'Apache Hop',      'desc' => 'ETL pipeline designer',       'url' => '//hop.test',      'alt' => 'localhost:4463', 'health' => ['hop', 8080]],
-    ],
-    'Code quality' => [
-        ['label' => 'Semgrep', 'desc' => 'SAST · SARIF viewer', 'url' => '//semgrep.test', 'alt' => 'localhost:4465', 'health' => ['semgrep', 80]],
-    ],
-    'Web analytics' => [
-        ['label' => 'LDS Analytics', 'desc' => 'Nuxt 4 · reactive dashboard', 'url' => '//analytics.test', 'alt' => 'localhost:4481', 'health' => ['analytics-ui', 4173]],
-    ],
-    'Project management' => [
-        ['label' => 'LDS Tasks', 'desc' => 'Angular 22 · Kanban boards', 'url' => '//tasks.test', 'alt' => 'localhost:4483', 'health' => ['tasks-ui', 4174]],
-    ],
-    'Documentation' => [
-        ['label' => 'LDS Wiki', 'desc' => 'Next.js 16 · documentation hub', 'url' => '//wiki.test', 'alt' => 'localhost:4485', 'health' => ['wiki-ui', 4175]],
-    ],
-    'Kafka' => [
+    'Data management' => [
+        ['label' => 'phpCacheAdmin', 'desc' => 'Redis · Memcached',     'url' => '//cache.test',      'alt' => 'localhost:4460', 'health' => ['phpcacheadmin', 80]],
+        ['label' => 'DBGate',        'desc' => 'MySQL · PostgreSQL',     'url' => '//db.test',         'alt' => 'localhost:4461', 'health' => ['dbgate', 3000]],
         ['label' => 'Kafka UI',          'desc' => 'topics · connectors',      'url' => 'http://localhost:4424', 'alt' => null, 'health' => ['kafka-ui', 8080]],
         ['label' => 'Connector builder', 'desc' => 'build Connect connectors', 'url' => '/connectors.php',       'alt' => null, 'health' => null],
     ],
-    'Realtime dashboards' => [
-        ['label' => 'Centrifugo',      'desc' => 'WebSocket · admin UI', 'url' => '//centrifugo.test', 'alt' => 'localhost:4441', 'health' => ['centrifugo', 8000]],
-        ['label' => 'MQTTX',           'desc' => 'MQTT web client · no login', 'url' => '//mqtt.test',  'alt' => 'localhost:4444', 'health' => ['mqttx', 80]],
-    ],
-    'Communication & storage' => [
-        ['label' => 'OpenWA',          'desc' => 'WhatsApp API gateway',  'url' => '//openwa.test', 'alt' => 'localhost:4467', 'health' => ['openwa', 2785]],
+    'File storage' => [
         ['label' => 'RustFS',          'desc' => 'S3 object storage',     'url' => '//rustfs.test', 'alt' => 'localhost:4469', 'health' => ['rustfs', 9001]],
     ],
-    'Analytical query engines' => [
-        ['label' => 'DuckDB',          'desc' => 'Embedded OLAP · file engine · Parquet/CSV', 'url' => '#', 'alt' => 'docker exec lds-duckdb duckdb /data/data.duckdb', 'health' => ['duckdb']],
-        ['label' => 'Trino',           'desc' => 'SQL query engine · web UI at :4451/ui', 'url' => 'http://localhost:4451', 'alt' => 'localhost:4451', 'health' => ['trino', 8080]],
+    'Documents & credentials' => [
+        ['label' => 'LDS Tasks',     'desc' => 'Angular 22 · Kanban boards',  'url' => '//tasks.test',     'alt' => 'localhost:4483', 'health' => ['tasks-ui', 4174]],
+        ['label' => 'LDS Wiki',      'desc' => 'Next.js 16 · documentation hub', 'url' => '//wiki.test',   'alt' => 'localhost:4485', 'health' => ['wiki-ui', 4175]],
+        ['label' => 'Vaultwarden',   'desc' => 'password manager',       'url' => '//vaultwarden.test','alt' => 'localhost:4466', 'health' => ['vaultwarden', 80]],
+    ],
+    'Messaging / Socials' => [
+        ['label' => 'Mailpit',       'desc' => 'SMTP sink · web inbox',  'url' => '//mail.test',       'alt' => 'localhost:4473', 'health' => ['mailpit', 8025]],
+        ['label' => 'OpenWA',        'desc' => 'WhatsApp API gateway',   'url' => '//openwa.test',     'alt' => 'localhost:4467', 'health' => ['openwa', 2785]],
+    ],
+    'Design' => [
+        ['label' => 'Penpot',        'desc' => 'collaborative design',    'url' => '//penpot.test',     'alt' => 'localhost:4478', 'health' => ['penpot-frontend', 8080]],
+        // DrawDB uses crypto.randomUUID(), which only exists in a secure context,
+        // so it MUST be opened on localhost (or HTTPS) — NOT drawdb.test over http.
+        ['label' => 'DrawDB',        'desc' => 'ER diagrams · open on localhost', 'url' => 'http://localhost:4462', 'alt' => null, 'health' => ['drawdb', 80]],
+    ],
+    'Analytic & Business intelligence' => [
+        ['label' => 'LDS Analytics', 'desc' => 'Nuxt 4 · reactive dashboard', 'url' => '//analytics.test', 'alt' => 'localhost:4481', 'health' => ['analytics-ui', 4173]],
+        ['label' => 'Apache Hop',    'desc' => 'ETL pipeline designer',   'url' => '//hop.test',        'alt' => 'localhost:4463', 'health' => ['hop', 8080]],
+        ['label' => 'Trino',         'desc' => 'SQL query engine · web UI at :4451/ui', 'url' => 'http://localhost:4451', 'alt' => 'localhost:4451', 'health' => ['trino', 8080]],
+        ['label' => 'Apache Superset','desc' => 'BI dashboards · admin/admin', 'url' => '//superset.test','alt' => 'localhost:4464', 'health' => ['superset', 8088]],
+    ],
+    'Code & security quality scanner' => [
+        ['label' => 'Semgrep',       'desc' => 'SAST · SARIF viewer',     'url' => '//semgrep.test',    'alt' => 'localhost:4465', 'health' => ['semgrep', 8080]],
+        ['label' => 'Trivy',         'desc' => 'CVE scanner · containers & deps', 'url' => '//trivy.test', 'alt' => 'localhost:4471', 'health' => ['trivy', 8080]],
+        ['label' => 'OWASP ZAP',     'desc' => 'DAST · web app scanner',  'url' => '//zap.test/zap',    'alt' => 'localhost:4470', 'health' => ['zap', 8080]],
+    ],
+    'Websockets monitoring' => [
+        ['label' => 'Centrifugo',      'desc' => 'WebSocket · admin UI',      'url' => '//centrifugo.test', 'alt' => 'localhost:4441', 'health' => ['centrifugo', 8000]],
+        ['label' => 'MQTTX',           'desc' => 'MQTT web client · no login', 'url' => '//mqtt.test',      'alt' => 'localhost:4444', 'health' => ['mqttx', 80]],
     ],
 ];
 // --- Cached + time-budgeted probing -----------------------------------------
@@ -121,9 +120,12 @@ $LDS_BUDGET = 15.0;   // max wall-clock seconds spent probing per cold/stale ren
 
 // Unique host:port probe targets, gathered from both structures.
 $targets = [];
-foreach ($serviceGroups as $svcs) foreach ($svcs as [$h, $p]) $targets["$h:$p"] = [$h, $p];
+foreach ($serviceGroups as $svcs) foreach ($svcs as [$h, $p]) {
+    if ($p === null) continue;   // no port (e.g. DuckDB file engine) — not probed
+    $targets["$h:$p"] = [$h, $p];
+}
 foreach ($uiGroups as $apps) foreach ($apps as $a) if ($a['health']) {
-    if (count($a['health']) < 2) continue; // no port (e.g. DuckDB file engine) — not probed
+    if (count($a['health']) < 2) continue; // no port — not probed
     [$h, $p] = $a['health']; $targets["$h:$p"] = [$h, $p];
 }
 
@@ -159,13 +161,13 @@ if ($age <= $LDS_TTL && $cached) {
 $serviceStatus = [];
 foreach ($serviceGroups as $group => $svcs)
     foreach ($svcs as $label => [$h, $p])
-        $serviceStatus[$group][$label] = $status["$h:$p"] ?? 'unknown';
+        $serviceStatus[$group][$label] = ($p === null) ? null : ($status["$h:$p"] ?? 'unknown');
 
 foreach ($uiGroups as &$apps) {
     foreach ($apps as &$app) {
         $app['state'] = null;                // null = no probe (always-available, e.g. this dashboard)
         if ($app['health']) {
-            if (count($app['health']) < 2) continue; // no port (e.g. DuckDB file engine)
+            if (count($app['health']) < 2) continue; // no port — no status dot
             [$h, $p] = $app['health']; $app['state'] = $status["$h:$p"] ?? 'unknown';
         }
     }
@@ -195,11 +197,16 @@ unset($apps);
   h1 .dot{color:var(--good)}
   .sub{color:var(--muted);margin:0 0 12px}
   .sub code{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:13px}
-  h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--fg);
     margin:34px 0 6px;border-bottom:1px solid var(--line);padding-bottom:6px}
-  h3{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);
-    opacity:.85;margin:18px 0 10px;font-weight:600}
+  h3{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--fg);
+    margin:18px 0 10px;font-weight:600}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+  .svc-groups{display:grid;grid-template-columns:repeat(2,1fr);column-gap:28px;row-gap:24px;align-items:start;margin-top:24px}  /* sub-groups: 2 columns, each pair row-aligned side by side */
+  .svc-group{break-inside:avoid}
+  .svc-group h3{display:flex;align-items:center;gap:10px;margin-top:0}  /* sub-group title… */
+  .svc-group h3::after{content:"";flex:1;height:1px;background:var(--line)}  /* …with a line extending to the right */
+  @media (max-width:640px){.svc-groups{grid-template-columns:1fr}}
   a.card{display:block;text-decoration:none;color:inherit;background:var(--card);
     border:1px solid var(--line);border-radius:10px;padding:14px 16px;transition:.12s}
   a.card:hover{background:var(--card2);border-color:var(--accent);transform:translateY(-2px)}
@@ -225,26 +232,30 @@ unset($apps);
      profile (<code>LDS_ENABLE_*</code>) for it to respond.</p>
 
   <h2>Tools &amp; web UIs</h2>
+  <div class="svc-groups">
   <?php foreach ($uiGroups as $group => $apps): ?>
-    <h3><?= htmlspecialchars($group) ?></h3>
-    <div class="grid">
-      <?php foreach ($apps as $app): ?>
-        <a class="card" href="<?= htmlspecialchars($app['url']) ?>"<?= (strpos($app['url'], 'http') === 0 || strpos($app['url'], '//') === 0) ? ' target="_blank" rel="noopener"' : '' ?>>
-          <div class="name">
-            <?php if ($app['state'] !== null): ?><span class="stat <?= $app['state'] ?>" title="<?= $app['state'] ?>"></span><?php endif; ?>
-            <?= htmlspecialchars($app['label']) ?>
-          </div>
-          <div class="meta"><?= htmlspecialchars($app['desc']) ?><?= $app['alt'] ? ' · ' . htmlspecialchars($app['alt']) : '' ?></div>
-        </a>
-      <?php endforeach; ?>
+    <div class="svc-group">
+      <h3><?= htmlspecialchars($group) ?></h3>
+      <div class="grid">
+        <?php foreach ($apps as $app): ?>
+          <a class="card" href="<?= htmlspecialchars($app['url']) ?>"<?= (strpos($app['url'], 'http') === 0 || strpos($app['url'], '//') === 0) ? ' target="_blank" rel="noopener"' : '' ?>>
+            <div class="name">
+              <?php if ($app['state'] !== null): ?><span class="stat <?= $app['state'] ?>" title="<?= $app['state'] ?>"></span><?php endif; ?>
+              <?= htmlspecialchars($app['label']) ?>
+            </div>
+            <div class="meta"><?= htmlspecialchars($app['desc']) ?><?= $app['alt'] ? ' · ' . htmlspecialchars($app['alt']) : '' ?></div>
+          </a>
+        <?php endforeach; ?>
+      </div>
     </div>
   <?php endforeach; ?>
+  </div>
 
   <h2>Projects (<?= count($projects) ?>)</h2>
   <?php if ($projects): ?>
     <div class="grid">
       <?php foreach ($projects as $p): ?>
-        <a class="card" href="//<?= htmlspecialchars($p['name']) ?>.<?= $tld ?>/">
+        <a class="card" href="//<?= htmlspecialchars($p['name']) ?>.<?= $tld ?>/" target="_blank" rel="noopener">
           <div class="name"><?= htmlspecialchars($p['name']) ?>.<?= $tld ?></div>
           <div class="meta">docroot: <?= htmlspecialchars($p['docroot']) ?></div>
         </a>
@@ -256,14 +267,18 @@ unset($apps);
   <?php endif; ?>
 
   <h2>Backing services</h2>
+  <div class="svc-groups">
   <?php foreach ($serviceStatus as $group => $svcs): ?>
-    <h3><?= htmlspecialchars($group) ?></h3>
-    <ul class="svc">
-      <?php foreach ($svcs as $label => $st): ?>
-        <li><span class="stat <?= $st ?>" title="<?= $st ?>"></span><?= htmlspecialchars($label) ?></li>
-      <?php endforeach; ?>
-    </ul>
+    <div class="svc-group">
+      <h3><?= htmlspecialchars($group) ?></h3>
+      <ul class="svc">
+        <?php foreach ($svcs as $label => $st): ?>
+          <li><?php if ($st !== null): ?><span class="stat <?= $st ?>" title="<?= $st ?>"></span><?php endif; ?><?= htmlspecialchars($label) ?></li>
+        <?php endforeach; ?>
+      </ul>
+    </div>
   <?php endforeach; ?>
+  </div>
 
   <footer>
     PHP <?= PHP_VERSION ?> · extensions:

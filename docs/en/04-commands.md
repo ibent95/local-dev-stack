@@ -53,7 +53,7 @@
 </tr>
 <tr>
 <td>`tools &lt;sub&gt;`</td>
-<td>`semgrep [path]` — run a Semgrep scan; view it at `semgrep.test` (`up semgrep`)</td>
+<td>`semgrep [path\|clear]` — run/clear Semgrep report · `trivy [path\|clear]` / `trivy image &lt;name&gt;` — run/clear Trivy report; view at `semgrep.test` / `trivy.test`</td>
 </tr>
 <tr>
 <td>`certs [--force]`</td>

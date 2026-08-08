@@ -1,18 +1,26 @@
 #!/usr/bin/env bash
 # Run a Semgrep scan and write SARIF for the viewer.  (lds tools semgrep [path])
-#   default path = current directory. Results -> configs/semgrep/reports/report.sarif,
+#   default path = current directory. Results -> data/semgrep/reports/report.sarif,
 #   viewed at http://semgrep.test (start the viewer: `lds up semgrep`).
+#   lds tools semgrep clear removes the current report + metadata.
 set -euo pipefail
 export MSYS_NO_PATHCONV=1
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 [ -f "$ROOT/.env" ] && { set -a; . "$ROOT/.env"; set +a; }
 
+reports="$ROOT/data/semgrep/reports"
+mkdir -p "$reports"
+
+if [ "${1:-}" = "clear" ]; then
+  rm -f "$reports/report.sarif" "$reports/scan-meta.json"
+  echo "Cleared $reports/report.sarif and scan metadata."
+  exit 0
+fi
+
 target="${1:-$PWD}"
 # Resolve to an absolute path against the CALLER's cwd (we don't cd to $ROOT
 # first, so a relative path is taken relative to where you ran the command).
 target="$(cd "$target" 2>/dev/null && pwd)" || { echo "Target not found: ${1:-$PWD}"; echo "Pass a path to scan, e.g.  lds tools semgrep ~/projects/php/svc-setting-lumen"; exit 1; }
-reports="$ROOT/configs/semgrep/reports"
-mkdir -p "$reports"
 
 # Docker Desktop on Windows wants a Windows path for -v; convert under git-bash.
 src="$target"; out="$reports"
@@ -37,6 +45,14 @@ echo "Scanning $target with Semgrep (rules: $rules, metrics: $metrics) — conta
 docker run --rm --name "$name" -v "$src:/src" -v "$out:/out" -w /src \
   "${SEMGREP_IMAGE:-semgrep/semgrep}:${SEMGREP_VERSION:-1.167.0}" \
   semgrep scan --metrics "$metrics" --config "$rules" --sarif --output /out/report.sarif || true
+
+now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+target_json="$(printf '%s' "$target" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+rules_json="$(printf '%s' "$rules" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+metrics_json="$(printf '%s' "$metrics" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+cat > "$reports/scan-meta.json" <<EOF
+{"tool":"semgrep","mode":"fs","target":"$target_json","rules":"$rules_json","metrics":"$metrics_json","scanned_at":"$now"}
+EOF
 
 echo "Wrote $reports/report.sarif"
 echo "View at http://${SEMGREP_HOST:-semgrep.test}  (run 'lds up semgrep' if the viewer isn't running)."

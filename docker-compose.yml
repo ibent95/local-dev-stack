@@ -12,9 +12,9 @@
 #
 # Services are ordered by importance of usage: web foundation → databases →
 # admin UIs → data tools → realtime brokers → Kafka (heaviest, off by default).
-# Profiles: proxy | php | mysql | postgres | mongo | redis | memcached |
-#           phpcacheadmin | dbgate | drawdb | hop | superset | semgrep |
-#           vaultwarden | analytics | tasks | wiki |
+# Profiles: proxy | php | mysql | postgres | mongo | redis | valkey | memcached |
+#           phpcacheadmin | dbgate | drawdb | hop | superset | semgrep | zap | trivy |
+#           vaultwarden | mail | penpot | analytics | tasks | wiki |
 #           soketi | centrifugo | mqtt | kafka | openwa | rustfs |
 #           duckdb | trino | hive-metastore | all
 #
@@ -22,10 +22,10 @@
 #   4400-4419  Databases      (MySQL, Postgres, Mongo, Redis, Memcached)
 #   4420-4439  Kafka          (Broker, Schema Registry, Connect, UI)
 #   4440-4459  Realtime       (Soketi, Centrifugo, Mosquitto, MQTTX)
-#   4460-4479  Admin tools    (phpCacheAdmin, DBGate, Hop, Superset, etc.)
+#   4460-4479  Admin tools    (phpCacheAdmin, DBGate, Hop, Superset, ZAP, etc.)
 #   4480-4499  LDS apps       (Analytics, Tasks, Wiki APIs + UIs)
 #   4450-4459  Analytics      (DuckDB, Trino)
-#   Data tools (drawdb/hop/superset/semgrep/vaultwarden) + the http://localhost control panel:
+#   Data tools (drawdb/hop/superset/semgrep/zap/trivy/vaultwarden) + the http://localhost control panel:
 #   see docs/en/15-data-tools.md.
 # =============================================================================
 
@@ -146,7 +146,17 @@ services:
     ports:
       - "${DNS_HOST_PORT:-53}:53/udp"
       - "${DNS_HOST_PORT:-53}:53/tcp"
-    networks: [lds-network]
+    # Two DNS views in one container (see configs/dns/entrypoint.sh):
+    #   A — eth0 (host-facing, published :53): resolves *.test -> 127.0.0.1
+    #       for the HOST (adapter DNS / hosts file). Unchanged behaviour.
+    #   B — 10.99.0.53 on lds-dnsnet: an IN-NETWORK view that resolves *.test
+    #       -> the proxy container IP, so browser tools inside the stack (e.g.
+    #       OWASP ZAP scanning http://myapp.test) can reach local apps. Static
+    #       IP because it's used as a per-container `dns:` server (IPs only).
+    networks:
+      lds-network: {}
+      lds-dnsnet:
+        ipv4_address: 10.99.0.53
 
   # ===========================================================================
   # MySQL  (profile: mysql, all)
@@ -197,7 +207,7 @@ services:
     networks: [lds-network]
 
   # ===========================================================================
-  # PostgreSQL  (profile: postgres, all)
+  # PostgreSQL  (profile: postgres, penpot, all)
   #   wal_level=logical so Debezium CDC works out of the box.
   #   Self-initializing: background the DHI entrypoint (handles initdb + setup),
   #   then creates extra databases from POSTGRES_INIT_SPECS and runs init SQL
@@ -206,7 +216,7 @@ services:
   postgres:
     image: ${DHI_REGISTRY:-dhi.io}/postgres:${POSTGRES_VERSION:-18.4-alpine3.24}
     container_name: lds-postgres
-    profiles: [postgres, analytics, tasks, wiki, openwa, trino, all]
+    profiles: [postgres, analytics, tasks, wiki, openwa, trino, penpot, all]
     restart: *restart
     <<: *dns
     # Override entrypoint so we can init databases AFTER postgres starts.
@@ -358,6 +368,30 @@ services:
     networks: [lds-network]
 
   # ===========================================================================
+  # Valkey  (profile: valkey, penpot, all)
+  #   Redis-compatible cache/data store. Persisted via appendonly on host bind.
+  # ===========================================================================
+  valkey:
+    image: valkey/valkey:${VALKEY_VERSION:-8.1-alpine}
+    container_name: lds-valkey
+    profiles: [valkey, penpot, all]
+    restart: *restart
+    <<: *dns
+    command: ["valkey-server", "--appendonly", "yes", "--save", "60", "1", "--dir", "/data"]
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+    ports:
+      - "${VALKEY_HOST_PORT:-4405}:6379"
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [lds-network]
+
+  # ===========================================================================
   # Memcached  (profile: memcached, all)
   # ===========================================================================
   memcached:
@@ -401,6 +435,9 @@ services:
       PCA_REDIS_0_NAME: "LDS Redis"
       PCA_REDIS_0_HOST: redis
       PCA_REDIS_0_PORT: "6379"
+      PCA_REDIS_1_NAME: "LDS Valkey"
+      PCA_REDIS_1_HOST: valkey
+      PCA_REDIS_1_PORT: "6379"
       PCA_MEMCACHED_0_NAME: "LDS Memcached"
       PCA_MEMCACHED_0_HOST: memcached
       PCA_MEMCACHED_0_PORT: "11211"
@@ -453,7 +490,7 @@ services:
   # DrawDB — browser-based database schema designer / ER diagrammer.
   # A static SPA (diagrams persist in your browser, no server DB). Upstream image
   # (not on DHI). Lightweight — single container. NOTE: open it at
-  # http://localhost:4423, NOT drawdb.test — it calls crypto.randomUUID(), which
+  # http://localhost:4462, NOT drawdb.test — it calls crypto.randomUUID(), which
   # browsers expose only in a secure context (localhost or HTTPS).
   drawdb:
     image: ${DRAWDB_IMAGE:-ghcr.io/drawdb-io/drawdb}:${DRAWDB_VERSION:-v1.7.0}
@@ -752,14 +789,16 @@ services:
     <<: *dns
     environment:
       VIRTUAL_HOST: ${SEMGREP_HOST:-semgrep.test}
-      VIRTUAL_PORT: "80"
+      VIRTUAL_PORT: "8080"
       CERT_NAME: _.test
     expose:
-      - "80"
+      - "8080"
     ports:
-      - "${SEMGREP_HOST_PORT:-4465}:80"
+      - "${SEMGREP_HOST_PORT:-4465}:8080"
     volumes:
-      - ./configs/semgrep/reports:/usr/share/nginx/html:ro
+      - ./data/semgrep/reports:/usr/share/nginx/html
+      - ./configs/semgrep/reports/index.html:/usr/share/nginx/html/index.html:ro
+      - ./configs/semgrep/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     mem_limit: ${SEMGREP_MEM_LIMIT:-64m}
     networks: [lds-network]
 
@@ -770,7 +809,105 @@ services:
     image: ${SEMGREP_IMAGE:-semgrep/semgrep}:${SEMGREP_VERSION:-1.167.0}
     profiles: [semgrep-scan]
     volumes:
-      - ./configs/semgrep/reports:/out
+      - ./data/semgrep/reports:/out
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Vulnerability scanning — DAST + CVE.  (profiles: zap | trivy | trivy-scan)
+  #   zap       : OWASP ZAP — Dynamic Application Security Testing. The full ZAP
+  #               desktop UI in the browser (WebSwing) at zap.test. Scans your
+  #               RUNNING *.test apps for OWASP Top 10 issues. Long-running.
+  #   trivy     : Aqua Trivy — CVE scanning (SCA) of containers, filesystems,
+  #               git repos + dependency manifests. The VIEWER (tiny nginx)
+  #               serves the HTML report at trivy.test, like the semgrep viewer.
+  #   trivy-scan: the one-shot aquasec/trivy CLI, run via `lds tools trivy`.
+  # All off by default (LDS_ENABLE_ZAP / LDS_ENABLE_TRIVY in .env).
+  # ===========================================================================
+  # OWASP ZAP — DAST scanner.  (profile: zap, all)
+  # Runs the ZAP desktop UI in the browser via WebSwing (`zap-webswing.sh`):
+  # the UI serves on :8080 (zap.test / :4470) and ZAP itself listens on :8090
+  # (the proxy/API port, also exposed as :4472). ZAP starts lazily when you open
+  # the UI. To scan a local app, ZAP must resolve *.test -> the edge proxy: this
+  # service uses the dns container's IN-NETWORK DNS view (10.99.0.53 on
+  # lds-dnsnet), which answers *.test with the proxy container IP and forwards
+  # everything else to Docker's embedded DNS (127.0.0.11 — also listed as a
+  # fallback so zap keeps resolving when the dns container is down).
+  # NOTE: the dns container (and the proxy that routes zap.test + serves as the
+  # scan gateway) ships with the `proxy`/`php` profiles — start ZAP with
+  # `lds up proxy zap` (or `php zap`), not `lds up zap` alone.
+  # /zap/wrk is where ZAP exports its root CA (for browser proxying) + reports.
+  zap:
+    image: ghcr.io/zaproxy/zaproxy:${ZAP_VERSION:-stable}
+    container_name: lds-zap
+    profiles: [zap, all]
+    restart: *restart
+    <<: *dns
+    user: "zap"
+    command: ["zap-webswing.sh"]
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      VIRTUAL_HOST: ${ZAP_HOST:-zap.test}
+      VIRTUAL_PORT: "8080"
+      CERT_NAME: _.test
+    expose:
+      - "8080"
+      - "8090"
+    ports:
+      - "${ZAP_HOST_PORT:-4470}:8080"       # WebSwing UI
+      - "${ZAP_PROXY_HOST_PORT:-4472}:8090" # ZAP proxy / API
+    volumes:
+      - ./data/zap/wrk:/zap/wrk
+      - ./data/zap/home:/home/zap
+    healthcheck:
+      # WebSwing's HTTP server — bash /dev/tcp (the image has no curl/wget).
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    mem_limit: ${ZAP_MEM_LIMIT:-2g}
+    networks:
+      - lds-network
+      - lds-dnsnet
+    dns:
+      - 10.99.0.53
+      - 127.0.0.11
+
+  # Trivy — CVE / dependency scanner.  (profile: trivy, all)
+  # The VIEWER: a tiny nginx serving data/trivy/reports/ (the HTML report
+  # written by `lds tools trivy`) at trivy.test — same pattern as the semgrep
+  # viewer.
+  trivy:
+    image: lds/nginx:${NGINX_VERSION:-1.27}
+    container_name: lds-trivy
+    profiles: [trivy, all]
+    restart: *restart
+    <<: *dns
+    environment:
+      VIRTUAL_HOST: ${TRIVY_HOST:-trivy.test}
+      VIRTUAL_PORT: "8080"
+      CERT_NAME: _.test
+    expose:
+      - "8080"
+    ports:
+      - "${TRIVY_HOST_PORT:-4471}:8080"
+    volumes:
+      - ./data/trivy/reports:/usr/share/nginx/html
+      - ./configs/trivy/reports/index.html:/usr/share/nginx/html/index.html:ro
+      - ./configs/trivy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    mem_limit: ${TRIVY_MEM_LIMIT:-64m}
+    networks: [lds-network]
+
+  # Trivy scanner (one-shot, run-only — like semgrep-scan). `lds tools trivy`
+  # adds `-v <path>:/src` / the docker socket etc. at run time; this service
+  # pins the image and mounts the report dir + the vulnerability-DB cache
+  # (data/trivy/cache) so the DB downloads once, not on every scan.
+  trivy-scan:
+    image: ${TRIVY_IMAGE:-aquasec/trivy}:${TRIVY_VERSION:-0.58.1}
+    profiles: [trivy-scan]
+    volumes:
+      - ./data/trivy/reports:/out
+      - ./data/trivy/cache:/root/.cache/trivy
     networks: [lds-network]
 
   # ===========================================================================
@@ -955,6 +1092,122 @@ services:
       retries: 12
       start_period: 20s
     mem_limit: ${WIKI_UI_MEM_LIMIT:-256m}
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Mailpit — dev SMTP sink + web inbox (Mailchimp alternative for local testing).
+  #   profile: mail, all
+  #   - Captures outbound SMTP without sending real mail.
+  #   - Web inbox at mail.test / localhost:4473.
+  # ===========================================================================
+  mailpit:
+    image: axllent/mailpit:${MAILPIT_VERSION:-v1.27}
+    container_name: lds-mailpit
+    profiles: [mail, all]
+    restart: *restart
+    <<: *dns
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      VIRTUAL_HOST: ${MAIL_HOST:-mail.test}
+      VIRTUAL_PORT: "8025"
+      CERT_NAME: _.test
+      MP_DATA_FILE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    expose:
+      - "8025"
+      - "1025"
+    ports:
+      - "${MAIL_HOST_PORT:-4473}:8025"
+      - "${MAIL_SMTP_HOST_PORT:-4474}:1025"
+    volumes:
+      - ./data/mailpit:/data
+    mem_limit: ${MAIL_MEM_LIMIT:-256m}
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Penpot — self-hosted collaborative design tool.
+  #   profile: penpot, all
+  #   - Frontend UI + backend API + exporter workers.
+  #   - Reuses shared postgres + valkey (both included in the penpot profile).
+  # ===========================================================================
+  penpot-frontend:
+    image: penpotapp/frontend:${PENPOT_VERSION:-2.17.0}
+    container_name: lds-penpot-frontend
+    profiles: [penpot, all]
+    restart: *restart
+    <<: *dns
+    depends_on:
+      penpot-backend:
+        condition: service_started
+      penpot-exporter:
+        condition: service_started
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      VIRTUAL_HOST: ${PENPOT_HOST:-penpot.test}
+      VIRTUAL_PORT: "8080"
+      CERT_NAME: _.test
+      PENPOT_FLAGS: "${PENPOT_FLAGS:-enable-registration enable-login-with-password disable-email-verification}"
+      PENPOT_PUBLIC_URI: ${PENPOT_PUBLIC_URI:-http://penpot.test}
+      PENPOT_BACKEND_URI: http://penpot-backend:6060
+      PENPOT_EXPORTER_URI: http://penpot-exporter:6061
+    expose:
+      - "8080"
+    ports:
+      - "${PENPOT_HOST_PORT:-4478}:8080"
+    volumes:
+      - ./data/penpot/assets:/opt/data/assets
+    mem_limit: ${PENPOT_FRONTEND_MEM_LIMIT:-512m}
+    networks: [lds-network]
+
+  penpot-backend:
+    image: penpotapp/backend:${PENPOT_VERSION:-2.17.0}
+    container_name: lds-penpot-backend
+    profiles: [penpot, all]
+    restart: *restart
+    <<: *dns
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      PENPOT_FLAGS: "${PENPOT_FLAGS:-enable-registration enable-login-with-password disable-email-verification}"
+      PENPOT_PUBLIC_URI: ${PENPOT_PUBLIC_URI:-http://penpot.test}
+      PENPOT_SECRET_KEY: ${PENPOT_SECRET_KEY:-penpot-dev-secret-key-change-me-please}
+      PENPOT_DATABASE_URI: ${PENPOT_DATABASE_URI:-postgresql://postgres/${PENPOT_POSTGRES_DB:-lds_penpot}}
+      PENPOT_DATABASE_USERNAME: ${PENPOT_POSTGRES_USER:-app}
+      PENPOT_DATABASE_PASSWORD: ${PENPOT_POSTGRES_PASSWORD:-app}
+      PENPOT_REDIS_URI: redis://valkey:6379/0
+      PENPOT_OBJECTS_STORAGE_BACKEND: ${PENPOT_OBJECTS_STORAGE_BACKEND:-fs}
+      PENPOT_OBJECTS_STORAGE_FS_DIRECTORY: ${PENPOT_OBJECTS_STORAGE_FS_DIRECTORY:-/opt/data/assets}
+      PENPOT_TELEMETRY_ENABLED: "${PENPOT_TELEMETRY_ENABLED:-false}"
+    expose:
+      - "6060"
+    volumes:
+      - ./data/penpot/assets:/opt/data/assets
+    mem_limit: ${PENPOT_BACKEND_MEM_LIMIT:-768m}
+    networks: [lds-network]
+
+  penpot-exporter:
+    image: penpotapp/exporter:${PENPOT_VERSION:-2.17.0}
+    container_name: lds-penpot-exporter
+    profiles: [penpot, all]
+    restart: *restart
+    <<: *dns
+    depends_on:
+      valkey:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      PENPOT_SECRET_KEY: ${PENPOT_SECRET_KEY:-penpot-dev-secret-key-change-me-please}
+      PENPOT_PUBLIC_URI: ${PENPOT_PUBLIC_URI:-http://penpot.test}
+      PENPOT_INTERNAL_URI: ${PENPOT_INTERNAL_URI:-http://penpot-frontend:8080}
+      PENPOT_REDIS_URI: redis://valkey:6379/0
+    expose:
+      - "6061"
+    mem_limit: ${PENPOT_EXPORTER_MEM_LIMIT:-512m}
     networks: [lds-network]
 
   # ===========================================================================
@@ -1512,6 +1765,16 @@ networks:
   lds-network:
     name: ${NETWORK_NAME:-lds-network}
     external: true
+  # Internal management net for in-network DNS: gives the dns container a STATIC
+  # IP (10.99.0.53) so other services can use it as their `dns:` server (compose
+  # `dns:` accepts IPs only). Subnet chosen OUTSIDE Docker's default bridge pool
+  # (172.17-172.31) to avoid colliding with lds-network or other docker nets.
+  # Host-facing DNS on lds-network/eth0 is untouched.
+  lds-dnsnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.99.0.0/24
 
 volumes:
   mysql-data:
@@ -1519,6 +1782,7 @@ volumes:
   mongo-data:
   mongo-config:
   redis-data:
+  valkey-data:
   kafka-controller-data:
   kafka-broker-data:
   mosquitto-data:

@@ -2,8 +2,9 @@
 
 Halaman ini membahas **panel kontrol** di `http://localhost` serta profile tool
 mandiri yang ditambahkan di atas stack inti: **DrawDB** (perancangan skema),
-**Apache Hop** + **Apache Superset** (data warehouse & BI), **Semgrep**
-(kualitas kode), **Vaultwarden** (password manager),
+**Apache Hop** + **Apache Superset** (data warehouse & BI), **Semgrep** +
+**OWASP ZAP** + **Trivy** (pemindaian kode & kerentanan),
+**Vaultwarden** (password manager),
 dan **LDS Wiki** (dokumentasi). Dua browser layanan pendukung, `phpcacheadmin` dan `dbgate`,
 didokumentasikan di [13 · Profile](13-profiles.md).
 
@@ -13,11 +14,13 @@ Container PHP melayani panel kontrol sebagai situs default-nya, dapat diakses di
 **`http://localhost`** (tanpa perlu entri hosts). Dibuat oleh
 `configs/web/dashboard/index.php` dan menampilkan, secara langsung:
 
-- **Tool & UI web**, dikelompokkan — *Data tools* (phpCacheAdmin, DBGate),
-  *Security & auth* (Vaultwarden),
-  *Database design* (DrawDB), *Data warehouse & BI* (Superset, Hop),
-  *Code quality* (Semgrep), *Realtime* (Centrifugo, MQTTX), plus Kafka UI — masing
-  -masing dengan titik ●/○ status keterjangkauan.
+- **Tool & UI web**, dikelompokkan — *Admin tools* (phpCacheAdmin, DBGate),
+  *Auth* (Vaultwarden), *Communication tools* (Mailpit, OpenWA), *Designers*
+  (Penpot, DrawDB), *Data tools* (Superset, Hop), *Code quality* (Semgrep),
+  *Security tools* (ZAP, Trivy), *LDS apps* (Analytics, Tasks, Wiki), *Kafka
+  tools* (Kafka UI, Connector builder), *Analytical query engines* (DuckDB, Trino),
+  *Realtime dashboards* (Centrifugo, MQTTX), dan *Storage tools* (RustFS) —
+  masing-masing dengan titik ●/○ status keterjangkauan.
 - **Proyek** — setiap folder di `${PHP_PROJECTS_PATH}`, ditautkan ke host
   `<nama>.test`-nya.
 - **Layanan pendukung** — MySQL/Postgres/Mongo/Redis/Memcached/Kafka/broker,
@@ -36,7 +39,7 @@ Perancang skema database / diagram ER berbasis browser. SPA statis — diagram
 disimpan di browser Anda (tanpa DB server). Image upstream
 `ghcr.io/drawdb-io/drawdb` (di-pin di `.env`), satu container ringan.
 
-- **Buka di `http://localhost:4423`** — **bukan** `drawdb.test`.
+- **Buka di `http://localhost:4462`** — **bukan** `drawdb.test`.
   DrawDB memanggil `crypto.randomUUID()`, yang hanya tersedia di browser pada
   **secure context** (HTTPS atau `localhost`/`127.0.0.1`). Lewat
   `http://drawdb.test` biasa fungsi itu `undefined` dan aplikasi tampil kosong.
@@ -108,7 +111,7 @@ Pemindai analisis statis (SAST) dengan viewer SARIF yang ringan. Terdiri dari
 dua service compose:
 
 - **`semgrep`** (profile `semgrep`, `all`) — **viewer**: nginx kecil yang
-  menyajikan `configs/semgrep/reports/` di `semgrep.test`. Inilah yang dijalankan
+  menyajikan `data/semgrep/reports/` di `semgrep.test`. Inilah yang dijalankan
   `lds up semgrep`.
 - **`semgrep-scan`** (profile `semgrep-scan`) — **scanner**: image CLI
   `semgrep/semgrep` yang dipin, dideklarasikan di compose agar terversi.
@@ -122,14 +125,16 @@ Jalankan scan:
 
 ```sh
 lds tools semgrep [path]      # default: direktori saat ini, ruleset SEMGREP_RULES (p/default)
+lds tools semgrep clear       # hapus SARIF + metadata dari viewer
 ```
 
 Itu menjalankan image `semgrep-scan` yang dipin dengan `docker run -v <path>:/src`
-dan menulis `configs/semgrep/reports/report.sarif` ke folder yang disajikan
+dan menulis `data/semgrep/reports/report.sarif` ke folder yang disajikan
 viewer. (Memakai `docker run`, bukan `docker compose run`, karena parser `-v`
 Compose memecah pada `:` dan gagal pada path drive Windows seperti `D:\…`.)
 Segarkan **`semgrep.test`** dan viewer menampilkan temuan (filter per severity /
-cari). Tanpa DB; sebelum Anda menjalankan scan, belum ada `report.sarif`.
+cari), termasuk metadata project terakhir yang dipindai dan tombol **Clear**.
+Tanpa DB; sebelum Anda menjalankan scan, belum ada `report.sarif`.
 
 Ruleset default **`p/default`**, dijalankan dengan telemetri **off**. Pilih lain
 via `SEMGREP_RULES` — pack registry mana pun (`p/php`, `p/security-audit`,
@@ -139,6 +144,69 @@ memilih rules), dan unggahan akhir itu bisa menggantung pada koneksi
 lambat/offline — jadi skrip hanya menyalakan metrics bila Anda set
 `SEMGREP_RULES=auto`. (Pack registry tetap diambil via jaringan saat scan mulai;
 itu waktu muat, bukan macet.)
+
+## Pemindaian kerentanan — OWASP ZAP & Trivy
+
+**Profile:** `zap` (`LDS_ENABLE_ZAP`), `trivy` (`LDS_ENABLE_TRIVY`). **Mati secara
+default.** Dua pemindai yang melengkapi Semgrep (SAST, kode sumber):
+
+| Tool | Yang dipindai | Cara |
+|---|---|---|
+| **Semgrep** (SAST) | kode sumber, untuk pola bug | `lds tools semgrep [path]` |
+| **OWASP ZAP** (DAST) | aplikasi `.test` yang **berjalan** (SQLi, XSS, SSRF, auth, …) | UI browser di `zap.test/zap` |
+| **Trivy** (SCA) | container, filesystem, git repo, manifest dependensi | `lds tools trivy [path]` / `lds tools trivy image <name>` |
+
+### OWASP ZAP — `zap.test` / `localhost:4470`
+
+Dynamic Application Security Testing terhadap aplikasi yang **live**. UI desktop
+ZAP penuh berjalan di browser (WebSwing): nyalakan dengan
+**`lds up proxy zap`** (atau `php zap`) — ZAP butuh **proxy** berjalan, yang
+merutekan `zap.test` *dan* membawa container `dns` di balik view DNS in-network-
+ya — lalu buka **`zap.test/zap`** (port proxy/API ZAP `:4472`)
+dan pindai aplikasi lokal dengan **`http://<folder>.test`** sebagai target.
+
+- **DNS in-network gratis.** ZAP me-resolve `*.test` melalui view *in-network*
+  container dns (`10.99.0.53` di `lds-dnsnet`), yang menjawab `*.test` dengan
+  **IP container proxy** — jadi `http://myapp.test` mencapai vhost yang tepat
+  dari dalam container, sementara dnsmasq yang menghadap host tetap menjawab
+  `127.0.0.1` untuk browser Anda. (Jika container dns mati, ZAP jatuh ke DNS
+  embedded Docker — nama container + internet tetap resolve; hanya aplikasi
+  `.test` yang butuh proxy hidup.)
+- **Setelah memperbarui stack**, rebuild image `dns` sekali agar view in-network
+  ada: `lds up --rebuild proxy` (atau `docker compose build dns`) — image basi
+  tetap memakai perilaku single-dnsmasq lama.
+- **ZAP mulai lambat:** kunjungan pertama ke `zap.test` butuh sesaat saat ZAP
+  boot di dalam UI.
+- **Persistensi:** file runtime ZAP di-bind ke `data/zap/` (`/zap/wrk` +
+  `/home/zap`) sehingga cert/sesi tetap ada saat container dibuat ulang.
+- **Berat:** berbasis Java, dibatasi ~2 GB (`ZAP_MEM_LIMIT`). Jalankan hanya saat
+  Anda benar-benar memindai.
+- `ZAP_VERSION` default ke tag `stable` yang berjalan — pin versi tertentu di
+  `.env` untuk reproduksibilitas.
+
+> Pemindaian membutuhkan aplikasi target **berjalan** — nyalakan proyeknya dulu
+> (`lds up` dengan profile-nya), lalu arahkan ZAP ke aplikasi itu.
+
+### Trivy — `trivy.test` / `localhost:4471`
+
+Pemindaian CVE yang dikenal (SCA) terhadap *artefak*, bukan aplikasi live:
+image container, filesystem, git repo, dan manifest dependensi (`composer.lock`,
+`package-lock.json`, `go.sum`, …). Pola dua service sama seperti Semgrep: viewer
+(`trivy` — yang dijalankan `lds up trivy`) + scanner sekali-jalan
+(`trivy-scan`, di profile sendiri sehingga tidak pernah auto-start).
+
+```sh
+lds tools trivy [path]        # scan fs — direktori, repo, atau manifest dependensi
+lds tools trivy image <name>  # scan image — mis. lds/php:8.4 (memakai docker socket)
+lds tools trivy clear         # hapus report + metadata dari viewer
+```
+
+Menulis `data/trivy/reports/report.html`, disajikan di **`trivy.test`**. DB
+kerentanan di-cache di `data/trivy/cache` (dibagi dengan service compose),
+sehingga scan pertama mengunduhnya dan scan berikutnya berjalan cepat. Viewer
+menampilkan metadata target pemindaian dan tombol **Clear**. Seperti Semgrep,
+skrip memakai `docker run` (bukan `docker compose run`) agar path Windows dengan
+drive letter ter-mount dengan benar.
 
 ## Web analytics — LDS Analytics**Profile:** `analytics` (`LDS_ENABLE_ANALYTICS`). **Mati secara default.**
 
@@ -159,6 +227,26 @@ Password manager self-hosted (server + web vault kompatibel Bitwarden).
 - URL: `http://localhost:4429` / `vaultwarden.test`
 - Storage persisten: volume `vaultwarden-data` (sqlite).
 - Signup default nonaktif (`VAULTWARDEN_SIGNUPS_ALLOWED=false`).
+
+## Mail — Mailpit
+
+**Profile:** `mail` (`LDS_ENABLE_MAIL`). **Mati secara default.**
+
+SMTP sink lokal + inbox web untuk uji email aman (workflow lokal ala Mailchimp):
+
+- Web inbox: `http://localhost:4473` / `mail.test`
+- Endpoint SMTP: `localhost:4474` (container `1025`)
+- Data persisten: `data/mailpit/`
+
+## Design — Penpot
+
+**Profile:** `penpot` (`LDS_ENABLE_PENPOT`). **Mati secara default.**
+
+Tool desain kolaboratif self-hosted:
+
+- URL: `http://localhost:4478` / `penpot.test`
+- Service: `penpot-frontend`, `penpot-backend`, `penpot-exporter`
+- Reuse `postgres` + `valkey` (default DB/user: `app` / `app`)
 
 ## Project management — LDS Tasks
 
