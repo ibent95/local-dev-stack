@@ -26,3 +26,8 @@ configs/wiki/ui/.next/
 configs/wiki/ui/out/
 configs/*/ui/package-lock.json
 configs/*/api/package-lock.json
+
+
+# AI CLI / inference local databases
+*.db
+*.db-*
