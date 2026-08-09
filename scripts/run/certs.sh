@@ -4,6 +4,10 @@
 # to a self-signed openssl cert (works, but the browser warns until you trust it).
 #   ./scripts/run/certs.sh            generate if missing
 #   ./scripts/run/certs.sh --force    regenerate even if present
+#
+# With mkcert, the leaf (_.test.crt) is what nginx serves — browsers must trust
+# the CA instead, so the CA root is also exported as configs/proxy/certs/rootCA.crt
+# for manual import (Firefox, or when `mkcert -install` can't touch the OS store).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 CERT_DIR="$ROOT/configs/proxy/certs"
@@ -29,7 +33,13 @@ if command -v mkcert >/dev/null 2>&1; then
   echo "Generating cert with mkcert (trusted local CA)…"
   mkcert -install
   mkcert -cert-file "$CRT" -key-file "$KEY" "${HOSTS[@]}"
+  # Export the CA root as rootCA.crt (a .pem is not recognized as a cert file
+  # by Windows/browser import dialogs). This is the file to import when a
+  # browser doesn't use the OS trust store, e.g. Firefox.
+  CAROOT="$(mkcert -CAROOT | sed 's|\\|/|g')"
+  cp "$CAROOT/rootCA.pem" "$CERT_DIR/rootCA.crt"
   echo "Done — browsers will trust https://*.test"
+  echo "Manual trust (e.g. Firefox): import $CERT_DIR/rootCA.crt"
 elif command -v openssl >/dev/null 2>&1; then
   echo "mkcert not found — falling back to a self-signed openssl cert."
   echo "  (the browser will warn until you trust it; install mkcert for a clean"

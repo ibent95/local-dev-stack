@@ -8,11 +8,13 @@ FROM lds/node-dev:${NODE_VERSION} AS builder
 WORKDIR /app
 
 COPY package.json ./
-RUN npm install
+RUN npm install --ignore-scripts
 
 ENV API_URL=http://wiki-api:3003
 COPY . .
-RUN npm run build
+
+# Next.js build
+RUN npm run build && ls -al app
 
 # Stage 2: Production server
 FROM lds/node-dev:${NODE_VERSION}
@@ -27,7 +29,7 @@ COPY --from=builder /app/.next/standalone ./
 
 # Copy static assets that standalone server expects as sibling dirs
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
+# COPY --from=builder /app/public ./public
 
 # Expose port
 EXPOSE 4175

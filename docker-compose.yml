@@ -423,7 +423,7 @@ services:
   # ===========================================================================
   # phpCacheAdmin — Redis + Memcached + OPcache/APCu browser.  (profile: phpcacheadmin, all)
   phpcacheadmin:
-    image: robinn/phpcacheadmin:${PHPCACHEADMIN_VERSION:-2.5.1}
+    image: robinn/phpcacheadmin:${PHPCACHEADMIN_VERSION:-2.5.2}
     container_name: lds-phpcacheadmin
     profiles: [phpcacheadmin, all]
     restart: *restart

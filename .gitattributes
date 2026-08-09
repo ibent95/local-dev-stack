@@ -1,0 +1,7 @@
+# Shell scripts run inside Linux containers (and on the host via Git Bash).
+# LF is mandatory: with CRLF, /bin/sh (dash/ash) reads `set -e\r` and fails
+# with "illegal option -" (e.g. configs/dns/entrypoint.sh).
+*.sh text eol=lf
+
+# Configs baked into the dns container image.
+configs/dns/*.conf text eol=lf
