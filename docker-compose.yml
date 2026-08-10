@@ -1411,6 +1411,10 @@ services:
       # Behind the LDS edge proxy — trust the Docker networks it comes from.
       TRUSTED_PROXY_CIDRS: ${INSTATIC_TRUSTED_PROXY_CIDRS:-0.0.0.0/0}
       INSTATIC_SECRET_KEY: ${INSTATIC_SECRET_KEY:-instatic-dev-secret-key-change-me}
+      # CSRF origin allowlist: the TLS-terminating edge forwards plain http, so
+      # include both schemes + the direct localhost port (browser Origin must
+      # match; overridable via INSTATIC_PUBLIC_ORIGIN, comma-separated).
+      PUBLIC_ORIGIN: ${INSTATIC_PUBLIC_ORIGIN:-https://${INSTATIC_HOST:-instatic.test},http://${INSTATIC_HOST:-instatic.test},http://localhost:${INSTATIC_HOST_PORT:-4528}}
       VIRTUAL_HOST: ${INSTATIC_HOST:-instatic.test}
       VIRTUAL_PORT: "3001"
       CERT_NAME: _.test
@@ -2273,6 +2277,7 @@ services:
       SOCKETIO_PORT: "9000"
     volumes:
       - ./data/erpnext/sites:/home/frappe/frappe-bench/sites
+      - ./configs/erpnext/patches/stock_balance.py:/home/frappe/frappe-bench/apps/erpnext/erpnext/stock/stock_balance.py:ro
       - ./data/erpnext/logs:/home/frappe/frappe-bench/logs
     mem_limit: ${ERPNEXT_CONFIGURATOR_MEM_LIMIT:-512m}
     networks: [lds-network]
@@ -2325,6 +2330,7 @@ services:
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root}
     volumes:
       - ./data/erpnext/sites:/home/frappe/frappe-bench/sites
+      - ./configs/erpnext/patches/stock_balance.py:/home/frappe/frappe-bench/apps/erpnext/erpnext/stock/stock_balance.py:ro
       - ./data/erpnext/logs:/home/frappe/frappe-bench/logs
     depends_on:
       erpnext-configurator:
@@ -2344,6 +2350,7 @@ services:
       GUNICORN_TIMEOUT: ${ERPNEXT_GUNICORN_TIMEOUT:-120}
     volumes:
       - ./data/erpnext/sites:/home/frappe/frappe-bench/sites
+      - ./configs/erpnext/patches/stock_balance.py:/home/frappe/frappe-bench/apps/erpnext/erpnext/stock/stock_balance.py:ro
       - ./data/erpnext/logs:/home/frappe/frappe-bench/logs
     depends_on:
       erpnext-configurator:
@@ -2397,6 +2404,7 @@ services:
       FRAPPE_REDIS_QUEUE: redis://redis:6379/${ERPNEXT_REDIS_QUEUE_DB:-6}
     volumes:
       - ./data/erpnext/sites:/home/frappe/frappe-bench/sites
+      - ./configs/erpnext/patches/stock_balance.py:/home/frappe/frappe-bench/apps/erpnext/erpnext/stock/stock_balance.py:ro
       - ./data/erpnext/logs:/home/frappe/frappe-bench/logs
     depends_on:
       erpnext-configurator:
@@ -2416,6 +2424,7 @@ services:
       FRAPPE_REDIS_QUEUE: redis://redis:6379/${ERPNEXT_REDIS_QUEUE_DB:-6}
     volumes:
       - ./data/erpnext/sites:/home/frappe/frappe-bench/sites
+      - ./configs/erpnext/patches/stock_balance.py:/home/frappe/frappe-bench/apps/erpnext/erpnext/stock/stock_balance.py:ro
       - ./data/erpnext/logs:/home/frappe/frappe-bench/logs
     depends_on:
       erpnext-configurator:
@@ -2435,6 +2444,7 @@ services:
       FRAPPE_REDIS_QUEUE: redis://redis:6379/${ERPNEXT_REDIS_QUEUE_DB:-6}
     volumes:
       - ./data/erpnext/sites:/home/frappe/frappe-bench/sites
+      - ./configs/erpnext/patches/stock_balance.py:/home/frappe/frappe-bench/apps/erpnext/erpnext/stock/stock_balance.py:ro
       - ./data/erpnext/logs:/home/frappe/frappe-bench/logs
     depends_on:
       erpnext-configurator:
@@ -2454,6 +2464,7 @@ services:
       FRAPPE_REDIS_QUEUE: redis://redis:6379/${ERPNEXT_REDIS_QUEUE_DB:-6}
     volumes:
       - ./data/erpnext/sites:/home/frappe/frappe-bench/sites
+      - ./configs/erpnext/patches/stock_balance.py:/home/frappe/frappe-bench/apps/erpnext/erpnext/stock/stock_balance.py:ro
       - ./data/erpnext/logs:/home/frappe/frappe-bench/logs
     depends_on:
       erpnext-configurator:
