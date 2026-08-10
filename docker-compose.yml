@@ -2313,9 +2313,9 @@ services:
         echo "Site $${ERPNEXT_SITE} already exists, skipping creation";
         else
         if [ "$${ERPNEXT_DB_TYPE}" = "postgres" ]; then
-        bench new-site --db-type postgres --db-host postgres --admin-password=$${ERPNEXT_ADMIN_PASSWORD} --install-app erpnext --set-default $${ERPNEXT_SITE};
+        bench new-site --db-type postgres --db-host postgres --db-name $${ERPNEXT_DB_NAME} --admin-password=$${ERPNEXT_ADMIN_PASSWORD} --install-app erpnext --set-default $${ERPNEXT_SITE};
         else
-        bench new-site --db-type mariadb --db-host mariadb --mariadb-user-host-login-scope='%' --admin-password=$${ERPNEXT_ADMIN_PASSWORD} --db-root-username=root --db-root-password=$${MARIADB_ROOT_PASSWORD} --install-app erpnext --set-default $${ERPNEXT_SITE};
+        bench new-site --db-type mariadb --db-host mariadb --db-name $${ERPNEXT_DB_NAME} --mariadb-user-host-login-scope='%' --admin-password=$${ERPNEXT_ADMIN_PASSWORD} --db-root-username=root --db-root-password=$${MARIADB_ROOT_PASSWORD} --install-app erpnext --set-default $${ERPNEXT_SITE};
         fi
         fi
     environment:
