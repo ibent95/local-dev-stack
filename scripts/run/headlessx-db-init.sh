@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
-# Ensure Postgres has the Hive Metastore database/user. Reuses postgres-init by
-# injecting the metastore spec into POSTGRES_INIT_SPECS for this run.
-# Idempotent; auto-run by `lds up` for trino/all.
-#
-# The Hive Metastore container's schematool retries while waiting for this DB to
-# exist; without this step `schematool` fails forever (the DB is never created).
+# Ensure Postgres has the HeadlessX database/user. Reuses postgres-init by
+# injecting the headlessx spec into POSTGRES_INIT_SPECS for this run (covers
+# postgres instances already running before lds_headlessx was added to the spec).
+# Idempotent; auto-run by `lds up` for headlessx/all.
 set -euo pipefail
 export MSYS_NO_PATHCONV=1
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -18,9 +16,9 @@ if [ -f .env ]; then
   done < .env
 fi
 
-db="${HIVE_METASTORE_POSTGRES_DB:-lds_hive_metastore}"
-u="${HIVE_METASTORE_POSTGRES_USER:-app}"
-p="${HIVE_METASTORE_POSTGRES_PASSWORD:-app}"
+db="${HEADLESSX_POSTGRES_DB:-lds_headlessx}"
+u="${HEADLESSX_POSTGRES_USER:-app}"
+p="${HEADLESSX_POSTGRES_PASSWORD:-app}"
 spec="${db}:${u}:${p}"
 
 merged="${POSTGRES_INIT_SPECS:-}"

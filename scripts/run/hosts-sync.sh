@@ -61,6 +61,10 @@ group "Communication tools"
 add "${MAIL_HOST:-mail.test}"
 add "${OPENWA_HOST:-openwa.test}"
 
+group "Browser automation"
+add "${HEADLESSX_HOST:-headlessx.test}"
+add "${HEADLESSX_API_HOST:-headlessx-api.test}" "(MCP + API — headlessx-api.test)"
+
 group "Designers"
 add "${PENPOT_HOST:-penpot.test}"
 add "${DRAWDB_HOST:-drawdb.test}" "(open via http://localhost:4462 — needs a secure context)"
@@ -71,6 +75,9 @@ add "${HOP_HOST:-hop.test}"
 
 group "Code quality"
 add "${SEMGREP_HOST:-semgrep.test}"
+
+group "Testing tools"
+add "${PLAYWRIGHT_REPORT_HOST:-playwright.test}" "(Playwright E2E report viewer)"
 
 group "Security tools"
 add "${TRIVY_HOST:-trivy.test}"

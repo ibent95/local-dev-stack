@@ -196,6 +196,18 @@ when you'd turn it on.
 <td>`wiki-api`, `wiki-ui` — Next.js documentation</td>
 </tr>
 <tr>
+<td>`headlessx`</td>
+<td>`LDS_ENABLE_HEADLESSX`</td>
+<td>❌</td>
+<td>`headlessx-api`, `headlessx-worker`, `headlessx-web`, `headlessx-html-to-md`, `headlessx-yt-engine` — undetected browser automation (built from `data/headlessx`)</td>
+</tr>
+<tr>
+<td>`playwright`</td>
+<td>`LDS_ENABLE_PLAYWRIGHT`</td>
+<td>❌</td>
+<td>`playwright`, `playwright-report` — End-To-End test runner (official image) + HTML report viewer</td>
+</tr>
+<tr>
 <td>`all`</td>
 <td>—</td>
 <td>—</td>
@@ -468,6 +480,65 @@ serves unlimited channels/topics; you never run a second instance per channel.
 - **DB defaults:** reuses `${PENPOT_POSTGRES_DB:-app}` with `${PENPOT_POSTGRES_USER:-app}`.
 - **Assets:** persisted on host at `data/penpot/assets`.
 
+
+## `headlessx` — undetected browser automation / scraping
+
+**Starts:** `headlessx-api`, `headlessx-worker`, `headlessx-web`, `headlessx-html-to-md`,
+`headlessx-yt-engine`. **Toggle:** `LDS_ENABLE_HEADLESSX`. **Off by default.** Built from
+source — there is no published image.
+
+- **What it is:** self-hosted scraping platform — Next.js dashboard, Express API +
+  queue worker, remote MCP endpoint (`/mcp`), powered by a patched Firefox
+  (Camoufox) browser runtime.
+- **Source:** a local git checkout of `https://github.com/saifyxpro/HeadlessX` at
+  `${HEADLESSX_REPO_PATH}` (default `data/headlessx`). `lds up headlessx` (or
+  `lds headlessx init`) clones it on first run and fast-forwards it afterwards;
+  `lds headlessx update` refreshes manually.
+- **Dependencies:** reuses shared `postgres` (dedicated `lds_headlessx` DB,
+  auto-created via `POSTGRES_INIT_SPECS`) and `redis` (logical DB
+  `${HEADLESSX_REDIS_DB}`, default `4`) — both auto-started by the `headlessx`
+  profile.
+- **UI/API:** web at `${HEADLESSX_HOST}` (default `headlessx.test`) / host port
+  `${HEADLESSX_WEB_HOST_PORT}` (default `4475`); API + MCP at
+  `${HEADLESSX_API_HOST}` (default `headlessx-api.test`) / host port
+  `${HEADLESSX_API_HOST_PORT}` (default `4476`). The dashboard proxies `/api/*`
+  to the API internally, so the browser only ever talks to `headlessx.test`.
+- **Keys:** `HEADLESSX_DASHBOARD_INTERNAL_API_KEY` +
+  `HEADLESSX_CREDENTIAL_ENCRYPTION_KEY` (dev defaults in `.env` — override
+  before exposing the stack).
+- **First Google AI Search run:** open the Google AI Search playground, click
+  **Build Cookies**, browse once, then **Stop Browser** — the session is saved
+  into the `headlessx-browser-profile` volume and reused.
+- **Heavy:** the first `lds up headlessx` builds four images (pnpm/nx install +
+  browser bundle fetch) — expect a long first build and several GB of RAM once
+  running.
+
+## `playwright` — End-To-End testing
+
+**Starts:** `playwright` (runner) + `playwright-report` (viewer). **Toggle:**
+`LDS_ENABLE_PLAYWRIGHT`. **Off by default.**
+
+- **Runner:** official `mcr.microsoft.com/playwright:${PLAYWRIGHT_VERSION}` image
+  (Node + Chromium/Firefox/WebKit pre-installed). It's a long-running container
+  joined to the **in-network DNS** (like ZAP) so its browsers resolve `*.test`
+  through the proxy and can test `http://<app>.test` services exactly like a
+  host browser.
+- **Projects:** test projects live in `data/playwright/projects/<name>`
+  (scaffold with `lds playwright init <name> [url]`, which pins
+  `@playwright/test` to the image's Playwright version).- **Run:** `lds playwright run <name> [playwright args…]` execs `npx playwright
+test` in the warm container (auto-`npm install` on first run). Record tests
+  with `lds playwright codegen <url>`, poke around with `lds playwright shell`.
+- **UI Mode:** `lds playwright ui <name>` serves Playwright's interactive UI
+  (watch mode, time-travel debugging, run individual tests) on host port
+  `${PLAYWRIGHT_UI_HOST_PORT}` (default `4487`) — open it in your browser. The
+  UI panel is a web app in your browser; the tests themselves still execute in
+  the container's headless browsers.
+- **Reports:** each run writes an HTML report to
+  `data/playwright/reports/<name>/`, served by the viewer at
+  `${PLAYWRIGHT_REPORT_HOST}` (default `playwright.test`) / host port
+  `${PLAYWRIGHT_REPORT_HOST_PORT}` (default `4486`).
+- **Heavy:** the runner image bundles all three browsers (~1.5 GB) — the first
+  `lds up playwright` / `lds playwright run` pull takes a while.
 
 ## `all` — everything
 

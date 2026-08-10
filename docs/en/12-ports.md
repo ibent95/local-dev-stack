@@ -243,6 +243,42 @@ else on your machine. Each one is set by a `*_HOST_PORT` variable in `.env`.
 <td><code>rustfs:9001</code></td>
 </tr>
 <tr>
+<td></td>
+<td>HeadlessX — web dashboard</td>
+<td><code>localhost:4475</code> (<code>headlessx.test</code>)</td>
+<td><code>headlessx-web:3000</code></td>
+</tr>
+<tr>
+<td></td>
+<td>HeadlessX — API / MCP</td>
+<td><code>localhost:4476</code> (<code>headlessx-api.test</code>)</td>
+<td><code>headlessx-api:8000</code></td>
+</tr>
+<tr>
+<td></td>
+<td>HeadlessX — HTML→MD sidecar</td>
+<td><code>localhost:4477</code></td>
+<td><code>headlessx-html-to-md:8080</code></td>
+</tr>
+<tr>
+<td></td>
+<td>HeadlessX — YT engine</td>
+<td><code>localhost:4479</code></td>
+<td><code>headlessx-yt-engine:8090</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Playwright — report viewer</td>
+<td><code>localhost:4486</code> (<code>playwright.test</code>)</td>
+<td><code>playwright-report:8080</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Playwright — UI Mode</td>
+<td><code>localhost:4487</code> (open via `lds playwright ui &lt;name&gt;`)</td>
+<td><code>playwright:8787</code></td>
+</tr>
+<tr>
 <td colspan="4">
     <b>LDS apps</b> <code>4480–4499</code>
 </td>

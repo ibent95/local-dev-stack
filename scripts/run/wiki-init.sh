@@ -9,6 +9,7 @@ cd "$ROOT"
 
 if [ -f .env ]; then
   while IFS='=' read -r k v; do
+    k="${k%$'\r'}"
     case "$k" in ''|'#'*) continue ;; esac
     [ -z "${!k:-}" ] && export "$k=${v%$'\r'}"
   done < .env

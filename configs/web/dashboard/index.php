@@ -82,6 +82,9 @@ $uiGroups = [
         ['label' => 'Mailpit',       'desc' => 'SMTP sink · web inbox',  'url' => '//mail.test',       'alt' => 'localhost:4473', 'health' => ['mailpit', 8025]],
         ['label' => 'OpenWA',        'desc' => 'WhatsApp API gateway',   'url' => '//openwa.test',     'alt' => 'localhost:4467', 'health' => ['openwa', 2785]],
     ],
+    'Browser automation & scraping' => [
+        ['label' => 'HeadlessX',     'desc' => 'undetected browser automation · API :4476 · MCP /mcp', 'url' => '//headlessx.test', 'alt' => 'localhost:4475', 'health' => ['headlessx-web', 3000]],
+    ],
     'Design' => [
         ['label' => 'Penpot',        'desc' => 'collaborative design',    'url' => '//penpot.test',     'alt' => 'localhost:4478', 'health' => ['penpot-frontend', 8080]],
         // DrawDB uses crypto.randomUUID(), which only exists in a secure context,
@@ -98,6 +101,9 @@ $uiGroups = [
         ['label' => 'Semgrep',       'desc' => 'SAST · SARIF viewer',     'url' => '//semgrep.test',    'alt' => 'localhost:4465', 'health' => ['semgrep', 8080]],
         ['label' => 'Trivy',         'desc' => 'CVE scanner · containers & deps', 'url' => '//trivy.test', 'alt' => 'localhost:4471', 'health' => ['trivy', 8080]],
         ['label' => 'OWASP ZAP',     'desc' => 'DAST · web app scanner',  'url' => '//zap.test/zap',    'alt' => 'localhost:4470', 'health' => ['zap', 8080]],
+    ],
+    'Testing tools' => [
+        ['label' => 'Playwright',    'desc' => 'E2E tests · report viewer', 'url' => '//playwright.test', 'alt' => 'localhost:4486', 'health' => ['playwright-report', 8080]],
     ],
     'Websockets monitoring' => [
         ['label' => 'Centrifugo',      'desc' => 'WebSocket · admin UI',      'url' => '//centrifugo.test', 'alt' => 'localhost:4441', 'health' => ['centrifugo', 8000]],

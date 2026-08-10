@@ -17,6 +17,9 @@ set -- "${args_raw[@]}"
 
 [ -f .env ] || { echo "No .env — creating from .env.example"; cp .env.example .env; }
 
+# Keep .env in sync with .env.example (keeps your values; adds missing vars).
+"$ROOT/scripts/run/env-sync.sh" --quiet || true
+
 NET="${NETWORK_NAME:-lds-network}"
 docker network inspect "$NET" >/dev/null 2>&1 || {
   echo "Creating shared network '$NET'"; docker network create "$NET" >/dev/null;
@@ -32,7 +35,7 @@ if [ $# -gt 0 ]; then
 else
   profiles=()
   # Canonical profile order; each maps to LDS_ENABLE_<UPPER>=true in .env.
-  for p in proxy php mysql postgres mongo redis valkey memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep zap trivy vaultwarden mail penpot analytics tasks wiki openwa rustfs duckdb trino; do
+  for p in proxy php mysql postgres mongo redis valkey memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep zap trivy vaultwarden mail penpot analytics tasks wiki openwa headlessx playwright rustfs duckdb trino; do
     var="LDS_ENABLE_$(printf '%s' "$p" | tr '[:lower:]' '[:upper:]')"
     val="$(grep -E "^[[:space:]]*${var}=" .env 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/#.*//' | tr -d '[:space:]\r')"
     case "$val" in
@@ -96,9 +99,9 @@ case " ${profiles[*]} " in
     fi ;;
 esac
 
-# The Semgrep + Trivy viewers use lds/nginx — build it once if missing.
+# The Semgrep + Trivy + Playwright viewers use lds/nginx — build it once if missing.
 case " ${profiles[*]} " in
-  *" semgrep "*|*" trivy "*|*" all "*)
+  *" semgrep "*|*" trivy "*|*" playwright "*|*" all "*)
     if ! docker image inspect "lds/nginx:${NGINX_VERSION:-1.27}" >/dev/null 2>&1; then
       sub "build lds/nginx base (first run)"
       ( cd "$ROOT" && docker buildx bake -f docker-bake.hcl --load nginx )
@@ -136,6 +139,13 @@ esac
 # up so the files are available when the containers start. Skips if files exist.
 case " ${profiles[*]} " in
   *" duckdb "*|*" trino "*|*" all "*) sub "seed-data"; "$ROOT/scripts/run/seed-data.sh" || true; subdone ;;
+esac
+
+# Ensure the HeadlessX source checkout exists (build context for the headlessx-*
+# services). Clones on first run, fast-forwards afterwards. Runs before compose
+# up so the build contexts are valid.
+case " ${profiles[*]} " in
+  *" headlessx "*|*" all "*) sub "headlessx-init"; "$ROOT/scripts/run/headlessx-init.sh" || true; subdone ;;
 esac
 
 
@@ -178,6 +188,11 @@ esac
 # Ensure the LDS Wiki DB/user spec exists.
 case " ${profiles[*]} " in
   *" wiki "*|*" all "*) sub "wiki-init"; "$ROOT/scripts/run/wiki-init.sh" || true; subdone ;;
+esac
+
+# Ensure the HeadlessX DB/user exists (postgres may predate the spec addition).
+case " ${profiles[*]} " in
+  *" headlessx "*|*" all "*) sub "headlessx-db-init"; "$ROOT/scripts/run/headlessx-db-init.sh" || true; subdone ;;
 esac
 
 # Ensure the Hive Metastore DB/user exists. The metastore container's schematool

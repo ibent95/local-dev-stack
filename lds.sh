@@ -21,10 +21,23 @@ case "$cmd" in
   tools)
     sub="${1:-}"; shift 2>/dev/null || true
     case "$sub" in
-      semgrep) exec "$ROOT/scripts/run/semgrep.sh" "$@" ;;
-      trivy)   exec "$ROOT/scripts/run/trivy.sh" "$@" ;;
-      *) echo "usage: lds tools <semgrep [path|clear] | trivy [path|clear] | trivy image <name>>"; exit 1 ;;
+      semgrep)    exec "$ROOT/scripts/run/semgrep.sh" "$@" ;;
+      trivy)      exec "$ROOT/scripts/run/trivy.sh" "$@" ;;
+      playwright) exec "$ROOT/scripts/run/playwright.sh" "$@" ;;
+      *) echo "usage: lds tools <semgrep [path|clear] | trivy [path|clear] | trivy image <name> | playwright <init|run|codegen|ui|shell|report>>"; exit 1 ;;
     esac ;;
+  headlessx)
+    sub="${1:-}"; shift 2>/dev/null || true
+    case "$sub" in
+      init|update) exec "$ROOT/scripts/run/headlessx-init.sh" "$@" ;;
+      *) echo "usage: lds headlessx <init | update>"; exit 1 ;;
+    esac ;;
+  playwright)
+    # playwright.sh expects its OWN subcommand as argv[1] (init/run/codegen/…)
+    exec "$ROOT/scripts/run/playwright.sh" "$@" ;;
+  e2e)
+    # friendly alias: `lds e2e run <name>` == `lds playwright run <name>`
+    exec "$ROOT/scripts/run/playwright.sh" "$@" ;;
   db)
     sub="${1:-}"; shift 2>/dev/null || true
     case "$sub" in
@@ -55,6 +68,7 @@ case "$cmd" in
   logs)                exec "$ROOT/scripts/run/logs.sh" "$@" ;;
   certs)               exec "$ROOT/scripts/run/certs.sh" "$@" ;;
   hosts-sync)          exec "$ROOT/scripts/run/hosts-sync.sh" "$@" ;;
+  env-sync)            exec "$ROOT/scripts/run/env-sync.sh" "$@" ;;
   ps)                  cd "$ROOT" && exec docker compose --profile '*' ps ;;
   exec)                exec "$ROOT/scripts/run/exec.sh" "$@" ;;
   # --- back-compat aliases (old flat names; prefer the grouped forms) -----
@@ -92,10 +106,17 @@ local-dev-stack — usage: ./lds.sh <command> [args]
                                   | register-connectors | init (topics + connectors)
  db <sub>                       init [mysql|postgres|mongo|all] | seed (DBGate connections)
  tools <sub>                    semgrep [path|clear] | trivy [path|clear] | trivy image <name>
+                                  | playwright <init|run|codegen|ui|shell|report> (alias)
                                   (scan; view at semgrep.test / trivy.test via `up semgrep` / `up trivy`)
+ headlessx <sub>                init | update (clone/refresh the HeadlessX source checkout
+                                  used to build the headlessx profile)
+ playwright <sub>               init <name> [url] | run <name> [args...] | codegen [url] |
+                                  ui <name> | shell | report (E2E tests via the Playwright runner)
+ e2e <sub>                      alias for `playwright`
 
   certs [--force]               mint the wildcard *.test dev TLS cert (for LDS_ENABLE_HTTPS)
   hosts-sync                    write www/ projects into the hosts file (fallback)
+  env-sync [--dry-run]          sync .env to .env.example (keeps your values; adds missing vars)
   build-php [--push]            (re)build just the PHP service image
   help                          show this message
 

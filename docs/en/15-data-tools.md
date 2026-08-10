@@ -5,6 +5,8 @@ tool profiles added on top of the core stack: **DrawDB** (schema design),
 **Apache Hop** + **Apache Superset** (data warehouse & BI), **Semgrep** +
 **OWASP ZAP** + **Trivy** (code & vulnerability scanning),
 **Vaultwarden** (password manager),
+**HeadlessX** (undetected browser automation),
+**Playwright** (End-To-End testing),
 and **LDS Wiki** (documentation). The two backing-service
 browsers, `phpcacheadmin` and `dbgate`, are documented in
 [13 · Profiles](13-profiles.md).
@@ -17,10 +19,11 @@ The PHP container serves a control panel as its default site, reachable at
 `configs/web/dashboard/index.php` and shows, live:
 
 - **Tools & web UIs**, grouped — *Admin tools* (phpCacheAdmin, DBGate), *Auth*
-  (Vaultwarden), *Communication tools* (Mailpit, OpenWA), *Designers* (Penpot,
-  DrawDB), *Data tools* (Superset, Hop), *Code quality* (Semgrep), *Security
-  tools* (ZAP, Trivy), *LDS apps* (Analytics, Tasks, Wiki), *Kafka tools* (Kafka
-  UI, Connector builder), *Analytical query engines* (DuckDB, Trino), *Realtime
+  (Vaultwarden), *Communication tools* (Mailpit, OpenWA), *Browser automation*
+  (HeadlessX), *Designers* (Penpot, DrawDB), *Data tools* (Superset, Hop),
+  *Code quality* (Semgrep), *Testing tools* (Playwright), *Security tools* (ZAP,
+  Trivy), *LDS apps* (Analytics, Tasks, Wiki), *Kafka tools* (Kafka UI,
+  Connector builder), *Analytical query engines* (DuckDB, Trino), *Realtime
   dashboards* (Centrifugo, MQTTX), and *Storage tools* (RustFS) — each with a
   ●/○ reachability dot.
 - **Projects** — every folder under `${PHP_PROJECTS_PATH}`, linked at its
@@ -394,6 +397,69 @@ Self-hosted documentation/wiki app (Next.js frontend + Hono API).
 - UI: `http://localhost:4437` / `wiki.test`
 - API: `http://localhost:4438`
 - DB bootstrap is automatic when this profile starts (`wiki-init` → `postgres-init`).
+
+## Browser automation — HeadlessX
+
+**Profile:** `headlessx` (`LDS_ENABLE_HEADLESSX`). **Off by default.**
+
+Self-hosted, undetected browser automation / scraping platform — Next.js
+dashboard, Express API + queue worker, remote **MCP endpoint**, powered by a
+patched Firefox (Camoufox) runtime for ~0% detection.
+
+- **UI:** `http://headlessx.test` / `localhost:4475` — dashboard, playground
+  (Website, Google AI Search, Tavily, Exa, YouTube operators), API keys, queue
+  jobs & logs.
+- **API / MCP:** `http://headlessx-api.test` / `localhost:4476`. All non-health
+  routes are protected by `x-api-key` (create keys in the dashboard's *API Keys*
+  page — do **not** use the internal dashboard key for MCP). The dashboard
+  proxies `/api/*` internally, so the browser only talks to `headlessx.test`.
+- **Reuses the shared stack** — LDS Postgres (`lds_headlessx` DB, auto-created
+  via `POSTGRES_INIT_SPECS`) and LDS Redis (logical DB `4`) for BullMQ queues.
+  No dedicated DB/redis containers.
+- **Built from source:** there's no published image — services build from a local
+  checkout at `data/headlessx`. `lds up headlessx` auto-clones/updates it first
+  (`lds headlessx init` / `lds headlessx update` for manual control). The first
+  `up` builds four images (pnpm/nx + browser bundle) and is **slow** — expect
+  minutes and several GB of RAM once running (api/worker default to `1g` each).
+- **Google AI Search first run:** open the Google AI Search playground → **Build
+  Cookies** → browse once (solve any reCAPTCHA) → **Stop Browser**. The saved
+  session persists in the `headlessx-browser-profile` volume and is reused.
+- **Persistent volumes:** `headlessx-browser-profile` (saved browser session),
+  `headlessx-models` (ONNX captcha models), `headlessx-yt-engine-tmp`.
+
+## End-To-End testing — Playwright
+
+**Profile:** `playwright` (`LDS_ENABLE_PLAYWRIGHT`). **Off by default.**
+
+Browser-based End-To-End tests against your stack apps — a warm Playwright
+runner container (official image, Chromium + Firefox + WebKit pre-installed)
+joined to the **in-network DNS**, so its browsers hit `http://<app>.test`
+services through the proxy just like a host browser.
+
+```bash
+lds up playwright              # pull + start the runner and report viewer
+lds playwright init myapp      # scaffold a project (target http://myapp.test by default)
+lds playwright init myapp http://myapp.test   # or point at any *.test app
+lds playwright run myapp       # run its tests (writes the HTML report)
+lds playwright run myapp -- --project=chromium   # extra playwright CLI args
+lds playwright codegen http://myapp.test   # record tests visually (needs a TTY)
+lds playwright ui myapp        # interactive UI Mode — open http://localhost:4487 in your browser
+lds playwright shell           # open a shell in the runner container
+```
+
+- **Projects:** `data/playwright/projects/<name>/` (each with its own
+  `playwright.config.ts` + `tests/`). `init` pins `@playwright/test` to the
+  runner image's Playwright version and rewrites the target URL.
+- **Reports:** every run writes an HTML report to
+  `data/playwright/reports/<name>/`, served by the viewer at
+  `http://playwright.test/<name>` (`localhost:4486`).
+- **UI Mode (browser):** `lds playwright ui <name>` serves Playwright's
+  interactive UI — watch mode, run/filter tests, time-travel debugging — at
+  `http://localhost:4487`. The UI is a web app you open in your **host
+  browser**; the tests themselves run in the container's headless browsers.
+- **First run** in a fresh project runs `npm install` inside the container;
+  browsers are already in the image — no `npx playwright install`.
+- **Heavy:** the runner image bundles all three browsers (~1.5 GB).
 
 ---
 

@@ -17,6 +17,7 @@ if "%DRAWDB_HOST%"=="" set "DRAWDB_HOST=drawdb.test"
 if "%HOP_HOST%"=="" set "HOP_HOST=hop.test"
 if "%SUPERSET_HOST%"=="" set "SUPERSET_HOST=superset.test"
 if "%SEMGREP_HOST%"=="" set "SEMGREP_HOST=semgrep.test"
+if "%PLAYWRIGHT_REPORT_HOST%"=="" set "PLAYWRIGHT_REPORT_HOST=playwright.test"
 if "%TRIVY_HOST%"=="" set "TRIVY_HOST=trivy.test"
 if "%ZAP_HOST%"=="" set "ZAP_HOST=zap.test"
 if "%MAIL_HOST%"=="" set "MAIL_HOST=mail.test"
@@ -26,6 +27,8 @@ if "%VAULTWARDEN_HOST%"=="" set "VAULTWARDEN_HOST=vaultwarden.test"
 if "%TASKS_HOST%"=="" set "TASKS_HOST=tasks.test"
 if "%WIKI_HOST%"=="" set "WIKI_HOST=wiki.test"
 if "%OPENWA_HOST%"=="" set "OPENWA_HOST=openwa.test"
+if "%HEADLESSX_HOST%"=="" set "HEADLESSX_HOST=headlessx.test"
+if "%HEADLESSX_API_HOST%"=="" set "HEADLESSX_API_HOST=headlessx-api.test"
 if "%RUSTFS_HOST%"=="" set "RUSTFS_HOST=rustfs.test"
 if "%DUCKDB_HOST%"=="" set "DUCKDB_HOST=duckdb.test"
 set "PROJDIR=%PHP_PROJECTS_PATH:/=\%"
@@ -72,6 +75,9 @@ call :add %VAULTWARDEN_HOST%
 call :sec "Communication tools"
 call :add %MAIL_HOST%
 call :add %OPENWA_HOST%
+call :sec "Browser automation"
+call :add %HEADLESSX_HOST%
+call :add %HEADLESSX_API_HOST% "(MCP + API - headlessx-api.test)"
 call :sec "Designers"
 call :add %PENPOT_HOST%
 call :add %DRAWDB_HOST% "(open via http://localhost:4462 - needs a secure context)"
@@ -80,6 +86,8 @@ call :add %SUPERSET_HOST%
 call :add %HOP_HOST%
 call :sec "Code quality"
 call :add %SEMGREP_HOST%
+call :sec "Testing tools"
+call :add %PLAYWRIGHT_REPORT_HOST% "(Playwright E2E report viewer)"
 call :sec "Security tools"
 call :add %TRIVY_HOST%
 call :add %ZAP_HOST%

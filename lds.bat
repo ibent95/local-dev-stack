@@ -21,6 +21,9 @@ goto collect
 if /I "%CMD%"=="kafka"               goto kafka
 if /I "%CMD%"=="db"                  goto db
 if /I "%CMD%"=="tools"               goto tools
+if /I "%CMD%"=="headlessx"           goto headlessx
+if /I "%CMD%"=="playwright"          call "%ROOT%scripts\run\playwright.bat" %REST% & goto end
+if /I "%CMD%"=="e2e"                 call "%ROOT%scripts\run\playwright.bat" %REST% & goto end
 if /I "%CMD%"=="init"                call "%ROOT%scripts\run\init.bat" %REST% & goto end
 if /I "%CMD%"=="network"             call "%ROOT%scripts\run\network.bat" %REST% & goto end
 if /I "%CMD%"=="new"                 call "%ROOT%scripts\run\new.bat" %REST% & goto end
@@ -43,6 +46,7 @@ if /I "%CMD%"=="certs"               call "%ROOT%scripts\run\certs.bat" %REST% &
 if /I "%CMD%"=="register-connectors" call "%ROOT%scripts\run\register-connectors.bat" %REST% & goto end
 if /I "%CMD%"=="connect-plugin"      call "%ROOT%scripts\run\connect-plugin.bat" %REST% & goto end
 if /I "%CMD%"=="hosts-sync"          call "%ROOT%scripts\run\hosts-sync.bat" %REST% & goto end
+if /I "%CMD%"=="env-sync"            call "%ROOT%scripts\run\env-sync.bat" %REST% & goto end
 if /I "%CMD%"=="ps"                  ( pushd "%ROOT%" & docker compose --profile "*" ps & popd ) & goto end
 if /I "%CMD%"=="exec"                call "%ROOT%scripts\run\exec.bat" %REST% & goto end
 if /I "%CMD%"=="help"                goto help
@@ -75,9 +79,17 @@ goto end
 
 :tools
 for /f "tokens=1*" %%a in ("%REST%") do ( set "SUB=%%a" & set "SUBREST=%%b" )
-if /I "!SUB!"=="semgrep" ( call "%ROOT%scripts\run\semgrep.bat" !SUBREST! & goto end )
-if /I "!SUB!"=="trivy"   ( call "%ROOT%scripts\run\trivy.bat" !SUBREST! & goto end )
-echo usage: lds tools ^<semgrep [path^|clear] ^| trivy [path^|clear] ^| trivy image ^<name^>^>
+if /I "!SUB!"=="semgrep"    ( call "%ROOT%scripts\run\semgrep.bat" !SUBREST! & goto end )
+if /I "!SUB!"=="trivy"      ( call "%ROOT%scripts\run\trivy.bat" !SUBREST! & goto end )
+if /I "!SUB!"=="playwright" ( call "%ROOT%scripts\run\playwright.bat" !SUBREST! & goto end )
+echo usage: lds tools ^<semgrep [path^|clear] ^| trivy [path^|clear] ^| trivy image ^<name^> ^| playwright ^<init^|run^|codegen^|ui^|shell^|report^>^>
+goto end
+
+:headlessx
+for /f "tokens=1*" %%a in ("%REST%") do ( set "SUB=%%a" & set "SUBREST=%%b" )
+if /I "!SUB!"=="init"   ( call "%ROOT%scripts\run\headlessx-init.bat" & goto end )
+if /I "!SUB!"=="update" ( call "%ROOT%scripts\run\headlessx-init.bat" & goto end )
+echo usage: lds headlessx ^<init ^| update^>
 goto end
 
 :help
@@ -101,10 +113,12 @@ echo.
 echo  kafka ^<sub^>                    topics ^| connect-plugin [--generic^|--debezium] ^<name^> ^| register-connectors ^| init
 echo  db ^<sub^>                       init [mysql^|postgres^|mongo^|all] ^| seed (DBGate connections)
 echo  tools ^<sub^>                    semgrep [path^|clear] ^| trivy [path^|clear] ^| trivy image ^<name^>
+echo                                 ^| playwright ^<init^|run^|codegen^|ui^|shell^|report^> (alias)
 echo                                 (scan; view at semgrep.test / trivy.test via up semgrep / up trivy)
 echo.
 echo   certs [--force]               mint the wildcard *.test dev TLS cert (for LDS_ENABLE_HTTPS)
 echo   hosts-sync                    write www/ projects into the hosts file
+echo   env-sync [--dry-run]          sync .env to .env.example (keeps your values; adds missing vars)
 echo   build-php [--push]            rebuild just the PHP service image
 echo   help                          show this message
 echo   (old flat names still work as aliases: kafka-topics, mongo-init, postgres-init, mysql-init, etc.)

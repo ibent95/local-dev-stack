@@ -53,7 +53,11 @@
 </tr>
 <tr>
 <td>`tools &lt;sub&gt;`</td>
-<td>`semgrep [path\|clear]` — run/clear Semgrep report · `trivy [path\|clear]` / `trivy image &lt;name&gt;` — run/clear Trivy report; view at `semgrep.test` / `trivy.test`</td>
+<td>`semgrep [path\|clear]` — run/clear Semgrep report · `trivy [path\|clear]` / `trivy image &lt;name&gt;` — run/clear Trivy report; view at `semgrep.test` / `trivy.test` · `playwright &lt;…&gt;` — alias for `lds playwright` (see below)</td>
+</tr>
+<tr>
+<td>`playwright &lt;sub&gt;`</td>
+<td>`init &lt;name&gt; [url]` — scaffold an E2E project · `run &lt;name&gt; [args…]` — run tests · `codegen [url]` — record tests · `ui &lt;name&gt;` — interactive UI Mode in the browser (:4487) · `shell` — runner shell · `report` — viewer URL (`playwright.test` / :4486); alias: `e2e`</td>
 </tr>
 <tr>
 <td>`certs [--force]`</td>
@@ -62,6 +66,10 @@
 <tr>
 <td>`hosts-sync`</td>
 <td>write projects + tool hosts into the hosts file (DNS fallback), grouped by category</td>
+</tr>
+<tr>
+<td>`env-sync [--dry-run]`</td>
+<td>sync `.env` to `.env.example` — keeps your values, adds missing variables at the example's position, preserves `.env`-only vars (auto-run by `up`)</td>
 </tr>
 <tr>
 <td>`build-php [--push]`</td>

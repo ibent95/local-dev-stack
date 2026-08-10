@@ -16,6 +16,9 @@ if not exist .env (
   copy .env.example .env >nul
 )
 
+REM Keep .env in sync with .env.example (keeps your values; adds missing vars).
+call "%~dp0env-sync.bat" --quiet
+
 if "%NETWORK_NAME%"=="" (set NET=lds-network) else (set NET=%NETWORK_NAME%)
 docker network inspect !NET! >nul 2>&1 || (
   echo Creating shared network '!NET!'
@@ -28,7 +31,7 @@ REM "all". Canonical profile order; each maps to LDS_ENABLE_<NAME> (matched
 REM case-insensitively).
 if "%PROFILES%"=="" (
   set "PROFILES="
-  for %%p in (proxy php mysql postgres mongo redis valkey memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep zap trivy vaultwarden mail penpot analytics tasks wiki openwa rustfs duckdb trino) do (
+  for %%p in (proxy php mysql postgres mongo redis valkey memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep zap trivy vaultwarden mail penpot analytics tasks wiki openwa headlessx playwright rustfs duckdb trino) do (
     set "VAL="
     if exist .env for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do if /I "%%a"=="LDS_ENABLE_%%p" set "VAL=%%b"
     set "VAL=!VAL: =!"
@@ -98,9 +101,9 @@ if not errorlevel 1 (
   )
 )
 
-REM The Semgrep + Trivy viewers use lds/nginx - build it once if missing.
+REM The Semgrep + Trivy + Playwright viewers use lds/nginx - build it once if missing.
 if "%NGINX_VERSION%"=="" set "NGINX_VERSION=1.27"
-echo %PROFILES% | findstr /I /C:"semgrep" /C:"trivy" /C:"all" >nul
+echo %PROFILES% | findstr /I /C:"semgrep" /C:"trivy" /C:"playwright" /C:"all" >nul
 if not errorlevel 1 (
   docker image inspect "lds/nginx:%NGINX_VERSION%" >nul 2>&1 || (
     call :sub "build lds/nginx base - first run"
@@ -133,6 +136,16 @@ echo %PROFILES% | findstr /I /C:"duckdb" /C:"trino" /C:"all" >nul
 if not errorlevel 1 (
   call :sub "seed-data"
   call "%~dp0seed-data.bat"
+  call :subdone
+)
+
+REM Ensure the HeadlessX source checkout exists (build context for the headlessx-*
+REM services). Clones on first run, fast-forwards afterwards. Runs before compose
+REM up so the build contexts are valid.
+echo %PROFILES% | findstr /I /C:"headlessx" /C:"all" >nul
+if not errorlevel 1 (
+  call :sub "headlessx-init"
+  call "%~dp0headlessx-init.bat"
   call :subdone
 )
 
@@ -181,6 +194,14 @@ echo %PROFILES% | findstr /I /C:"wiki" /C:"all" >nul
 if not errorlevel 1 (
   call :sub "wiki-init"
   call "%~dp0wiki-init.bat"
+  call :subdone
+)
+
+REM Ensure the HeadlessX DB/user exists (postgres may predate the spec addition).
+echo %PROFILES% | findstr /I /C:"headlessx" /C:"all" >nul
+if not errorlevel 1 (
+  call :sub "headlessx-db-init"
+  call "%~dp0headlessx-db-init.bat"
   call :subdone
 )
 
