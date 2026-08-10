@@ -17,7 +17,7 @@ REM Idempotent: skip if connections already exist.
 if exist "%DBDIR%\connections.jsonl" ( echo DBGate already has connections - leaving as-is. & popd & endlocal & exit /b 0 )
 
 copy /y "%SEED%" "%DBDIR%\connections.jsonl" >nul
-echo Seeded DBGate with MySQL + Postgres + Mongo connections.
+echo Seeded DBGate with MySQL + MariaDB + Postgres + Mongo + SQL Server + Oracle connections.
 
 popd
 endlocal

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>code-review-graph — code intelligence reports</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.6 system-ui,Segoe UI,Roboto,sans-serif;
+    min-height:100vh; display:grid; place-items:center; padding:24px; }
+  .card { max-width:640px; text-align:center; }
+  h1 { font-size:22px; margin:0 0 8px; }
+  .actions { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:14px 0; }
+  a.btn { padding:7px 12px; border:1px solid #8885; border-radius:7px; background:transparent;
+    color:inherit; text-decoration:none; font:inherit; cursor:pointer; }
+  a.btn:hover { background:#8882; }
+  code { font:13px ui-monospace,Consolas,monospace; background:#8882;
+    padding:2px 7px; border-radius:5px; }
+  p { color:#888; margin:10px 0; }
+  ul { text-align:left; color:#888; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>code-review-graph reports</h1>
+  <p>Interactive D3 graph exports from <code>lds tools crg &lt;path&gt;</code> land in the
+     per-repo folders listed below (browse the directory index). The graph is
+     local-first — nothing leaves your machine.</p>
+  <div class="actions">
+    <a class="btn" href="./">Browse report folders</a>
+  </div>
+  <p>No report yet? Generate one:</p>
+  <ul>
+    <li><code>lds tools crg ~/projects/myapp</code> — build the graph + export the report</li>
+    <li><code>lds tools crg ~/projects/myapp myapp</code> — custom name for the viewer URL</li>
+    <li>open <code>http://crg.test/myapp/</code> — the interactive graph</li>
+  </ul>
+  <p>The scan also writes <code>.code-review-graph/</code> (graph DB, gitignored) inside the
+     scanned repo, so re-scans are incremental. AI integration via MCP is optional and
+     runs on your host: <code>pip install code-review-graph &amp;&amp; code-review-graph install</code>.</p>
+  <p>Start the viewer with <code>lds up crg</code>.</p>
+</div>
+</body>
+</html>

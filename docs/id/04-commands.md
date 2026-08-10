@@ -49,11 +49,15 @@
 </tr>
 <tr>
 <td>`db &lt;sub&gt;`</td>
-<td>`init [mysql\|mongo\|all]` (buat db/user `app`) · `seed` (koneksi DBGate)</td>
+<td>`init [mysql\|postgres\|mongo\|all]` (buat db/user default + spec tool opsional via `*_INIT_SPECS`) · `seed` (koneksi DBGate)</td>
 </tr>
 <tr>
 <td>`tools &lt;sub&gt;`</td>
-<td>`semgrep [path\|clear]` — jalankan/hapus report Semgrep · `trivy [path\|clear]` / `trivy image &lt;name&gt;` — jalankan/hapus report Trivy; lihat di `semgrep.test` / `trivy.test`</td>
+<td>`semgrep [path\|clear]` — jalankan/hapus report Semgrep · `trivy [path\|clear]` / `trivy image &lt;name&gt;` — jalankan/hapus report Trivy · `crg &lt;path&gt; [name]` — bangun code-review-graph + ekspor; lihat di `semgrep.test` / `trivy.test` / `crg.test` · `playwright &lt;…&gt;` — alias untuk `lds playwright` (lihat di bawah)</td>
+</tr>
+<tr>
+<td>`playwright &lt;sub&gt;`</td>
+<td>`init &lt;name&gt; [url]` — scaffold proyek E2E · `run &lt;name&gt; [args…]` — jalankan tes · `codegen [url]` — rekam tes · `ui &lt;name&gt;` — UI Mode interaktif di browser (:4527) · `shell` — shell runner · `report` — URL viewer (`playwright.test` / :4526); alias: `e2e`</td>
 </tr>
 <tr>
 <td>`certs [--force]`</td>
@@ -62,6 +66,10 @@
 <tr>
 <td>`hosts-sync`</td>
 <td>tulis proyek + host tool ke berkas hosts (fallback DNS), dikelompokkan per kategori</td>
+</tr>
+<tr>
+<td>`env-sync [--dry-run]`</td>
+<td>sinkronkan `.env` ke `.env.example` — nilai Anda dipertahankan, variabel yang hilang ditambahkan di posisi contoh, variabel khusus `.env` dipertahankan (auto-run oleh `up`)</td>
 </tr>
 <tr>
 <td>`build-php [--push]`</td>

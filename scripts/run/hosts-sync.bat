@@ -31,6 +31,9 @@ if "%HEADLESSX_HOST%"=="" set "HEADLESSX_HOST=headlessx.test"
 if "%HEADLESSX_API_HOST%"=="" set "HEADLESSX_API_HOST=headlessx-api.test"
 if "%RUSTFS_HOST%"=="" set "RUSTFS_HOST=rustfs.test"
 if "%DUCKDB_HOST%"=="" set "DUCKDB_HOST=duckdb.test"
+if "%CRG_HOST%"=="" set "CRG_HOST=crg.test"
+if "%INSTATIC_HOST%"=="" set "INSTATIC_HOST=instatic.test"
+if "%ERPNEXT_HOST%"=="" set "ERPNEXT_HOST=erpnext.test"
 set "PROJDIR=%PHP_PROJECTS_PATH:/=\%"
 
 set "HOSTS=%WINDIR%\System32\drivers\etc\hosts"
@@ -80,12 +83,13 @@ call :add %HEADLESSX_HOST%
 call :add %HEADLESSX_API_HOST% "(MCP + API - headlessx-api.test)"
 call :sec "Designers"
 call :add %PENPOT_HOST%
-call :add %DRAWDB_HOST% "(open via http://localhost:4462 - needs a secure context)"
+call :add %DRAWDB_HOST% "(open via http://localhost:4502 - needs a secure context)"
 call :sec "Data tools"
 call :add %SUPERSET_HOST%
 call :add %HOP_HOST%
 call :sec "Code quality"
 call :add %SEMGREP_HOST%
+call :add %CRG_HOST% "(code-review-graph - AI code graph · blast-radius)"
 call :sec "Testing tools"
 call :add %PLAYWRIGHT_REPORT_HOST% "(Playwright E2E report viewer)"
 call :sec "Security tools"
@@ -103,6 +107,10 @@ call :add %CENTRIFUGO_HOST%
 call :add %MQTT_HOST%
 call :sec "Storage tools"
 call :add %RUSTFS_HOST%
+call :sec "Websites & CMS"
+call :add %INSTATIC_HOST% "(visual CMS - admin at /admin)"
+call :sec "ERP & business"
+call :add %ERPNEXT_HOST% "(accounting · CRM · HR - admin/admin)"
 
 >> "%TMP%" echo # ===== end local-dev-stack =====   %MARKER%
 

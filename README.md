@@ -24,6 +24,24 @@ talk to them.
 <td>4400</td>
 </tr>
 <tr>
+<td>MariaDB</td>
+<td>`mariadb`</td>
+<td>`mariadb` (11.8, utf8mb4 defaults — also the ERPNext database)</td>
+<td>4406</td>
+</tr>
+<tr>
+<td>SQL Server</td>
+<td>`mssql`</td>
+<td>SQL Server 2025 Developer (free for dev)</td>
+<td>4407</td>
+</tr>
+<tr>
+<td>Oracle</td>
+<td>`oracle`</td>
+<td>Oracle Database Free 23ai (via the `gvenzl` mirror, no account needed)</td>
+<td>4408 (+4409 EM Express)</td>
+</tr>
+<tr>
 <td>PostgreSQL</td>
 <td>`postgres`</td>
 <td>`postgres` (16, `wal_level=logical` for CDC)</td>
@@ -40,6 +58,12 @@ talk to them.
 <td>`redis`</td>
 <td>`redis` (7)</td>
 <td>4403</td>
+</tr>
+<tr>
+<td>Valkey</td>
+<td>`valkey`</td>
+<td>`valkey` (Redis-compatible)</td>
+<td>4405</td>
 </tr>
 <tr>
 <td>Memcached</td>
@@ -69,67 +93,133 @@ talk to them.
 <td>Kafka</td>
 <td>`kafka`</td>
 <td>`kafka-controller`, `kafka-broker`, `schema-registry` (Apicurio), `connect-debezium`, `connect-generic`, `kafka-ui`</td>
-<td>4410–4413, 4420</td>
+<td>4420–4424</td>
 </tr>
 <tr>
 <td>Realtime</td>
 <td>`soketi` / `centrifugo` / `mqtt`</td>
 <td>WebSocket / MQTT pub-sub brokers — **off by default**, stateless</td>
-<td>4430 / 4431 / 4432–4434</td>
+<td>4440 / 4441 / 4442–4444</td>
 </tr>
 <tr>
 <td>Admin UIs</td>
 <td>`phpcacheadmin` / `dbgate`</td>
 <td>cache browser / web DB client</td>
-<td>4421 / 4422</td>
+<td>4500 / 4501</td>
 </tr>
 <tr>
 <td>DB design</td>
 <td>`drawdb`</td>
-<td>DrawDB — ER diagram designer (open at `localhost:4462`)</td>
-<td>4423</td>
+<td>DrawDB — ER diagram designer (open at `localhost:4502`)</td>
+<td>4502</td>
 </tr>
 <tr>
 <td>Warehouse/BI</td>
 <td>`hop` / `superset`</td>
 <td>Apache Hop (ETL designer) / Apache Superset (BI)</td>
-<td>4424 / 4425</td>
+<td>4503 / 4504</td>
+</tr>
+<tr>
+<td>Query engines</td>
+<td>`duckdb` / `trino`</td>
+<td>DuckDB (embedded OLAP, CLI) / Trino (distributed SQL + UI)</td>
+<td>— / 4451</td>
 </tr>
 <tr>
 <td>Code quality</td>
 <td>`semgrep`</td>
 <td>Semgrep SARIF viewer (`lds tools semgrep` runs the scan)</td>
-<td>4426</td>
+<td>4505</td>
 </tr>
 <tr>
 <td>Vulnerability scanning</td>
 <td>`zap`</td>
-<td>OWASP ZAP — DAST web app scanner (UI at `zap.test`, proxy/API :4472)</td>
-<td>4470, 4472</td>
+<td>OWASP ZAP — DAST web app scanner (UI at `zap.test`, proxy/API :4512)</td>
+<td>4510, 4512</td>
 </tr>
 <tr>
 <td></td>
 <td>`trivy`</td>
 <td>Trivy CVE scanner — containers, filesystems, deps (`lds tools trivy` runs the scan)</td>
-<td>4471</td>
+<td>4511</td>
+</tr>
+<tr>
+<td>Code intelligence</td>
+<td>`crg`</td>
+<td>code-review-graph — AI code-intelligence graph viewer at `crg.test` (`lds tools crg` runs the scan)</td>
+<td>4530</td>
 </tr>
 <tr>
 <td>Security/Auth</td>
 <td>`vaultwarden`</td>
 <td>Vaultwarden password manager (Bitwarden-compatible)</td>
-<td>4429</td>
+<td>4506</td>
+</tr>
+<tr>
+<td>Mail</td>
+<td>`mail`</td>
+<td>Mailpit — local SMTP sink + web inbox</td>
+<td>4513 (UI) / 4514 (SMTP)</td>
+</tr>
+<tr>
+<td>Design</td>
+<td>`penpot`</td>
+<td>Penpot — collaborative design tool (reuses shared `postgres` + `valkey`)</td>
+<td>4518</td>
+</tr>
+<tr>
+<td>Websites/CMS</td>
+<td>`instatic`</td>
+<td>Instatic — self-hosted visual CMS / website builder (admin at `/admin`)</td>
+<td>4528</td>
 </tr>
 <tr>
 <td>Web analytics</td>
-<td>`insighttrack`</td>
-<td>InsightTrack dashboard + API (reuses shared `postgres`)</td>
-<td>4427 / 4428</td>
+<td>`analytics`</td>
+<td>LDS Analytics — Nuxt/Vue dashboard + Hono API (reuses shared `postgres`)</td>
+<td>4520 / 4521</td>
 </tr>
 <tr>
 <td>Project management</td>
-<td>`werkyn`</td>
-<td>Werkyn team project management/collaboration app (reuses shared `postgres`)</td>
-<td>4435</td>
+<td>`tasks`</td>
+<td>LDS Tasks — Angular project management (reuses shared `postgres`)</td>
+<td>4522 / 4523</td>
+</tr>
+<tr>
+<td>Documentation</td>
+<td>`wiki`</td>
+<td>LDS Wiki — Next.js docs app (reuses shared `postgres`)</td>
+<td>4524 / 4525</td>
+</tr>
+<tr>
+<td>Communication</td>
+<td>`openwa`</td>
+<td>OpenWA — WhatsApp API server (reuses shared `postgres` + `redis`)</td>
+<td>4507</td>
+</tr>
+<tr>
+<td>File storage</td>
+<td>`rustfs`</td>
+<td>RustFS — self-hosted file sharing (API + console)</td>
+<td>4508 / 4509</td>
+</tr>
+<tr>
+<td>Browser automation</td>
+<td>`headlessx`</td>
+<td>HeadlessX — undetected scraping platform (web + API/MCP + sidecars, built from `data/headlessx`)</td>
+<td>4515–4519</td>
+</tr>
+<tr>
+<td>E2E testing</td>
+<td>`playwright`</td>
+<td>Playwright runner + HTML report viewer (`lds playwright` / `lds e2e`)</td>
+<td>4526 (reports) / 4527 (UI Mode)</td>
+</tr>
+<tr>
+<td>ERP</td>
+<td>`erpnext`</td>
+<td>ERPNext on Frappe — Accounting, CRM, HR, … (DB on shared `postgres` or `mariadb`); **heavy**</td>
+<td>4529</td>
 </tr>
 </tbody>
 </table>
@@ -162,9 +252,9 @@ cp .env.example .env             # then edit if needed
 ./lds.sh up mysql postgres redis memcached
 ./lds.sh up php                  # (auto-builds the lds/php base if missing)
 ./lds.sh up kafka
-./lds.sh up insighttrack
+./lds.sh up analytics
 ./lds.sh up vaultwarden
-./lds.sh up werkyn
+./lds.sh up wiki
 ./lds.sh up mqtt                 # a realtime broker (soketi | centrifugo | mqtt)
 ./lds.sh up all                  # or everything at once
 
@@ -205,7 +295,7 @@ docker compose --profile '*' down
 - **Control panel / dashboard:** http://localhost
 - **Your projects:** http://&lt;folder&gt;.test  (e.g. http://example.test)
 
-All host ports live in the **`44xx`** block (set via `*_HOST_PORT` in `.env`).
+All host ports live in the **`44xx`–`45xx`** block (set via `*_HOST_PORT` in `.env`).
 From other containers on `lds-network`, use the service name + its internal port
 (right column) instead. Full reference: [docs/en/12-ports.md](docs/en/12-ports.md).
 
@@ -220,7 +310,7 @@ From other containers on `lds-network`, use the service name + its internal port
 </thead>
 <tbody>
 <tr>
-<td>**Data** `440x`</td>
+<td>**Databases** `440x`</td>
 <td>--------------------------------------------------------------------------------</td>
 <td></td>
 <td></td>
@@ -230,6 +320,24 @@ From other containers on `lds-network`, use the service name + its internal port
 <td>MySQL</td>
 <td>`localhost:4400`</td>
 <td>`mysql:3306`</td>
+</tr>
+<tr>
+<td></td>
+<td>MariaDB</td>
+<td>`localhost:4406`</td>
+<td>`mariadb:3306`</td>
+</tr>
+<tr>
+<td></td>
+<td>SQL Server 2025</td>
+<td>`localhost:4407`</td>
+<td>`mssql:1433`</td>
+</tr>
+<tr>
+<td></td>
+<td>Oracle 23ai</td>
+<td>`localhost:4408` (EM: `localhost:4409/em`)</td>
+<td>`oracle:1521`</td>
 </tr>
 <tr>
 <td></td>
@@ -251,12 +359,18 @@ From other containers on `lds-network`, use the service name + its internal port
 </tr>
 <tr>
 <td></td>
+<td>Valkey</td>
+<td>`localhost:4405`</td>
+<td>`valkey:6379`</td>
+</tr>
+<tr>
+<td></td>
 <td>Memcached</td>
 <td>`localhost:4404`</td>
 <td>`memcached:11211`</td>
 </tr>
 <tr>
-<td>**Kafka** `441x`</td>
+<td>**Kafka** `442x`</td>
 <td>--------------------------------------------------------------------------------</td>
 <td></td>
 <td></td>
@@ -264,119 +378,35 @@ From other containers on `lds-network`, use the service name + its internal port
 <tr>
 <td></td>
 <td>Broker (bootstrap)</td>
-<td>`localhost:4410`</td>
+<td>`localhost:4420`</td>
 <td>`kafka-broker:9092`</td>
 </tr>
 <tr>
 <td></td>
 <td>Schema Registry</td>
-<td>`localhost:4411`</td>
+<td>`localhost:4421`</td>
 <td>`schema-registry:8080`</td>
 </tr>
 <tr>
 <td></td>
 <td>Connect — generic</td>
-<td>`localhost:4412`</td>
+<td>`localhost:4422`</td>
 <td>`connect-generic:8083`</td>
 </tr>
 <tr>
 <td></td>
 <td>Connect — Debezium</td>
-<td>`localhost:4413`</td>
+<td>`localhost:4423`</td>
 <td>`connect-debezium:8083`</td>
-</tr>
-<tr>
-<td>**Web UIs** `442x+`</td>
-<td>-------------------------------------------------------------------------------</td>
-<td></td>
-<td></td>
 </tr>
 <tr>
 <td></td>
 <td>Kafka UI</td>
-<td>`localhost:4420`</td>
+<td>`localhost:4424`</td>
 <td>`kafka-ui:8080`</td>
 </tr>
 <tr>
-<td></td>
-<td>phpCacheAdmin</td>
-<td>`localhost:4421` (`cache.test`)</td>
-<td>`phpcacheadmin:80`</td>
-</tr>
-<tr>
-<td></td>
-<td>DBGate</td>
-<td>`localhost:4422` (`db.test`)</td>
-<td>`dbgate:3000`</td>
-</tr>
-<tr>
-<td></td>
-<td>DrawDB</td>
-<td>`localhost:4462` (**not** `drawdb.test`)</td>
-<td>`drawdb:80`</td>
-</tr>
-<tr>
-<td></td>
-<td>Apache Hop</td>
-<td>`localhost:4424` (`hop.test`)</td>
-<td>`hop:8080`</td>
-</tr>
-<tr>
-<td></td>
-<td>Apache Superset</td>
-<td>`localhost:4425` (`superset.test`)</td>
-<td>`superset:8088`</td>
-</tr>
-<tr>
-<td></td>
-<td>Semgrep viewer</td>
-<td>`localhost:4426` (`semgrep.test`)</td>
-<td>`semgrep:8080`</td>
-</tr>
-<tr>
-<td></td>
-<td>OWASP ZAP — UI</td>
-<td>`localhost:4470` (`zap.test`)</td>
-<td>`zap:8080`</td>
-</tr>
-<tr>
-<td></td>
-<td>OWASP ZAP — proxy/API</td>
-<td>`localhost:4472`</td>
-<td>`zap:8090`</td>
-</tr>
-<tr>
-<td></td>
-<td>Trivy viewer</td>
-<td>`localhost:4471` (`trivy.test`)</td>
-<td>`trivy:8080`</td>
-</tr>
-<tr>
-<td></td>
-<td>InsightTrack UI</td>
-<td>`localhost:4427` (`insighttrack.test`)</td>
-<td>`insighttrack:4173`</td>
-</tr>
-<tr>
-<td></td>
-<td>InsightTrack API</td>
-<td>`localhost:4428`</td>
-<td>`insighttrack-backend:3001`</td>
-</tr>
-<tr>
-<td></td>
-<td>Vaultwarden</td>
-<td>`localhost:4429` (`vaultwarden.test`)</td>
-<td>`vaultwarden:80`</td>
-</tr>
-<tr>
-<td></td>
-<td>Werkyn</td>
-<td>`localhost:4435` (`werkyn.test`)</td>
-<td>`werkyn:3000`</td>
-</tr>
-<tr>
-<td>**Realtime** `443x`</td>
+<td>**Realtime** `444x`</td>
 <td>--------------------------------------------------------------------------------</td>
 <td></td>
 <td></td>
@@ -384,32 +414,230 @@ From other containers on `lds-network`, use the service name + its internal port
 <tr>
 <td></td>
 <td>Soketi (Pusher)</td>
-<td>`localhost:4430` (`ws.test`)</td>
+<td>`localhost:4440` (`ws.test`)</td>
 <td>`soketi:6001`</td>
 </tr>
 <tr>
 <td></td>
 <td>Centrifugo + UI</td>
-<td>`localhost:4431` (`centrifugo.test`)</td>
+<td>`localhost:4441` (`centrifugo.test`)</td>
 <td>`centrifugo:8000`</td>
 </tr>
 <tr>
 <td></td>
 <td>Mosquitto — MQTT</td>
-<td>`localhost:4432`</td>
+<td>`localhost:4442`</td>
 <td>`mosquitto:1883`</td>
 </tr>
 <tr>
 <td></td>
 <td>Mosquitto — MQTT/WS</td>
-<td>`localhost:4433` (path `/`)</td>
+<td>`localhost:4443` (path `/`)</td>
 <td>`mosquitto:9001`</td>
 </tr>
 <tr>
 <td></td>
 <td>MQTTX web client</td>
-<td>`localhost:4434` (`mqtt.test`)</td>
+<td>`localhost:4444` (`mqtt.test`)</td>
 <td>`mqttx:80`</td>
+</tr>
+<tr>
+<td>**Query engines**</td>
+<td>--------------------------------------------------------------------------------</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>DuckDB</td>
+<td>`n/a` (file engine, exec into `lds-duckdb`)</td>
+<td>—</td>
+</tr>
+<tr>
+<td></td>
+<td>Trino</td>
+<td>`localhost:4451` (`/ui`)</td>
+<td>`trino:8080`</td>
+</tr>
+<tr>
+<td>**Web UIs / tools** `450x+`</td>
+<td>-------------------------------------------------------------------------------</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>phpCacheAdmin</td>
+<td>`localhost:4500` (`cache.test`)</td>
+<td>`phpcacheadmin:80`</td>
+</tr>
+<tr>
+<td></td>
+<td>DBGate</td>
+<td>`localhost:4501` (`db.test`)</td>
+<td>`dbgate:3000`</td>
+</tr>
+<tr>
+<td></td>
+<td>DrawDB</td>
+<td>`localhost:4502` (**not** `drawdb.test`)</td>
+<td>`drawdb:80`</td>
+</tr>
+<tr>
+<td></td>
+<td>Apache Hop</td>
+<td>`localhost:4503` (`hop.test`)</td>
+<td>`hop:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>Apache Superset</td>
+<td>`localhost:4504` (`superset.test`)</td>
+<td>`superset:8088`</td>
+</tr>
+<tr>
+<td></td>
+<td>Semgrep viewer</td>
+<td>`localhost:4505` (`semgrep.test`)</td>
+<td>`semgrep:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>Vaultwarden</td>
+<td>`localhost:4506` (`vaultwarden.test`)</td>
+<td>`vaultwarden:80`</td>
+</tr>
+<tr>
+<td></td>
+<td>OpenWA</td>
+<td>`localhost:4507` (`openwa.test`)</td>
+<td>`openwa:2785`</td>
+</tr>
+<tr>
+<td></td>
+<td>RustFS — API</td>
+<td>`localhost:4508`</td>
+<td>`rustfs:9000`</td>
+</tr>
+<tr>
+<td></td>
+<td>RustFS — Console</td>
+<td>`localhost:4509` (`rustfs.test`)</td>
+<td>`rustfs:9001`</td>
+</tr>
+<tr>
+<td></td>
+<td>OWASP ZAP — UI</td>
+<td>`localhost:4510` (`zap.test`)</td>
+<td>`zap:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>Trivy viewer</td>
+<td>`localhost:4511` (`trivy.test`)</td>
+<td>`trivy:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>OWASP ZAP — proxy/API</td>
+<td>`localhost:4512`</td>
+<td>`zap:8090`</td>
+</tr>
+<tr>
+<td></td>
+<td>Mailpit — inbox</td>
+<td>`localhost:4513` (`mail.test`)</td>
+<td>`mailpit:8025`</td>
+</tr>
+<tr>
+<td></td>
+<td>Mailpit — SMTP</td>
+<td>`localhost:4514`</td>
+<td>`mailpit:1025`</td>
+</tr>
+<tr>
+<td></td>
+<td>HeadlessX — web</td>
+<td>`localhost:4515` (`headlessx.test`)</td>
+<td>`headlessx-web:3000`</td>
+</tr>
+<tr>
+<td></td>
+<td>HeadlessX — API/MCP</td>
+<td>`localhost:4516` (`headlessx-api.test`)</td>
+<td>`headlessx-api:8000`</td>
+</tr>
+<tr>
+<td></td>
+<td>HeadlessX — HTML→MD</td>
+<td>`localhost:4517`</td>
+<td>`headlessx-html-to-md:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>Penpot</td>
+<td>`localhost:4518` (`penpot.test`)</td>
+<td>`penpot-frontend:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>HeadlessX — YT engine</td>
+<td>`localhost:4519`</td>
+<td>`headlessx-yt-engine:8090`</td>
+</tr>
+<tr>
+<td></td>
+<td>Playwright — reports</td>
+<td>`localhost:4526` (`playwright.test`)</td>
+<td>`playwright-report:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>Playwright — UI Mode</td>
+<td>`localhost:4527` (via `lds playwright ui <name>`)</td>
+<td>`playwright:8787`</td>
+</tr>
+<tr>
+<td></td>
+<td>Instatic</td>
+<td>`localhost:4528` (`instatic.test`, admin at `/admin`)</td>
+<td>`instatic:3001`</td>
+</tr>
+<tr>
+<td></td>
+<td>ERPNext</td>
+<td>`localhost:4529` (`erpnext.test`)</td>
+<td>`erpnext-frontend:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>code-review-graph viewer</td>
+<td>`localhost:4530` (`crg.test`)</td>
+<td>`crg:8080`</td>
+</tr>
+<tr>
+<td>**LDS apps** `452x`</td>
+<td>--------------------------------------------------------------------------------</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>Analytics — API/UI</td>
+<td>`localhost:4520` / `localhost:4521` (`analytics.test`)</td>
+<td>`analytics-api:3001` / `analytics-ui:4173`</td>
+</tr>
+<tr>
+<td></td>
+<td>Tasks — API/UI</td>
+<td>`localhost:4522` / `localhost:4523` (`tasks.test`)</td>
+<td>`tasks-api:3002` / `tasks-ui:4174`</td>
+</tr>
+<tr>
+<td></td>
+<td>Wiki — API/UI</td>
+<td>`localhost:4524` / `localhost:4525` (`wiki.test`)</td>
+<td>`wiki-api:3003` / `wiki-ui:4175`</td>
 </tr>
 <tr>
 <td>**Infra**</td>
@@ -421,6 +649,12 @@ From other containers on `lds-network`, use the service name + its internal port
 <td></td>
 <td>Web proxy</td>
 <td>`localhost:80` (`*.test`)</td>
+<td>—</td>
+</tr>
+<tr>
+<td></td>
+<td>Web proxy (HTTPS)</td>
+<td>`localhost:443` (`*.test`, opt-in)</td>
 <td>—</td>
 </tr>
 <tr>
@@ -560,7 +794,7 @@ networks:
 Then your app reaches services by name (in-network ports): `mysql`, `postgres`,
 `redis`, `memcached`, `kafka-broker:9092`, `schema-registry:8080`,
 `connect-debezium:8083`, `connect-generic:8083`. From the host, Connect is on
-:4413 (Debezium) and :4412 (generic), and the registry on :4411.
+:4423 (Debezium) and :4422 (generic), and the registry on :4421.
 
 ## Debezium CDC
 

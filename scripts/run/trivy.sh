@@ -8,7 +8,16 @@
 set -euo pipefail
 export MSYS_NO_PATHCONV=1
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-[ -f "$ROOT/.env" ] && { set -a; . "$ROOT/.env"; set +a; }
+# Load .env so the TRIVY_* vars are available (shell env still wins). Parse
+# line-by-line (NOT `source`): .env holds unquoted multi-word values (e.g.
+# PENPOT_FLAGS) that sourcing would try to execute as commands.
+if [ -f "$ROOT/.env" ]; then
+  while IFS='=' read -r k v; do
+    k="${k%$'\r'}"
+    case "$k" in ''|'#'*) continue ;; esac
+    [ -z "${!k:-}" ] && export "$k=${v%$'\r'}"
+  done < "$ROOT/.env"
+fi
 
 reports="$ROOT/data/trivy/reports"
 cache="$ROOT/data/trivy/cache"

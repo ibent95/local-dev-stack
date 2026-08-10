@@ -81,8 +81,9 @@ goto end
 for /f "tokens=1*" %%a in ("%REST%") do ( set "SUB=%%a" & set "SUBREST=%%b" )
 if /I "!SUB!"=="semgrep"    ( call "%ROOT%scripts\run\semgrep.bat" !SUBREST! & goto end )
 if /I "!SUB!"=="trivy"      ( call "%ROOT%scripts\run\trivy.bat" !SUBREST! & goto end )
+if /I "!SUB!"=="crg"        ( call "%ROOT%scripts\run\crg.bat" !SUBREST! & goto end )
 if /I "!SUB!"=="playwright" ( call "%ROOT%scripts\run\playwright.bat" !SUBREST! & goto end )
-echo usage: lds tools ^<semgrep [path^|clear] ^| trivy [path^|clear] ^| trivy image ^<name^> ^| playwright ^<init^|run^|codegen^|ui^|shell^|report^>^>
+echo usage: lds tools ^<semgrep [path^|clear] ^| trivy [path^|clear] ^| trivy image ^<name^> ^| crg ^<path^> [name] ^| playwright ^<init^|run^|codegen^|ui^|shell^|report^>^>
 goto end
 
 :headlessx
@@ -113,8 +114,8 @@ echo.
 echo  kafka ^<sub^>                    topics ^| connect-plugin [--generic^|--debezium] ^<name^> ^| register-connectors ^| init
 echo  db ^<sub^>                       init [mysql^|postgres^|mongo^|all] ^| seed (DBGate connections)
 echo  tools ^<sub^>                    semgrep [path^|clear] ^| trivy [path^|clear] ^| trivy image ^<name^>
-echo                                 ^| playwright ^<init^|run^|codegen^|ui^|shell^|report^> (alias)
-echo                                 (scan; view at semgrep.test / trivy.test via up semgrep / up trivy)
+echo                                 ^| crg ^<path^> [name] ^| playwright ^<init^|run^|codegen^|ui^|shell^|report^> (alias)
+echo                                 (scan; view at semgrep.test / trivy.test / crg.test via the matching up)
 echo.
 echo   certs [--force]               mint the wildcard *.test dev TLS cert (for LDS_ENABLE_HTTPS)
 echo   hosts-sync                    write www/ projects into the hosts file

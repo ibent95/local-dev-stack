@@ -36,8 +36,11 @@ $serviceGroups = [
     // NOTE: definitions only — probing happens later, cached + time-budgeted.
     'Databases' => [
         'MySQL'      => ['mysql', 3306],
+        'MariaDB'    => ['mariadb', 3306],
         'PostgreSQL' => ['postgres', 5432],
         'MongoDB'    => ['mongo', 27017],
+        'SQL Server' => ['mssql', 1433],
+        'Oracle'     => ['oracle', 1521],
         'DuckDB'     => ['duckdb', null], // embedded file engine — no network port
     ],
     'Cache' => [
@@ -65,45 +68,52 @@ $serviceGroups = [
 // http->https redirect hop). Direct host:port links stay http (not proxied).
 $uiGroups = [
     'Data management' => [
-        ['label' => 'phpCacheAdmin', 'desc' => 'Redis · Memcached',     'url' => '//cache.test',      'alt' => 'localhost:4460', 'health' => ['phpcacheadmin', 80]],
-        ['label' => 'DBGate',        'desc' => 'MySQL · PostgreSQL',     'url' => '//db.test',         'alt' => 'localhost:4461', 'health' => ['dbgate', 3000]],
+        ['label' => 'phpCacheAdmin', 'desc' => 'Redis · Memcached',     'url' => '//cache.test',      'alt' => 'localhost:4500', 'health' => ['phpcacheadmin', 80]],
+        ['label' => 'DBGate',        'desc' => 'MySQL · PostgreSQL',     'url' => '//db.test',         'alt' => 'localhost:4501', 'health' => ['dbgate', 3000]],
         ['label' => 'Kafka UI',          'desc' => 'topics · connectors',      'url' => 'http://localhost:4424', 'alt' => null, 'health' => ['kafka-ui', 8080]],
         ['label' => 'Connector builder', 'desc' => 'build Connect connectors', 'url' => '/connectors.php',       'alt' => null, 'health' => null],
     ],
     'File storage' => [
-        ['label' => 'RustFS',          'desc' => 'S3 object storage',     'url' => '//rustfs.test', 'alt' => 'localhost:4469', 'health' => ['rustfs', 9001]],
+        ['label' => 'RustFS',          'desc' => 'S3 object storage',     'url' => '//rustfs.test', 'alt' => 'localhost:4509', 'health' => ['rustfs', 9001]],
     ],
     'Documents & credentials' => [
-        ['label' => 'LDS Tasks',     'desc' => 'Angular 22 · Kanban boards',  'url' => '//tasks.test',     'alt' => 'localhost:4483', 'health' => ['tasks-ui', 4174]],
-        ['label' => 'LDS Wiki',      'desc' => 'Next.js 16 · documentation hub', 'url' => '//wiki.test',   'alt' => 'localhost:4485', 'health' => ['wiki-ui', 4175]],
-        ['label' => 'Vaultwarden',   'desc' => 'password manager',       'url' => '//vaultwarden.test','alt' => 'localhost:4466', 'health' => ['vaultwarden', 80]],
+        ['label' => 'LDS Tasks',     'desc' => 'Angular 22 · Kanban boards',  'url' => '//tasks.test',     'alt' => 'localhost:4523', 'health' => ['tasks-ui', 4174]],
+        ['label' => 'LDS Wiki',      'desc' => 'Next.js 16 · documentation hub', 'url' => '//wiki.test',   'alt' => 'localhost:4525', 'health' => ['wiki-ui', 4175]],
+        ['label' => 'Vaultwarden',   'desc' => 'password manager',       'url' => '//vaultwarden.test','alt' => 'localhost:4506', 'health' => ['vaultwarden', 80]],
     ],
     'Messaging / Socials' => [
-        ['label' => 'Mailpit',       'desc' => 'SMTP sink · web inbox',  'url' => '//mail.test',       'alt' => 'localhost:4473', 'health' => ['mailpit', 8025]],
-        ['label' => 'OpenWA',        'desc' => 'WhatsApp API gateway',   'url' => '//openwa.test',     'alt' => 'localhost:4467', 'health' => ['openwa', 2785]],
+        ['label' => 'Mailpit',       'desc' => 'SMTP sink · web inbox',  'url' => '//mail.test',       'alt' => 'localhost:4513', 'health' => ['mailpit', 8025]],
+        ['label' => 'OpenWA',        'desc' => 'WhatsApp API gateway',   'url' => '//openwa.test',     'alt' => 'localhost:4507', 'health' => ['openwa', 2785]],
     ],
     'Browser automation & scraping' => [
-        ['label' => 'HeadlessX',     'desc' => 'undetected browser automation · API :4476 · MCP /mcp', 'url' => '//headlessx.test', 'alt' => 'localhost:4475', 'health' => ['headlessx-web', 3000]],
+        ['label' => 'HeadlessX',     'desc' => 'undetected browser automation · API :4516 · MCP /mcp', 'url' => '//headlessx.test', 'alt' => 'localhost:4515', 'health' => ['headlessx-web', 3000]],
     ],
     'Design' => [
-        ['label' => 'Penpot',        'desc' => 'collaborative design',    'url' => '//penpot.test',     'alt' => 'localhost:4478', 'health' => ['penpot-frontend', 8080]],
+        ['label' => 'Penpot',        'desc' => 'collaborative design',    'url' => '//penpot.test',     'alt' => 'localhost:4518', 'health' => ['penpot-frontend', 8080]],
         // DrawDB uses crypto.randomUUID(), which only exists in a secure context,
         // so it MUST be opened on localhost (or HTTPS) — NOT drawdb.test over http.
-        ['label' => 'DrawDB',        'desc' => 'ER diagrams · open on localhost', 'url' => 'http://localhost:4462', 'alt' => null, 'health' => ['drawdb', 80]],
+        ['label' => 'DrawDB',        'desc' => 'ER diagrams · open on localhost', 'url' => 'http://localhost:4502', 'alt' => null, 'health' => ['drawdb', 80]],
+    ],
+    'Websites & CMS' => [
+        ['label' => 'Instatic',      'desc' => 'visual CMS · admin at /admin', 'url' => '//instatic.test', 'alt' => 'localhost:4528', 'health' => ['instatic', 3001]],
+    ],
+    'ERP & business' => [
+        ['label' => 'ERPNext',       'desc' => 'accounting · CRM · HR · admin/admin', 'url' => '//erpnext.test', 'alt' => 'localhost:4529', 'health' => ['erpnext-frontend', 8080]],
     ],
     'Analytic & Business intelligence' => [
-        ['label' => 'LDS Analytics', 'desc' => 'Nuxt 4 · reactive dashboard', 'url' => '//analytics.test', 'alt' => 'localhost:4481', 'health' => ['analytics-ui', 4173]],
-        ['label' => 'Apache Hop',    'desc' => 'ETL pipeline designer',   'url' => '//hop.test',        'alt' => 'localhost:4463', 'health' => ['hop', 8080]],
+        ['label' => 'LDS Analytics', 'desc' => 'Nuxt 4 · reactive dashboard', 'url' => '//analytics.test', 'alt' => 'localhost:4521', 'health' => ['analytics-ui', 4173]],
+        ['label' => 'Apache Hop',    'desc' => 'ETL pipeline designer',   'url' => '//hop.test',        'alt' => 'localhost:4503', 'health' => ['hop', 8080]],
         ['label' => 'Trino',         'desc' => 'SQL query engine · web UI at :4451/ui', 'url' => 'http://localhost:4451', 'alt' => 'localhost:4451', 'health' => ['trino', 8080]],
-        ['label' => 'Apache Superset','desc' => 'BI dashboards · admin/admin', 'url' => '//superset.test','alt' => 'localhost:4464', 'health' => ['superset', 8088]],
+        ['label' => 'Apache Superset','desc' => 'BI dashboards · admin/admin', 'url' => '//superset.test','alt' => 'localhost:4504', 'health' => ['superset', 8088]],
     ],
     'Code & security quality scanner' => [
-        ['label' => 'Semgrep',       'desc' => 'SAST · SARIF viewer',     'url' => '//semgrep.test',    'alt' => 'localhost:4465', 'health' => ['semgrep', 8080]],
-        ['label' => 'Trivy',         'desc' => 'CVE scanner · containers & deps', 'url' => '//trivy.test', 'alt' => 'localhost:4471', 'health' => ['trivy', 8080]],
-        ['label' => 'OWASP ZAP',     'desc' => 'DAST · web app scanner',  'url' => '//zap.test/zap',    'alt' => 'localhost:4470', 'health' => ['zap', 8080]],
+        ['label' => 'Semgrep',       'desc' => 'SAST · SARIF viewer',     'url' => '//semgrep.test',    'alt' => 'localhost:4505', 'health' => ['semgrep', 8080]],
+        ['label' => 'Trivy',         'desc' => 'CVE scanner · containers & deps', 'url' => '//trivy.test', 'alt' => 'localhost:4511', 'health' => ['trivy', 8080]],
+        ['label' => 'OWASP ZAP',     'desc' => 'DAST · web app scanner',  'url' => '//zap.test/zap',    'alt' => 'localhost:4510', 'health' => ['zap', 8080]],
+        ['label' => 'code-review-graph', 'desc' => 'AI code graph · blast-radius', 'url' => '//crg.test', 'alt' => 'localhost:4530', 'health' => ['crg', 8080]],
     ],
     'Testing tools' => [
-        ['label' => 'Playwright',    'desc' => 'E2E tests · report viewer', 'url' => '//playwright.test', 'alt' => 'localhost:4486', 'health' => ['playwright-report', 8080]],
+        ['label' => 'Playwright',    'desc' => 'E2E tests · report viewer', 'url' => '//playwright.test', 'alt' => 'localhost:4526', 'health' => ['playwright-report', 8080]],
     ],
     'Websockets monitoring' => [
         ['label' => 'Centrifugo',      'desc' => 'WebSocket · admin UI',      'url' => '//centrifugo.test', 'alt' => 'localhost:4441', 'health' => ['centrifugo', 8000]],

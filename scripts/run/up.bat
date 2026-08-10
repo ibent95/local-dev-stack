@@ -31,7 +31,7 @@ REM "all". Canonical profile order; each maps to LDS_ENABLE_<NAME> (matched
 REM case-insensitively).
 if "%PROFILES%"=="" (
   set "PROFILES="
-  for %%p in (proxy php mysql postgres mongo redis valkey memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep zap trivy vaultwarden mail penpot analytics tasks wiki openwa headlessx playwright rustfs duckdb trino) do (
+  for %%p in (proxy php mysql mariadb mssql oracle postgres mongo redis valkey memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep zap trivy crg vaultwarden mail penpot instatic analytics tasks wiki openwa headlessx playwright erpnext rustfs duckdb trino) do (
     set "VAL="
     if exist .env for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do if /I "%%a"=="LDS_ENABLE_%%p" set "VAL=%%b"
     set "VAL=!VAL: =!"
@@ -101,9 +101,9 @@ if not errorlevel 1 (
   )
 )
 
-REM The Semgrep + Trivy + Playwright viewers use lds/nginx - build it once if missing.
+REM The Semgrep + Trivy + Playwright + CRG viewers use lds/nginx - build it once if missing.
 if "%NGINX_VERSION%"=="" set "NGINX_VERSION=1.27"
-echo %PROFILES% | findstr /I /C:"semgrep" /C:"trivy" /C:"playwright" /C:"all" >nul
+echo %PROFILES% | findstr /I /C:"semgrep" /C:"trivy" /C:"playwright" /C:"crg" /C:"all" >nul
 if not errorlevel 1 (
   docker image inspect "lds/nginx:%NGINX_VERSION%" >nul 2>&1 || (
     call :sub "build lds/nginx base - first run"
@@ -119,6 +119,18 @@ if not errorlevel 1 (
   docker image inspect "lds/duckdev:%DUCKDB_VERSION%" >nul 2>&1 || (
     call :sub "build lds/duckdev base (first run)"
     docker buildx bake -f docker-bake.hcl --load duckdev
+    call :subdone
+  )
+)
+
+REM The code-review-graph scanner image (configs/crg) - build it once so the
+REM first `lds tools crg` run has no build delay (upstream ships no official image).
+if "%CRG_VERSION%"=="" set "CRG_VERSION=2.3.7"
+echo %PROFILES% | findstr /I /C:"crg" /C:"all" >nul
+if not errorlevel 1 (
+  docker image inspect "lds/crg:%CRG_VERSION%" >nul 2>&1 || (
+    call :sub "build lds/crg scanner (first use)"
+    docker build -q -t "lds/crg:%CRG_VERSION%" "%CD%\configs\crg"
     call :subdone
   )
 )

@@ -10,7 +10,7 @@ is Debezium, so you can stream row changes from MySQL/Postgres into Kafka topics
 3. `./lds.sh register-connectors` (or `register-connectors mysql`).
 4. Watch topics appear in Kafka UI: http://localhost:4420.
 
-Endpoints: Kafka UI `:4420`, Schema Registry `:4411`, Connect REST — Debezium
-`:4413`, generic `:4412`; broker `localhost:4410` (host) /
+Endpoints: Kafka UI `:4424`, Schema Registry `:4421`, Connect REST — Debezium
+`:4423`, generic `:4422`; broker `localhost:4420` (host) /
 `kafka-broker:9092` (in-network). Edit
 connector configs in `configs/kafka/connect/*.json`.

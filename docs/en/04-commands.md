@@ -53,11 +53,11 @@
 </tr>
 <tr>
 <td>`tools &lt;sub&gt;`</td>
-<td>`semgrep [path\|clear]` — run/clear Semgrep report · `trivy [path\|clear]` / `trivy image &lt;name&gt;` — run/clear Trivy report; view at `semgrep.test` / `trivy.test` · `playwright &lt;…&gt;` — alias for `lds playwright` (see below)</td>
+<td>`semgrep [path\|clear]` — run/clear Semgrep report · `trivy [path\|clear]` / `trivy image &lt;name&gt;` — run/clear Trivy report · `crg &lt;path&gt; [name]` — build a code-review-graph + export it; view at `semgrep.test` / `trivy.test` / `crg.test` · `playwright &lt;…&gt;` — alias for `lds playwright` (see below)</td>
 </tr>
 <tr>
 <td>`playwright &lt;sub&gt;`</td>
-<td>`init &lt;name&gt; [url]` — scaffold an E2E project · `run &lt;name&gt; [args…]` — run tests · `codegen [url]` — record tests · `ui &lt;name&gt;` — interactive UI Mode in the browser (:4487) · `shell` — runner shell · `report` — viewer URL (`playwright.test` / :4486); alias: `e2e`</td>
+<td>`init &lt;name&gt; [url]` — scaffold an E2E project · `run &lt;name&gt; [args…]` — run tests · `codegen [url]` — record tests · `ui &lt;name&gt;` — interactive UI Mode in the browser (:4527) · `shell` — runner shell · `report` — viewer URL (`playwright.test` / :4526); alias: `e2e`</td>
 </tr>
 <tr>
 <td>`certs [--force]`</td>

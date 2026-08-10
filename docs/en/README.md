@@ -16,6 +16,6 @@ Read in order:
 12. [Ports](12-ports.md)
 13. [Profiles (every profile in detail)](13-profiles.md)
 14. [Resolving `*.test` (DNS)](14-dns.md)
-15. [Dashboard & data tools (DrawDB, Hop, Superset, Semgrep)](15-data-tools.md)
+15. [Dashboard & data tools (DrawDB, Hop, Superset, Semgrep, ZAP, Trivy, CRG, Playwright, HeadlessX, …)](15-data-tools.md)
 
 > Bahasa Indonesia: see `../id/`.

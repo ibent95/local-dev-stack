@@ -10,7 +10,7 @@ topik Kafka.
 3. `./lds.sh register-connectors` (atau `register-connectors mysql`).
 4. Pantau topik muncul di Kafka UI: http://localhost:4420.
 
-Endpoint: Kafka UI `:4420`, Schema Registry `:4411`, Connect REST — Debezium
-`:4413`, generic `:4412`; broker `localhost:4410` (host) /
+Endpoint: Kafka UI `:4424`, Schema Registry `:4421`, Connect REST — Debezium
+`:4423`, generic `:4422`; broker `localhost:4420` (host) /
 `kafka-broker:9092` (dalam jaringan). Edit
 config connector di `configs/kafka/connect/*.json`.

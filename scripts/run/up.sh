@@ -35,7 +35,7 @@ if [ $# -gt 0 ]; then
 else
   profiles=()
   # Canonical profile order; each maps to LDS_ENABLE_<UPPER>=true in .env.
-  for p in proxy php mysql postgres mongo redis valkey memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep zap trivy vaultwarden mail penpot analytics tasks wiki openwa headlessx playwright rustfs duckdb trino; do
+  for p in proxy php mysql mariadb mssql oracle postgres mongo redis valkey memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep zap trivy crg vaultwarden mail penpot instatic analytics tasks wiki openwa headlessx playwright erpnext rustfs duckdb trino; do
     var="LDS_ENABLE_$(printf '%s' "$p" | tr '[:lower:]' '[:upper:]')"
     val="$(grep -E "^[[:space:]]*${var}=" .env 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/#.*//' | tr -d '[:space:]\r')"
     case "$val" in
@@ -99,9 +99,9 @@ case " ${profiles[*]} " in
     fi ;;
 esac
 
-# The Semgrep + Trivy + Playwright viewers use lds/nginx — build it once if missing.
+# The Semgrep + Trivy + Playwright + CRG viewers use lds/nginx — build it once if missing.
 case " ${profiles[*]} " in
-  *" semgrep "*|*" trivy "*|*" playwright "*|*" all "*)
+  *" semgrep "*|*" trivy "*|*" playwright "*|*" crg "*|*" all "*)
     if ! docker image inspect "lds/nginx:${NGINX_VERSION:-1.27}" >/dev/null 2>&1; then
       sub "build lds/nginx base (first run)"
       ( cd "$ROOT" && docker buildx bake -f docker-bake.hcl --load nginx )
@@ -125,6 +125,17 @@ case " ${profiles[*]} " in
     if ! docker image inspect "lds/duckdev:${DUCKDB_VERSION:-1.2.0}" >/dev/null 2>&1; then
       sub "build lds/duckdev base (first run)"
       ( cd "$ROOT" && docker buildx bake -f docker-bake.hcl --load duckdev )
+      subdone
+    fi ;;
+esac
+
+# The code-review-graph scanner image (configs/crg) — build it once so the first
+# `lds tools crg` run has no build delay (upstream ships no official image).
+case " ${profiles[*]} " in
+  *" crg "*|*" all "*)
+    if ! docker image inspect "lds/crg:${CRG_VERSION:-2.3.7}" >/dev/null 2>&1; then
+      sub "build lds/crg scanner (first use)"
+      docker build -q -t "lds/crg:${CRG_VERSION:-2.3.7}" "$ROOT/configs/crg" >/dev/null
       subdone
     fi ;;
 esac

@@ -40,6 +40,8 @@ lds db init [mysql|postgres|mongo|all] | seed     create default db/users (+ opt
 lds kafka topics | connect-plugin [--generic] <name> | register-connectors | init
 lds tools semgrep [path|clear]  run/clear a Semgrep scan → data/semgrep/reports/report.sarif
 lds tools trivy [path|clear] | trivy image <name>  run/clear a Trivy scan → data/trivy/reports/report.html
+lds tools crg <path> [name]      run a code-review-graph scan → data/crg/reports/<name>/ (viewer: crg.test)
+                                  (AI code-intelligence graph; graph DB written into the scanned repo at .code-review-graph/)
 lds certs [--force]       mint the wildcard *.test dev TLS cert (LDS_ENABLE_HTTPS)
 ```
 
@@ -49,11 +51,12 @@ Old flat names (`kafka-topics`, `mysql-init`, `mongo-init`, `register-connectors
 ## Layout / ordering
 
 `docker-compose.yml` is ordered by importance of usage: **web foundation**
-(proxy, dns, php) → **databases** (mysql, postgres, mongo, redis, valkey, memcached) →
+(proxy, dns, php) → **databases** (mysql, mariadb, mssql, oracle, postgres, mongo, redis, valkey, memcached) →
 **admin UIs** (phpcacheadmin, dbgate) → **data tools** (drawdb, hop, superset,
-semgrep, zap, trivy, vaultwarden, mailpit, penpot, analytics, tasks, wiki) → **realtime brokers** (soketi, centrifugo, mqtt) → **Kafka** (last,
-heaviest, off by default). Each group has a `# ===` banner. Host ports live in
-the `44xx` block (see `docs/en/12-ports.md`).
+semgrep, zap, trivy, crg, vaultwarden, mailpit, penpot, instatic, analytics, tasks, wiki) → **realtime brokers** (soketi, centrifugo, mqtt) → **Kafka** (last,
+heaviest, off by default) → **HeadlessX/Playwright** → **ERPNext** (reuses shared
+postgres + redis, heavy — off by default).
+Each group has a `# ===` banner. Host ports live in the `44xx`-`45xx` block (see `docs/en/12-ports.md`).
 
 ## Dashboard
 
@@ -65,7 +68,7 @@ bind-mounted, so changes are live (no restart).
 
 ## Known gotchas & fixes
 
-- **DrawDB blank page** → open `http://localhost:4462`, NOT `drawdb.test`. It
+- **DrawDB blank page** → open `http://localhost:4502`, NOT `drawdb.test`. It
   calls `crypto.randomUUID()`, exposed only in a secure context (localhost or
   HTTPS). The dashboard links it to the localhost port for this reason.
 - **Apache Hop** → use image `apache/hop-web` (Tomcat, no login, served at
@@ -89,7 +92,7 @@ bind-mounted, so changes are live (no restart).
   the viewer. (Not `docker compose run` — Compose's -v splits on ':' and chokes on
   Windows `D:\…` paths, leaving /src empty.) Empty viewer = no scan has run yet.
   `lds up semgrep` pre-pulls the scanner image (best-effort).
-- **ZAP** (DAST) = `zap` service, UI at `zap.test` / :4470 (ZAP proxy/API :4472).
+- **ZAP** (DAST) = `zap` service, UI at `zap.test` / :4510 (ZAP proxy/API :4512).
   **Requires the proxy: `lds up proxy zap`** — the dns container ships with the
   proxy/php profiles, and ZAP's in-network `*.test` DNS is a SECOND dnsmasq view
   in the dns container (10.99.0.53 on the compose-defined `lds-dnsnet` network,
@@ -97,18 +100,18 @@ bind-mounted, so changes are live (no restart).
   image once (`lds up --rebuild proxy` or `docker compose build dns`) or the old
   single-dnsmasq image keeps running and zap's DNS is dead.
 - **Trivy** (CVE/SCA) = same split as Semgrep: `trivy` viewer at `trivy.test` /
-  :4471 + one-shot `trivy-scan` invoked by `lds tools trivy [path]` / `lds tools
+  :4511 + one-shot `trivy-scan` invoked by `lds tools trivy [path]` / `lds tools
   trivy image <name>` → `data/trivy/reports/report.html` (vuln DB cached in
   `data/trivy/cache`). Also uses `docker run` for Windows path handling.
 - **Analytics** reuses shared `postgres` (no extra DB container); `analytics-init`
   augments `POSTGRES_INIT_SPECS` and delegates to `postgres-init` so the configured
-  `ANALYTICS_POSTGRES_DB/USER/PASSWORD` exist. UI at `analytics.test` / :4440.
+  `ANALYTICS_POSTGRES_DB/USER/PASSWORD` exist. UI at `analytics.test` / :4521.
 - **Tasks** reuses shared `postgres`; `tasks-init` augments `POSTGRES_INIT_SPECS`
   and delegates to `postgres-init` so `TASKS_POSTGRES_DB/USER/PASSWORD` exist.
-  UI at `tasks.test` / :4442.
+  UI at `tasks.test` / :4523.
 - **Wiki** reuses shared `postgres`; `wiki-init` augments `POSTGRES_INIT_SPECS`
   and delegates to `postgres-init` so `WIKI_POSTGRES_DB/USER/PASSWORD` exist.
-  UI at `wiki.test` / :4444.
+  UI at `wiki.test` / :4525.
 - **DB `app` database missing** (or tool DB/user not created yet)
   → `lds db init mysql|postgres|mongo|all` (auto-run by `lds up` when relevant profiles are selected).
 - **`*.test` won't resolve** without the dns container as your resolver → run

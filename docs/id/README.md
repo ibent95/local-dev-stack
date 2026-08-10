@@ -16,6 +16,6 @@ Baca berurutan:
 12. [Port](12-ports.md)
 13. [Profile (setiap profile secara rinci)](13-profiles.md)
 14. [Meresolusi `*.test` (DNS)](14-dns.md)
-15. [Dashboard & tool data (DrawDB, Hop, Superset, Semgrep)](15-data-tools.md)
+15. [Dashboard & tool data (DrawDB, Hop, Superset, Semgrep, ZAP, Trivy, CRG, Playwright, HeadlessX, …)](15-data-tools.md)
 
 > English: lihat `../en/`.

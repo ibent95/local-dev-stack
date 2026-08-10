@@ -1,3 +1,6 @@
 {"_id":"11111111-1111-4111-8111-111111111111","engine":"mysql@dbgate-plugin-mysql","displayName":"MySQL (LDS)","server":"mysql","port":"3306","user":"root","password":"root"}
 {"_id":"22222222-2222-4222-8222-222222222222","engine":"postgres@dbgate-plugin-postgres","displayName":"PostgreSQL (LDS)","server":"postgres","port":"5432","user":"app","password":"app","defaultDatabase":"app"}
 {"_id":"33333333-3333-4333-8333-333333333333","engine":"mongo@dbgate-plugin-mongo","displayName":"MongoDB (LDS)","useDatabaseUrl":true,"databaseUrl":"mongodb://root:root@mongo:27017/?authSource=admin"}
+{"_id":"44444444-4444-4444-8444-444444444444","engine":"mysql@dbgate-plugin-mysql","displayName":"MariaDB (LDS)","server":"mariadb","port":"3306","user":"root","password":"root"}
+{"_id":"55555555-5555-4555-8555-555555555555","engine":"mssql@dbgate-plugin-mssql","displayName":"SQL Server (LDS)","server":"mssql","port":"1433","user":"sa","password":"Lds-dev-2024!"}
+{"_id":"66666666-6666-4666-8666-666666666666","engine":"oracle@dbgate-plugin-oracle","displayName":"Oracle Free (LDS)","server":"oracle","port":"1521","user":"system","password":"Oracle-dev-2024!"}

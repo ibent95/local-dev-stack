@@ -12,8 +12,8 @@ if exist ".env" for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do i
 if "%PLAYWRIGHT_VERSION%"=="" set "PLAYWRIGHT_VERSION=v1.62.1-noble"
 if "%PLAYWRIGHT_PROJECTS_PATH%"=="" set "PLAYWRIGHT_PROJECTS_PATH=.\data\playwright\projects"
 if "%PLAYWRIGHT_REPORT_HOST%"=="" set "PLAYWRIGHT_REPORT_HOST=playwright.test"
-if "%PLAYWRIGHT_REPORT_HOST_PORT%"=="" set "PLAYWRIGHT_REPORT_HOST_PORT=4486"
-if "%PLAYWRIGHT_UI_HOST_PORT%"=="" set "PLAYWRIGHT_UI_HOST_PORT=4487"
+if "%PLAYWRIGHT_REPORT_HOST_PORT%"=="" set "PLAYWRIGHT_REPORT_HOST_PORT=4526"
+if "%PLAYWRIGHT_UI_HOST_PORT%"=="" set "PLAYWRIGHT_UI_HOST_PORT=4527"
 
 set "CMD=%~1"
 if "%CMD%"=="" set "CMD=help"

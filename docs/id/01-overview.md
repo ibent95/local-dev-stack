@@ -9,8 +9,12 @@ Di atas layanan tersebut, **proxy** edge (nginx-proxy) + **dnsmasq** memberi
 tiap proyek hostname `<nama>.test`, dan pustaka **template** men-scaffold proyek
 baru untuk berbagai bahasa dan framework.
 
-- Profile: `proxy`, `php`, `mysql`, `postgres`, `mongo`, `redis`, `valkey`, `memcached`,
-  `kafka`, `phpcacheadmin`, `dbgate`, `drawdb`, `hop`,`superset`, `semgrep`, `zap`, `trivy`, `vaultwarden`, `mail`, `penpot`, `analytics`, `tasks`, `wiki`, `soketi`, `centrifugo`, `mqtt`, `all`. Tiap
+- Profile: `proxy`, `php`, `mysql`, `mariadb`, `mssql`, `oracle`, `postgres`,
+  `mongo`, `redis`, `valkey`, `memcached`, `kafka`, `phpcacheadmin`, `dbgate`,
+  `drawdb`, `hop`, `superset`, `duckdb`, `trino`, `semgrep`, `zap`, `trivy`,
+  `crg`, `vaultwarden`, `mail`, `penpot`, `instatic`, `analytics`, `tasks`,
+  `wiki`, `openwa`, `rustfs`, `headlessx`, `playwright`, `erpnext`, `soketi`,
+  `centrifugo`, `mqtt`, `all`. Tiap
   profile dijelaskan rinci di [13 · Profile](13-profiles.md).
 - `lds up` tanpa profile menjalankan setiap profile yang toggle
   `LDS_ENABLE_<PROFILE>`-nya di `.env` bernilai `true` (default: `proxy`, `php`,

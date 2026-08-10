@@ -67,7 +67,7 @@ add "${HEADLESSX_API_HOST:-headlessx-api.test}" "(MCP + API — headlessx-api.te
 
 group "Designers"
 add "${PENPOT_HOST:-penpot.test}"
-add "${DRAWDB_HOST:-drawdb.test}" "(open via http://localhost:4462 — needs a secure context)"
+add "${DRAWDB_HOST:-drawdb.test}" "(open via http://localhost:4502 — needs a secure context)"
 
 group "Data tools"
 add "${SUPERSET_HOST:-superset.test}"
@@ -75,6 +75,7 @@ add "${HOP_HOST:-hop.test}"
 
 group "Code quality"
 add "${SEMGREP_HOST:-semgrep.test}"
+add "${CRG_HOST:-crg.test}" "(code-review-graph — AI code graph · blast-radius)"
 
 group "Testing tools"
 add "${PLAYWRIGHT_REPORT_HOST:-playwright.test}" "(Playwright E2E report viewer)"
@@ -98,6 +99,12 @@ add "${MQTT_HOST:-mqtt.test}"
 
 group "Storage tools"
 add "${RUSTFS_HOST:-rustfs.test}"
+
+group "Websites & CMS"
+add "${INSTATIC_HOST:-instatic.test}" "(visual CMS — admin at /admin)"
+
+group "ERP & business"
+add "${ERPNEXT_HOST:-erpnext.test}" "(accounting · CRM · HR — admin/admin)"
 
 bann "# ===== end local-dev-stack ====="
 

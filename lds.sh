@@ -23,8 +23,9 @@ case "$cmd" in
     case "$sub" in
       semgrep)    exec "$ROOT/scripts/run/semgrep.sh" "$@" ;;
       trivy)      exec "$ROOT/scripts/run/trivy.sh" "$@" ;;
+      crg)        exec "$ROOT/scripts/run/crg.sh" "$@" ;;
       playwright) exec "$ROOT/scripts/run/playwright.sh" "$@" ;;
-      *) echo "usage: lds tools <semgrep [path|clear] | trivy [path|clear] | trivy image <name> | playwright <init|run|codegen|ui|shell|report>>"; exit 1 ;;
+      *) echo "usage: lds tools <semgrep [path|clear] | trivy [path|clear] | trivy image <name> | crg <path> [name] | playwright <init|run|codegen|ui|shell|report>>"; exit 1 ;;
     esac ;;
   headlessx)
     sub="${1:-}"; shift 2>/dev/null || true
@@ -106,8 +107,8 @@ local-dev-stack — usage: ./lds.sh <command> [args]
                                   | register-connectors | init (topics + connectors)
  db <sub>                       init [mysql|postgres|mongo|all] | seed (DBGate connections)
  tools <sub>                    semgrep [path|clear] | trivy [path|clear] | trivy image <name>
-                                  | playwright <init|run|codegen|ui|shell|report> (alias)
-                                  (scan; view at semgrep.test / trivy.test via `up semgrep` / `up trivy`)
+                                  | crg <path> [name] | playwright <init|run|codegen|ui|shell|report> (alias)
+                                  (scan; view at semgrep.test / trivy.test / crg.test via the matching `up`)
  headlessx <sub>                init | update (clone/refresh the HeadlessX source checkout
                                   used to build the headlessx profile)
  playwright <sub>               init <name> [url] | run <name> [args...] | codegen [url] |

@@ -46,6 +46,24 @@ when you'd turn it on.
 <td>`mysql`</td>
 </tr>
 <tr>
+<td>`mariadb`</td>
+<td>`LDS_ENABLE_MARIADB`</td>
+<td>❌</td>
+<td>`mariadb` — MySQL-compatible fork; also the ERPNext database</td>
+</tr>
+<tr>
+<td>`mssql`</td>
+<td>`LDS_ENABLE_MSSQL`</td>
+<td>❌</td>
+<td>`mssql` — SQL Server 2025 Developer (free for dev; SA password must meet policy)</td>
+</tr>
+<tr>
+<td>`oracle`</td>
+<td>`LDS_ENABLE_ORACLE`</td>
+<td>❌</td>
+<td>`oracle` — Oracle Database Free 23ai (no Oracle account needed via the gvenzl mirror)</td>
+</tr>
+<tr>
 <td>`postgres`</td>
 <td>`LDS_ENABLE_POSTGRES`</td>
 <td>❌</td>
@@ -115,7 +133,7 @@ when you'd turn it on.
 <td>`drawdb`</td>
 <td>`LDS_ENABLE_DRAWDB`</td>
 <td>❌</td>
-<td>`drawdb` — DB schema designer (open at `localhost:4462`)</td>
+<td>`drawdb` — DB schema designer (open at `localhost:4502`)</td>
 </tr>
 <tr>
 <td>`hop`</td>
@@ -139,13 +157,19 @@ when you'd turn it on.
 <td>`zap`</td>
 <td>`LDS_ENABLE_ZAP`</td>
 <td>❌</td>
-<td>`zap` — OWASP ZAP DAST scanner, browser UI at `zap.test` (:4470 UI, :4472 proxy/API)</td>
+<td>`zap` — OWASP ZAP DAST scanner, browser UI at `zap.test` (:4510 UI, :4512 proxy/API)</td>
 </tr>
 <tr>
 <td>`trivy`</td>
 <td>`LDS_ENABLE_TRIVY`</td>
 <td>❌</td>
 <td>`trivy` — report viewer at `trivy.test` (`lds tools trivy` runs the scan)</td>
+</tr>
+<tr>
+<td>`crg`</td>
+<td>`LDS_ENABLE_CRG`</td>
+<td>❌</td>
+<td>`crg` — code-review-graph viewer at `crg.test` (`lds tools crg &lt;path&gt;` runs the scan)</td>
 </tr>
 <tr>
 <td>`analytics`</td>
@@ -172,6 +196,12 @@ when you'd turn it on.
 <td>`penpot-frontend`, `penpot-backend`, `penpot-exporter` — collaborative design</td>
 </tr>
 <tr>
+<td>`instatic`</td>
+<td>`LDS_ENABLE_INSTATIC`</td>
+<td>❌</td>
+<td>`instatic` — self-hosted visual CMS / website builder at `instatic.test`</td>
+</tr>
+<tr>
 <td>`duckdb`</td>
 <td>`LDS_ENABLE_DUCKDB`</td>
 <td>❌</td>
@@ -196,6 +226,18 @@ when you'd turn it on.
 <td>`wiki-api`, `wiki-ui` — Next.js documentation</td>
 </tr>
 <tr>
+<td>`openwa`</td>
+<td>`LDS_ENABLE_OPENWA`</td>
+<td>❌</td>
+<td>`openwa` — WhatsApp API server (reuses shared `postgres` + `redis`)</td>
+</tr>
+<tr>
+<td>`rustfs`</td>
+<td>`LDS_ENABLE_RUSTFS`</td>
+<td>❌</td>
+<td>`rustfs` — self-hosted file sharing (API + console)</td>
+</tr>
+<tr>
 <td>`headlessx`</td>
 <td>`LDS_ENABLE_HEADLESSX`</td>
 <td>❌</td>
@@ -208,6 +250,12 @@ when you'd turn it on.
 <td>`playwright`, `playwright-report` — End-To-End test runner (official image) + HTML report viewer</td>
 </tr>
 <tr>
+<td>`erpnext`</td>
+<td>`LDS_ENABLE_ERPNEXT`</td>
+<td>❌</td>
+<td>`erpnext-*` — full ERP suite on Frappe, DB on the shared `postgres` (or `mariadb` via `ERPNEXT_DB_TYPE`); **heavy** (~3-6 GB RAM, multi-GB pulls)</td>
+</tr>
+<tr>
 <td>`all`</td>
 <td>—</td>
 <td>—</td>
@@ -216,7 +264,10 @@ when you'd turn it on.
 </tbody>
 </table>
 
-> **Custom apps** (`analytics`, `tasks`, `wiki`) and **data tools** (`drawdb`, `hop`, `superset`, `semgrep`, `zap`, `trivy`, `vaultwarden`, `mail`, `penpot`) get their own page —
+> **Custom apps** (`analytics`, `tasks`, `wiki`), **data tools** (`drawdb`, `hop`,
+> `superset`, `semgrep`, `zap`, `trivy`, `crg`, `vaultwarden`, `mail`, `penpot`,
+> `instatic`, `openwa`, `rustfs`) and the **automation/testing profiles**
+> (`headlessx`, `playwright`) get their own page —
 > see [15 · Dashboard & data tools](15-data-tools.md). The `http://localhost`
 > control panel links them all with live status.
 
@@ -283,6 +334,58 @@ See [06](06-php-multiproject.md).
   `--binlog-row-image=FULL`, `--gtid-mode=ON` — Debezium works out of the box.
 - **Init:** SQL in `configs/mysql/init/` runs on first boot.
 - **Volume:** `mysql-data` (persists across restarts; wiped by `lds down -v`).
+
+## `mariadb` — MariaDB 11.8
+
+**Starts:** `mariadb`. **Toggle:** `LDS_ENABLE_MARIADB`. **Off by default.**
+
+Drop-in MySQL-compatible fork (DHI hardened image). Runs with **utf8mb4 server
+defaults** (`--character-set-server=utf8mb4
+--collation-server=utf8mb4_unicode_ci --skip-character-set-client-handshake`) —
+which is exactly what ERPNext needs, so **ERPNext reuses this shared instance**
+(the `erpnext` profile pulls `mariadb` in automatically).
+
+- **Image:** `mariadb:${MARIADB_VERSION}` (default `11.8-debian13`).
+- **Port:** host `${MARIADB_HOST_PORT}` (default `4406`) → container `3306`.
+- **Credentials:** root `${MARIADB_ROOT_PASSWORD}` (default `root`); app user
+  `${MARIADB_USER}`/`${MARIADB_PASSWORD}` (default `app`/`app`) on DB
+  `${MARIADB_DATABASE}` (default `app`).
+- **Volume:** `mariadb-data`.
+
+## `mssql` — Microsoft SQL Server 2025 (Developer)
+
+**Starts:** `mssql`. **Toggle:** `LDS_ENABLE_MSSQL`. **Off by default.**
+
+Free Developer edition for development/testing (`ACCEPT_EULA=Y` is the license
+consent). Two hard requirements: **`MSSQL_SA_PASSWORD` must satisfy the SQL
+Server password policy** (8+ chars, 3 of 4: upper/lower/digit/symbol) or the
+server exits on boot, and **`MSSQL_MEM_LIMIT` must stay ≥ 2g**.
+
+- **Image:** `mcr.microsoft.com/mssql/server:${MSSQL_VERSION}` (default
+  `2025-latest`, ~1.5 GB; Microsoft's scheme is `<year>-latest` — the previous
+  major is still available as `2022-latest`).
+- **Port:** host `${MSSQL_HOST_PORT}` (default `4407`) → container `1433`.
+- **Credentials:** `sa` / `${MSSQL_SA_PASSWORD}` (default `Lds-dev-2024!`).
+- **Volume:** `mssql-data`. First boot runs setup before accepting connections.
+
+## `oracle` — Oracle Database Free 23ai
+
+**Starts:** `oracle`. **Toggle:** `LDS_ENABLE_ORACLE`. **Off by default.**
+
+Free developer license via the **`gvenzl/oracle-free`** mirror — no Oracle
+account/login needed (the official `container-registry.oracle.com` image
+requires one). `ORACLE_PASSWORD` is **required** and sets `SYS`/`SYSTEM`;
+`ORACLE_DATABASE` (default `FREE`) creates a PDB of that name.
+
+- **Image:** `gvenzl/oracle-free:${ORACLE_VERSION}` (default `23.26.2-slim`, ~3 GB;
+  pinned to the latest supported 23.x — use `23-slim` to float the major).
+- **Ports:** host `${ORACLE_HOST_PORT}` (default `4408`) → `1521` (DB); EM
+  Express web console at `https://localhost:4409/em`.
+- **Credentials:** `SYS`/`SYSTEM` with `${ORACLE_PASSWORD}` (default
+  `Oracle-dev-2024!`); app user `${ORACLE_USER}` (default `app`).
+- **Volume:** `oracle-data`. First boot creates the DB (~1-2 min, several GB
+  disk); the container runs as uid 54321 (chown `oracle-data` on Linux if
+  volume writes fail).
 
 ## `postgres` — PostgreSQL 16
 
@@ -352,21 +455,21 @@ See [06](06-php-multiproject.md).
   **broker** (node 2), image `apache/kafka:${KAFKA_VERSION}`. Set
   `KAFKA_CLUSTER_ID` *before* first start — changing it later means wiping the
   `kafka-*-data` volumes.
-  - Broker bootstrap: host `${KAFKA_HOST_PORT}` (default `4410`) → `29092`
+  - Broker bootstrap: host `${KAFKA_HOST_PORT}` (default `4420`) → `29092`
     (EXTERNAL); in-network clients use `kafka-broker:9092` (INTERNAL).
 - **`schema-registry`** — **Apicurio Registry** (Apache 2.0, in-memory) on host
-  `${SCHEMA_REGISTRY_HOST_PORT}` (default `4411`). Confluent-compatible API at
+  `${SCHEMA_REGISTRY_HOST_PORT}` (default `4421`). Confluent-compatible API at
   `/apis/ccompat/v7`. Dev only: schemas reset on restart (auto re-registered).
 - **`connect-debezium`** — Kafka Connect on the **Debezium** image (MySQL +
   Postgres CDC source connectors bundled). REST on `${CONNECT_HOST_PORT}` (default
-  `4413`). Connector JSON lives in `configs/kafka/connect/`.
+  `4423`). Connector JSON lives in `configs/kafka/connect/`.
 - **`connect-generic`** — Kafka Connect on the **vanilla apache/kafka** image
   (same runtime, **no** bundled connectors). Drop plugin JARs into
   `configs/kafka/connect-generic/plugins/`. REST on `${CONNECT_GENERIC_HOST_PORT}`
-  (default `4412`). Uses its own group + state topics so it won't clash with the
+  (default `4422`). Uses its own group + state topics so it won't clash with the
   Debezium worker.
 - **`kafka-ui`** — kafbat Kafka UI on host `${KAFKA_UI_HOST_PORT}` (default
-  `4420`), pre-wired to the broker, schema registry, and both Connect workers.
+  `4424`), pre-wired to the broker, schema registry, and both Connect workers.
 - **Topics:** provisioned from `${KAFKA_TOPICS}` by `scripts/run/kafka-topics.*`
   (auto-run by `lds up` for the kafka profile, or manually via `lds kafka-topics`).
 - **Volumes:** `kafka-controller-data`, `kafka-broker-data`.
@@ -387,7 +490,7 @@ data profile is also up.
 default** (turn it on when you run `redis`/`memcached`).
 
 - Redis + Valkey + Memcached + OPcache/APCu browser. `${CACHE_ADMIN_HOST}` (default
-  `cache.test`) / host `${CACHE_ADMIN_HOST_PORT}` (default `4421`).
+  `cache.test`) / host `${CACHE_ADMIN_HOST_PORT}` (default `4500`).
 - Pre-pointed at the `redis`, `valkey`, and `memcached` services — start one (or more) to
   see data. No volume (stateless UI).
 
@@ -396,7 +499,7 @@ default** (turn it on when you run `redis`/`memcached`).
 **Starts:** `dbgate`. **Toggle:** `LDS_ENABLE_DBGATE`. **On by default.**
 
 - Web DB client. `${DB_ADMIN_HOST}` (default `db.test`) / host
-  `${DB_ADMIN_HOST_PORT}` (default `4422`).
+  `${DB_ADMIN_HOST_PORT}` (default `4501`).
 - Runs fully open (add/edit/delete connections in the UI); the stack's MySQL +
   Postgres are auto-listed via `scripts/run/dbgate-seed.*` (auto-run by `lds up`
   for the `dbgate`/`all` profile). UI-created connections persist in the
@@ -414,7 +517,7 @@ serves unlimited channels/topics; you never run a second instance per channel.
 **Toggle:** `LDS_ENABLE_SOKETI`. Headless (no UI).
 
 - **Image:** `quay.io/soketi/soketi:${SOKETI_VERSION}`. Port host
-  `${SOKETI_HOST_PORT}` (default `4430`) → `6001`; also `${SOKETI_HOST}`
+  `${SOKETI_HOST_PORT}` (default `4440`) → `6001`; also `${SOKETI_HOST}`
   (default `ws.test`) via the proxy.
 - Drop-in for **Laravel broadcasting** (`BROADCAST_DRIVER=pusher`/reverb) +
   **Laravel Echo** / `pusher-js`. App credentials: `${SOKETI_APP_ID}` /
@@ -427,7 +530,7 @@ serves unlimited channels/topics; you never run a second instance per channel.
 **Toggle:** `LDS_ENABLE_CENTRIFUGO`.
 
 - **Image:** `centrifugo/centrifugo:${CENTRIFUGO_VERSION}`. Port host
-  `${CENTRIFUGO_HOST_PORT}` (default `4431`) → `8000`; admin UI at
+  `${CENTRIFUGO_HOST_PORT}` (default `4441`) → `8000`; admin UI at
   `${CENTRIFUGO_HOST}` (default `centrifugo.test`).
 - Clients use the **Centrifuge JS SDK** (not Echo). Runs in dev **insecure** mode
   (`--admin_insecure --client_insecure --api_insecure`) so you can pub/sub without
@@ -440,10 +543,10 @@ serves unlimited channels/topics; you never run a second instance per channel.
 **Toggle:** `LDS_ENABLE_MQTT`. Lightweight profile: broker + browser client.
 
 - **Broker image:** `eclipse-mosquitto:${MOSQUITTO_VERSION}`. Ports:
-  `${MQTT_HOST_PORT}` (default `4432`) → `1883` (native MQTT),
-  `${MQTT_WS_HOST_PORT}` (default `4433`) → `9001` (MQTT-over-WebSocket, path `/`).
+  `${MQTT_HOST_PORT}` (default `4442`) → `1883` (native MQTT),
+  `${MQTT_WS_HOST_PORT}` (default `4443`) → `9001` (MQTT-over-WebSocket, path `/`).
 - **Web client image:** `emqx/mqttx-web:${MQTTX_VERSION}` at
-  `${MQTT_HOST}` (default `mqtt.test`) / `${MQTTX_HOST_PORT}` (default `4434`).
+  `${MQTT_HOST}` (default `mqtt.test`) / `${MQTTX_HOST_PORT}` (default `4444`).
 - Clients use an **MQTT library** (MQTT.js / Paho in the browser, native MQTT for
   backends). `mqttx` is a client UI (publish/subscribe), not a broker admin dashboard.
 - Caps: `${MOSQUITTO_MEM_LIMIT}` (default `128m`), `${MQTTX_MEM_LIMIT}` (default `128m`).
@@ -457,7 +560,7 @@ serves unlimited channels/topics; you never run a second instance per channel.
 
 - **Image:** `vaultwarden/server:${VAULTWARDEN_VERSION}`.
 - **UI/API:** `${VAULTWARDEN_HOST}` (default `vaultwarden.test`) and host port
-  `${VAULTWARDEN_HOST_PORT}` (default `4429`).
+  `${VAULTWARDEN_HOST_PORT}` (default `4506`).
 - **Storage:** persistent sqlite-backed volume (`vaultwarden-data`).
 - **Defaults:** signups off by default (`VAULTWARDEN_SIGNUPS_ALLOWED=false`);
   admin panel gated by `VAULTWARDEN_ADMIN_TOKEN`.
@@ -467,19 +570,53 @@ serves unlimited channels/topics; you never run a second instance per channel.
 **Starts:** `mailpit`. **Toggle:** `LDS_ENABLE_MAIL`. **Off by default.**
 
 - **Image:** `axllent/mailpit:${MAILPIT_VERSION}`.
-- **Web UI:** `${MAIL_HOST}` (default `mail.test`) / `${MAIL_HOST_PORT}` (default `4473`).
-- **SMTP:** host `${MAIL_SMTP_HOST_PORT}` (default `4474`) → container `1025`.
+- **Web UI:** `${MAIL_HOST}` (default `mail.test`) / `${MAIL_HOST_PORT}` (default `4513`).
+- **SMTP:** host `${MAIL_SMTP_HOST_PORT}` (default `4514`) → container `1025`.
 - **Storage:** persisted in `data/mailpit/` (`MP_DATA_FILE`).
 
 ## `penpot` — collaborative design tool
 
 **Starts:** `penpot-frontend`, `penpot-backend`, `penpot-exporter`. **Toggle:** `LDS_ENABLE_PENPOT`. **Off by default.**
 
-- **UI:** `${PENPOT_HOST}` (default `penpot.test`) / `${PENPOT_HOST_PORT}` (default `4478`).
+- **UI:** `${PENPOT_HOST}` (default `penpot.test`) / `${PENPOT_HOST_PORT}` (default `4518`).
 - **Dependencies:** reuses shared `postgres` and `valkey` (included by the `penpot` profile).
 - **DB defaults:** reuses `${PENPOT_POSTGRES_DB:-app}` with `${PENPOT_POSTGRES_USER:-app}`.
 - **Assets:** persisted on host at `data/penpot/assets`.
 
+## `openwa` — WhatsApp API gateway
+
+**Starts:** `openwa`. **Toggle:** `LDS_ENABLE_OPENWA`. **Off by default.**
+
+Self-hosted WhatsApp API gateway (the `rmyndharis/OpenWA` fork) — NestJS
+backend + React dashboard, multi-session management, webhooks, pluggable
+WhatsApp engines (whatsapp-web.js / Baileys).
+
+- **Image:** `ghcr.io/rmyndharis/openwa:${OPENWA_VERSION}` (default `latest`).
+- **UI/API:** `${OPENWA_HOST}` (default `openwa.test`) / host port
+  `${OPENWA_HOST_PORT}` (default `4507`) → container `2785`.
+- **Dependencies:** reuses shared `postgres` (dedicated `lds_openwa` DB,
+  auto-created via `POSTGRES_INIT_SPECS`) and `redis` (optional,
+  `OPENWA_REDIS_ENABLED` off by default).
+- **Master key:** `${OPENWA_MASTER_KEY}` (dev default in `.env` — change it
+  before exposing the stack).
+- **Volume:** `openwa-data` (`/app/data` — sessions, media).
+
+## `rustfs` — file sharing (S3-compatible)
+
+**Starts:** `rustfs`. **Toggle:** `LDS_ENABLE_RUSTFS`. **Off by default.**
+
+Self-hosted S3-compatible object storage server with a web console — the
+open-source self-hosted file-sharing alternative to services like Tusky.
+
+- **Image:** `rustfs/rustfs:${RUSTFS_VERSION}` (default `latest`).
+- **API:** host port `${RUSTFS_API_PORT}` (default `4508`) → container `9000`
+  (S3 API).
+- **Console:** `${RUSTFS_HOST}` (default `rustfs.test`) / host port
+  `${RUSTFS_CONSOLE_PORT}` (default `4509`) → container `9001`.
+- **Credentials:** `${RUSTFS_ACCESS_KEY}` / `${RUSTFS_SECRET_KEY}` (dev defaults
+  in `.env`); a default bucket `${RUSTFS_BUCKET}` (default `lds-data`) is
+  created at first boot.
+- **Volume:** `rustfs-data`.
 
 ## `headlessx` — undetected browser automation / scraping
 
@@ -499,9 +636,9 @@ source — there is no published image.
   `${HEADLESSX_REDIS_DB}`, default `4`) — both auto-started by the `headlessx`
   profile.
 - **UI/API:** web at `${HEADLESSX_HOST}` (default `headlessx.test`) / host port
-  `${HEADLESSX_WEB_HOST_PORT}` (default `4475`); API + MCP at
+  `${HEADLESSX_WEB_HOST_PORT}` (default `4515`); API + MCP at
   `${HEADLESSX_API_HOST}` (default `headlessx-api.test`) / host port
-  `${HEADLESSX_API_HOST_PORT}` (default `4476`). The dashboard proxies `/api/*`
+  `${HEADLESSX_API_HOST_PORT}` (default `4516`). The dashboard proxies `/api/*`
   to the API internally, so the browser only ever talks to `headlessx.test`.
 - **Keys:** `HEADLESSX_DASHBOARD_INTERNAL_API_KEY` +
   `HEADLESSX_CREDENTIAL_ENCRYPTION_KEY` (dev defaults in `.env` — override
@@ -530,13 +667,13 @@ test` in the warm container (auto-`npm install` on first run). Record tests
   with `lds playwright codegen <url>`, poke around with `lds playwright shell`.
 - **UI Mode:** `lds playwright ui <name>` serves Playwright's interactive UI
   (watch mode, time-travel debugging, run individual tests) on host port
-  `${PLAYWRIGHT_UI_HOST_PORT}` (default `4487`) — open it in your browser. The
+  `${PLAYWRIGHT_UI_HOST_PORT}` (default `4527`) — open it in your browser. The
   UI panel is a web app in your browser; the tests themselves still execute in
   the container's headless browsers.
 - **Reports:** each run writes an HTML report to
   `data/playwright/reports/<name>/`, served by the viewer at
   `${PLAYWRIGHT_REPORT_HOST}` (default `playwright.test`) / host port
-  `${PLAYWRIGHT_REPORT_HOST_PORT}` (default `4486`).
+  `${PLAYWRIGHT_REPORT_HOST_PORT}` (default `4526`).
 - **Heavy:** the runner image bundles all three browsers (~1.5 GB) — the first
   `lds up playwright` / `lds playwright run` pull takes a while.
 

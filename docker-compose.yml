@@ -12,19 +12,20 @@
 #
 # Services are ordered by importance of usage: web foundation → databases →
 # admin UIs → data tools → realtime brokers → Kafka (heaviest, off by default).
-# Profiles: proxy | php | mysql | postgres | mongo | redis | valkey | memcached |
-#           phpcacheadmin | dbgate | drawdb | hop | superset | semgrep | zap | trivy |
-#           vaultwarden | mail | penpot | analytics | tasks | wiki |
+# Profiles: proxy | php | mysql | mariadb | mssql | oracle | postgres | mongo | redis | valkey | memcached |
+#           phpcacheadmin | dbgate | drawdb | hop | superset | semgrep | zap | trivy | crg |
+#           vaultwarden | mail | penpot | instatic | analytics | tasks | wiki |
 #           soketi | centrifugo | mqtt | kafka | openwa | rustfs | headlessx |
-#           playwright | duckdb | trino | hive-metastore | all
+#           playwright | erpnext | duckdb | trino | hive-metastore | all
 #
-# Host port layout (all in the 44xx block):
-#   4400-4419  Databases      (MySQL, Postgres, Mongo, Redis, Memcached)
+# Host port layout (all in the 44xx-45xx block):
+#   4400-4419  Databases      (MySQL, MariaDB, MSSQL, Oracle, Postgres, Mongo, Redis, Valkey, Memcached)
 #   4420-4439  Kafka          (Broker, Schema Registry, Connect, UI)
-#   4440-4459  Realtime       (Soketi, Centrifugo, Mosquitto, MQTTX)
-#   4460-4479  Admin tools    (phpCacheAdmin, DBGate, Hop, Superset, ZAP, etc.)
-#   4480-4499  LDS apps       (Analytics, Tasks, Wiki APIs + UIs)
-#   4450-4459  Analytics      (DuckDB, Trino)
+#   4440-4449  Realtime       (Soketi, Centrifugo, Mosquitto, MQTTX)
+#   4450-4459  Query engines  (DuckDB, Trino)
+#   4500-4530  Web UIs & apps (phpCacheAdmin, DBGate, DrawDB, Hop, Superset, Semgrep, ZAP, Trivy,
+#                             CRG, Vaultwarden, Mailpit, Penpot, Instatic, HeadlessX, Playwright,
+#                             ERPNext, OpenWA, RustFS, Analytics, Tasks, Wiki)
 #   Data tools (drawdb/hop/superset/semgrep/zap/trivy/vaultwarden) + the http://localhost control panel:
 #   see docs/en/15-data-tools.md.
 # =============================================================================
@@ -207,6 +208,107 @@ services:
     networks: [lds-network]
 
   # ===========================================================================
+  # MariaDB  (profile: mariadb, all)
+  #   Drop-in MySQL-compatible fork, hardened DHI image. utf8mb4 server defaults.
+  #   Used by ERPNext only when ERPNEXT_DB_TYPE=mariadb (the default is postgres).
+  # ===========================================================================
+  mariadb:
+    image: ${DHI_REGISTRY:-dhi.io}/mariadb:${MARIADB_VERSION:-11.8-debian13}
+    container_name: lds-mariadb
+    profiles: [mariadb, all]
+    restart: *restart
+    <<: *dns
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root}
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-app}
+      MARIADB_USER: ${MARIADB_USER:-app}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-app}
+      TZ: ${TZ:-Asia/Jakarta}
+    ports:
+      - "${MARIADB_HOST_PORT:-4406}:3306"
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    mem_limit: ${MARIADB_MEM_LIMIT:-1g}
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Microsoft SQL Server 2025 — Developer edition  (profile: mssql, all)
+  #   Free for development/testing (ACCEPT_EULA=Y is the license consent, not a
+  #   purchase). HARD requirements: MSSQL_SA_PASSWORD must satisfy the SQL Server
+  #   password policy (8+ chars, 3 of 4: upper/lower/digit/symbol) or the server
+  #   exits on boot, and MSSQL_MEM_LIMIT must stay >= 2g (SQL Server needs it).
+  #   ~1.5 GB image; first boot runs setup before accepting connections.
+  #   Microsoft's tag scheme is <year>-latest (2025-latest); the previous major
+  #   is still available as 2022-latest.
+  # ===========================================================================
+  mssql:
+    image: mcr.microsoft.com/mssql/server:${MSSQL_VERSION:-2025-latest}
+    container_name: lds-mssql
+    profiles: [mssql, all]
+    restart: *restart
+    <<: *dns
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Lds-dev-2024!}
+      TZ: ${TZ:-Asia/Jakarta}
+    ports:
+      - "${MSSQL_HOST_PORT:-4407}:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    mem_limit: ${MSSQL_MEM_LIMIT:-2g}
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Oracle Database Free (23ai)  (profile: oracle, all)
+  #   Free developer license. Uses the gvenzl/oracle-free mirror so NO Oracle
+  #   account is needed (the official container-registry.oracle.com image
+  #   requires a login). ORACLE_PASSWORD sets the SYS/SYSTEM password (required).
+  #   First boot creates the DB (~1-2 min, several GB disk); the `slim` image is
+  #   ~3 GB. EM Express web console on :5500 (https://localhost:4409/em).
+  # ===========================================================================
+  oracle:
+    image: gvenzl/oracle-free:${ORACLE_VERSION:-23.26.2-slim}
+    container_name: lds-oracle
+    profiles: [oracle, all]
+    restart: *restart
+    <<: *dns
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:-Oracle-dev-2024!}
+      ORACLE_DATABASE: ${ORACLE_DATABASE:-FREE}
+      ORACLE_USER: ${ORACLE_USER:-app}
+      TZ: ${TZ:-Asia/Jakarta}
+    ports:
+      - "${ORACLE_HOST_PORT:-4408}:1521"
+      - "${ORACLE_EM_HOST_PORT:-4409}:5500"
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/oracle/healthcheck.sh >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 60s
+    mem_limit: ${ORACLE_MEM_LIMIT:-2g}
+    networks: [lds-network]
+
+  # ===========================================================================
   # PostgreSQL  (profile: postgres, penpot, all)
   #   wal_level=logical so Debezium CDC works out of the box.
   #   Self-initializing: background the DHI entrypoint (handles initdb + setup),
@@ -216,7 +318,7 @@ services:
   postgres:
     image: ${DHI_REGISTRY:-dhi.io}/postgres:${POSTGRES_VERSION:-18.4-alpine3.24}
     container_name: lds-postgres
-    profiles: [postgres, analytics, tasks, wiki, openwa, trino, penpot, headlessx, all]
+    profiles: [postgres, analytics, tasks, wiki, openwa, trino, penpot, headlessx, erpnext, all]
     restart: *restart
     <<: *dns
     # Override entrypoint so we can init databases AFTER postgres starts.
@@ -349,7 +451,7 @@ services:
   redis:
     image: ${DHI_REGISTRY:-dhi.io}/redis:${REDIS_VERSION:-8.8-alpine3.24}
     container_name: lds-redis
-    profiles: [redis, headlessx, all]
+    profiles: [redis, headlessx, erpnext, all]
     restart: *restart
     <<: *dns
     command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
@@ -444,7 +546,7 @@ services:
     expose:
       - "80"
     ports:
-      - "${CACHE_ADMIN_HOST_PORT:-4460}:80"
+      - "${CACHE_ADMIN_HOST_PORT:-4500}:80"
     networks: [lds-network]
 
   # DBGate — web DB client, pre-connected to MySQL + Postgres.  (profile: dbgate, all)
@@ -469,7 +571,7 @@ services:
     expose:
       - "3000"
     ports:
-      - "${DB_ADMIN_HOST_PORT:-4461}:3000"
+      - "${DB_ADMIN_HOST_PORT:-4501}:3000"
     volumes:
       # Persist UI-created connections + app state (the MySQL/Postgres entries
       # above are predefined/read-only; anything you add yourself lives here).
@@ -490,7 +592,7 @@ services:
   # DrawDB — browser-based database schema designer / ER diagrammer.
   # A static SPA (diagrams persist in your browser, no server DB). Upstream image
   # (not on DHI). Lightweight — single container. NOTE: open it at
-  # http://localhost:4462, NOT drawdb.test — it calls crypto.randomUUID(), which
+  # http://localhost:4502, NOT drawdb.test — it calls crypto.randomUUID(), which
   # browsers expose only in a secure context (localhost or HTTPS).
   drawdb:
     image: ${DRAWDB_IMAGE:-ghcr.io/drawdb-io/drawdb}:${DRAWDB_VERSION:-v1.7.0}
@@ -505,7 +607,7 @@ services:
     expose:
       - "80"
     ports:
-      - "${DRAWDB_HOST_PORT:-4462}:80"
+      - "${DRAWDB_HOST_PORT:-4502}:80"
     mem_limit: ${DRAWDB_MEM_LIMIT:-128m}
     networks: [lds-network]
 
@@ -551,7 +653,7 @@ services:
     expose:
       - "8080"
     ports:
-      - "${HOP_HOST_PORT:-4463}:8080"
+      - "${HOP_HOST_PORT:-4503}:8080"
     volumes:
       # Shared JDBC JARs are in assets/jdbc/ — download them from Maven Central
       # (see the comprehensive README at assets/jdbc/README.md). Each JAR is
@@ -633,7 +735,7 @@ services:
     expose:
       - "8088"
     ports:
-      - "${SUPERSET_HOST_PORT:-4464}:8088"
+      - "${SUPERSET_HOST_PORT:-4504}:8088"
     volumes:
       # Persist Superset metadata (SQLite DB, dashboards, connections) on disk.
       # Bind-mounted (SUPERSET_HOME) so you can inspect/backup the SQLite file
@@ -794,7 +896,7 @@ services:
     expose:
       - "8080"
     ports:
-      - "${SEMGREP_HOST_PORT:-4465}:8080"
+      - "${SEMGREP_HOST_PORT:-4505}:8080"
     volumes:
       - ./data/semgrep/reports:/usr/share/nginx/html
       - ./configs/semgrep/reports/index.html:/usr/share/nginx/html/index.html:ro
@@ -825,8 +927,8 @@ services:
   # ===========================================================================
   # OWASP ZAP — DAST scanner.  (profile: zap, all)
   # Runs the ZAP desktop UI in the browser via WebSwing (`zap-webswing.sh`):
-  # the UI serves on :8080 (zap.test / :4470) and ZAP itself listens on :8090
-  # (the proxy/API port, also exposed as :4472). ZAP starts lazily when you open
+  # the UI serves on :8080 (zap.test / :4510) and ZAP itself listens on :8090
+  # (the proxy/API port, also exposed as :4512). ZAP starts lazily when you open
   # the UI. To scan a local app, ZAP must resolve *.test -> the edge proxy: this
   # service uses the dns container's IN-NETWORK DNS view (10.99.0.53 on
   # lds-dnsnet), which answers *.test with the proxy container IP and forwards
@@ -853,8 +955,8 @@ services:
       - "8080"
       - "8090"
     ports:
-      - "${ZAP_HOST_PORT:-4470}:8080"       # WebSwing UI
-      - "${ZAP_PROXY_HOST_PORT:-4472}:8090" # ZAP proxy / API
+      - "${ZAP_HOST_PORT:-4510}:8080"       # WebSwing UI
+      - "${ZAP_PROXY_HOST_PORT:-4512}:8090" # ZAP proxy / API
     volumes:
       - ./data/zap/wrk:/zap/wrk
       - ./data/zap/home:/home/zap
@@ -890,7 +992,7 @@ services:
     expose:
       - "8080"
     ports:
-      - "${TRIVY_HOST_PORT:-4471}:8080"
+      - "${TRIVY_HOST_PORT:-4511}:8080"
     volumes:
       - ./data/trivy/reports:/usr/share/nginx/html
       - ./configs/trivy/reports/index.html:/usr/share/nginx/html/index.html:ro
@@ -908,6 +1010,39 @@ services:
     volumes:
       - ./data/trivy/reports:/out
       - ./data/trivy/cache:/root/.cache/trivy
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Code intelligence — code-review-graph.  (profile: crg, all)
+  #   crg : AI code-intelligence graph (Tree-sitter -> SQLite) that powers
+  #         blast-radius reviews for Claude Code / Codex / Cursor etc. via MCP
+  #         (the AI integration is built in — no external service needed). This
+  #         service is the VIEWER — a tiny nginx serving the interactive D3
+  #         graph HTML exports at crg.test (same pattern as the semgrep/trivy
+  #         viewers). The scanner is a locally-built image (configs/crg/
+  #         Dockerfile) invoked via `lds tools crg <path>`; it builds the graph
+  #         inside the target repo (.code-review-graph/) and exports the HTML
+  #         report to data/crg/reports/<name>/.
+  # ===========================================================================
+  crg:
+    image: lds/nginx:${NGINX_VERSION:-1.27}
+    container_name: lds-crg
+    profiles: [crg, all]
+    restart: *restart
+    <<: *dns
+    environment:
+      VIRTUAL_HOST: ${CRG_HOST:-crg.test}
+      VIRTUAL_PORT: "8080"
+      CERT_NAME: _.test
+    expose:
+      - "8080"
+    ports:
+      - "${CRG_HOST_PORT:-4530}:8080"
+    volumes:
+      - ./data/crg/reports:/usr/share/nginx/html
+      - ./configs/crg/reports/index.html:/usr/share/nginx/html/index.html:ro
+      - ./configs/crg/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    mem_limit: ${CRG_MEM_LIMIT:-64m}
     networks: [lds-network]
 
   # ===========================================================================
@@ -934,7 +1069,7 @@ services:
     expose:
       - "3001"
     ports:
-      - "${ANALYTICS_API_HOST_PORT:-4480}:3001"
+      - "${ANALYTICS_API_HOST_PORT:-4520}:3001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -964,7 +1099,7 @@ services:
     expose:
       - "4173"
     ports:
-      - "${ANALYTICS_HOST_PORT:-4481}:4173"
+      - "${ANALYTICS_HOST_PORT:-4521}:4173"
     depends_on:
       analytics-api:
         condition: service_healthy
@@ -995,7 +1130,7 @@ services:
     expose:
       - "3002"
     ports:
-      - "${TASKS_API_HOST_PORT:-4482}:3002"
+      - "${TASKS_API_HOST_PORT:-4522}:3002"
     depends_on:
       postgres:
         condition: service_healthy
@@ -1025,7 +1160,7 @@ services:
     expose:
       - "4174"
     ports:
-      - "${TASKS_HOST_PORT:-4483}:4174"
+      - "${TASKS_HOST_PORT:-4523}:4174"
     depends_on:
       tasks-api:
         condition: service_healthy
@@ -1051,7 +1186,7 @@ services:
     expose:
       - "3003"
     ports:
-      - "${WIKI_API_HOST_PORT:-4484}:3003"
+      - "${WIKI_API_HOST_PORT:-4524}:3003"
     depends_on:
       postgres:
         condition: service_healthy
@@ -1081,7 +1216,7 @@ services:
     expose:
       - "4175"
     ports:
-      - "${WIKI_HOST_PORT:-4485}:4175"
+      - "${WIKI_HOST_PORT:-4525}:4175"
     depends_on:
       wiki-api:
         condition: service_healthy
@@ -1098,7 +1233,7 @@ services:
   # Mailpit — dev SMTP sink + web inbox (Mailchimp alternative for local testing).
   #   profile: mail, all
   #   - Captures outbound SMTP without sending real mail.
-  #   - Web inbox at mail.test / localhost:4473.
+  #   - Web inbox at mail.test / localhost:4513.
   # ===========================================================================
   mailpit:
     image: axllent/mailpit:${MAILPIT_VERSION:-v1.27}
@@ -1118,8 +1253,8 @@ services:
       - "8025"
       - "1025"
     ports:
-      - "${MAIL_HOST_PORT:-4473}:8025"
-      - "${MAIL_SMTP_HOST_PORT:-4474}:1025"
+      - "${MAIL_HOST_PORT:-4513}:8025"
+      - "${MAIL_SMTP_HOST_PORT:-4514}:1025"
     volumes:
       - ./data/mailpit:/data
     mem_limit: ${MAIL_MEM_LIMIT:-256m}
@@ -1154,7 +1289,7 @@ services:
     expose:
       - "8080"
     ports:
-      - "${PENPOT_HOST_PORT:-4478}:8080"
+      - "${PENPOT_HOST_PORT:-4518}:8080"
     volumes:
       - ./data/penpot/assets:/opt/data/assets
     mem_limit: ${PENPOT_FRONTEND_MEM_LIMIT:-512m}
@@ -1234,7 +1369,7 @@ services:
     expose:
       - "80"
     ports:
-      - "${VAULTWARDEN_HOST_PORT:-4466}:80"
+      - "${VAULTWARDEN_HOST_PORT:-4506}:80"
     volumes:
       - vaultwarden-data:/data
     healthcheck:
@@ -1249,6 +1384,50 @@ services:
       start_period: 20s
     mem_limit: ${VAULTWARDEN_MEM_LIMIT:-128m}
     cpus: ${VAULTWARDEN_CPUS:-0.25}
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Websites & CMS  (profiles: instatic | all)
+  #   instatic : self-hosted visual CMS / website builder (Webflow/Framer/WordPress
+  #              alternative) — canvas editor + content engine + publisher that
+  #              emits clean static HTML/CSS. MIT, official image (one Bun server).
+  #              Admin UI at instatic.test/admin; data (SQLite + uploads) lives in
+  #              ./data/instatic. Optionally point INSTATIC_DATABASE_URL at the
+  #              shared Postgres instead of SQLite. Pre-1.0 (0.0.x) upstream.
+  # ===========================================================================
+  instatic:
+    image: ghcr.io/corebunch/instatic:${INSTATIC_VERSION:-0.0.14}
+    container_name: lds-instatic
+    profiles: [instatic, all]
+    restart: *restart
+    <<: *dns
+    environment:
+      PORT: "3001"
+      # SQLite by default (file inside ./data/instatic); switch to the shared
+      # Postgres via:  postgres://app:app@postgres:5432/lds_instatic
+      DATABASE_URL: ${INSTATIC_DATABASE_URL:-sqlite:/app/data/cms.db}
+      UPLOADS_DIR: /app/uploads
+      STATIC_DIR: /app/dist
+      # Behind the LDS edge proxy — trust the Docker networks it comes from.
+      TRUSTED_PROXY_CIDRS: ${INSTATIC_TRUSTED_PROXY_CIDRS:-0.0.0.0/0}
+      INSTATIC_SECRET_KEY: ${INSTATIC_SECRET_KEY:-instatic-dev-secret-key-change-me}
+      VIRTUAL_HOST: ${INSTATIC_HOST:-instatic.test}
+      VIRTUAL_PORT: "3001"
+      CERT_NAME: _.test
+    expose:
+      - "3001"
+    ports:
+      - "${INSTATIC_HOST_PORT:-4528}:3001"
+    volumes:
+      - ./data/instatic/data:/app/data
+      - ./data/instatic/uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "bun", "run", "server/healthcheck.ts"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    mem_limit: ${INSTATIC_MEM_LIMIT:-512m}
     networks: [lds-network]
 
 
@@ -1642,7 +1821,7 @@ services:
     expose:
       - "2785"
     ports:
-      - "${OPENWA_HOST_PORT:-4467}:2785"
+      - "${OPENWA_HOST_PORT:-4507}:2785"
     volumes:
       - openwa-data:/app/data
     healthcheck:
@@ -1733,8 +1912,8 @@ services:
     expose:
       - "9001"
     ports:
-      - "${RUSTFS_API_PORT:-4468}:9000"   # S3-compatible API
-      - "${RUSTFS_CONSOLE_PORT:-4469}:9001" # Web admin console
+      - "${RUSTFS_API_PORT:-4508}:9000"   # S3-compatible API
+      - "${RUSTFS_CONSOLE_PORT:-4509}:9001" # Web admin console
     volumes:
       - rustfs-data:/data
       - ./data/duckdb:/data/duckdb:ro
@@ -1815,7 +1994,7 @@ services:
     expose:
       - "8000"
     ports:
-      - "${HEADLESSX_API_HOST_PORT:-4476}:8000"
+      - "${HEADLESSX_API_HOST_PORT:-4516}:8000"
     volumes:
       - headlessx-browser-profile:/app/apps/api/data/browser-profile
       - headlessx-models:/app/apps/api/models
@@ -1903,7 +2082,7 @@ services:
     expose:
       - "3000"
     ports:
-      - "${HEADLESSX_WEB_HOST_PORT:-4475}:3000"
+      - "${HEADLESSX_WEB_HOST_PORT:-4515}:3000"
     healthcheck:
       test:
         [
@@ -1934,7 +2113,7 @@ services:
     expose:
       - "8080"
     ports:
-      - "${HEADLESSX_HTML_TO_MD_HOST_PORT:-4477}:8080"
+      - "${HEADLESSX_HTML_TO_MD_HOST_PORT:-4517}:8080"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 15s
@@ -1961,7 +2140,7 @@ services:
     expose:
       - "8090"
     ports:
-      - "${HEADLESSX_YT_ENGINE_HOST_PORT:-4479}:8090"
+      - "${HEADLESSX_YT_ENGINE_HOST_PORT:-4519}:8090"
     volumes:
       - headlessx-yt-engine-tmp:/app/tmp/yt-engine
     healthcheck:
@@ -2004,7 +2183,7 @@ services:
       - ./data/playwright/reports:/e2e/reports
     ports:
       # UI mode server (served on 0.0.0.0 inside the container) — open the host port in your browser
-      - "${PLAYWRIGHT_UI_HOST_PORT:-4487}:8787"
+      - "${PLAYWRIGHT_UI_HOST_PORT:-4527}:8787"
     mem_limit: ${PLAYWRIGHT_MEM_LIMIT:-1g}
     networks:
       - lds-network
@@ -2026,12 +2205,260 @@ services:
     expose:
       - "8080"
     ports:
-      - "${PLAYWRIGHT_REPORT_HOST_PORT:-4486}:8080"
+      - "${PLAYWRIGHT_REPORT_HOST_PORT:-4526}:8080"
     volumes:
       - ./data/playwright/reports:/usr/share/nginx/html
       - ./configs/playwright/reports/index.html:/usr/share/nginx/html/index.html:ro
       - ./configs/playwright/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     mem_limit: ${PLAYWRIGHT_REPORT_MEM_LIMIT:-64m}
+    networks: [lds-network]
+
+  # ===========================================================================
+  # ERPNext — full ERP suite on the Frappe framework.  (profile: erpnext, all)
+  #   Accounting, CRM, HR, Inventory, Manufacturing, eCommerce — the whole
+  #   ERPNext app. DB = ERPNEXT_DB_TYPE: `postgres` (DEFAULT — the shared
+  #   lds-postgres; ERPNext's Postgres port landed upstream in 2026) or `mariadb`
+  #   (the shared lds-mariadb — upstream-tested alternative). Cache/queues =
+  #   the SHARED Redis (logical DBs 5/6). `lds up erpnext` brings postgres +
+  #   redis along automatically (both are members of this profile). One-shots
+  #   (erpnext-configurator / erpnext-create-site) bootstrap the site on first
+  #   boot — several minutes of migrations — then skip on later `up`s.
+  #   HEAVY: ~3-6 GB RAM across the services + multi-GB image pulls of
+  #   frappe/erpnext (Docker Hub); off by default (LDS_ENABLE_ERPNEXT).
+  #   Web UI at erpnext.test; login Administrator / ${ERPNEXT_ADMIN_PASSWORD}.
+  # ===========================================================================
+
+  # One-shot bootstrap: writes sites/common_site_config.json (DB + Redis + port
+  # settings). Runs to completion on every `up` (idempotent bench set-config);
+  # backend/workers wait for it via depends_on: service_completed_successfully.
+  # `$${VAR}` escapes are expanded by the CONTAINER's shell from its env block.
+  # DB = ERPNEXT_DB_TYPE: `postgres` (default — shared lds-postgres) or `mariadb`
+  # (shared lds-mariadb). Redis = shared lds-redis, logical DBs 5 (cache) / 6
+  # (queue). root creds are written into common_site_config.json so the
+  # create-site one-shot can run bench new-site non-interactively.
+  erpnext-configurator:
+    image: frappe/erpnext:v${ERPNEXT_VERSION:-16.31.1}
+    container_name: lds-erpnext-configurator
+    profiles: [erpnext, all]
+    restart: "no"
+    <<: *dns
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        ls -1 apps > sites/apps.txt;
+        # bind-mounted sites/ hides the image's common_site_config.json ("{}"),
+        # and bench set-config needs it to exist as valid JSON first
+        if [ ! -f sites/common_site_config.json ]; then echo '{}' > sites/common_site_config.json; fi;
+        if [ "$${ERPNEXT_DB_TYPE}" = "postgres" ]; then
+        DBHOST=postgres; DBPORT=5432; ROOTLOGIN=$${POSTGRES_USER}; ROOTPASSWORD=$${POSTGRES_PASSWORD};
+        else
+        DBHOST=mariadb; DBPORT=3306; ROOTLOGIN=root; ROOTPASSWORD=$${MARIADB_ROOT_PASSWORD};
+        fi
+        bench set-config -g db_host $$DBHOST;
+        bench set-config -gp db_port $$DBPORT;
+        bench set-config -g db_type $${ERPNEXT_DB_TYPE};
+        bench set-config -g root_login $$ROOTLOGIN;
+        bench set-config -g root_password "$$ROOTPASSWORD";
+        bench set-config -g redis_cache "redis://$${REDIS_CACHE}";
+        bench set-config -g redis_queue "redis://$${REDIS_QUEUE}";
+        bench set-config -g redis_socketio "redis://$${REDIS_QUEUE}";
+        bench set-config -gp socketio_port $${SOCKETIO_PORT}
+    environment:
+      ERPNEXT_DB_TYPE: ${ERPNEXT_DB_TYPE:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root}
+      REDIS_CACHE: redis:6379/${ERPNEXT_REDIS_CACHE_DB:-5}
+      REDIS_QUEUE: redis:6379/${ERPNEXT_REDIS_QUEUE_DB:-6}
+      SOCKETIO_PORT: "9000"
+    volumes:
+      - ./data/erpnext/sites:/home/frappe/frappe-bench/sites
+      - ./data/erpnext/logs:/home/frappe/frappe-bench/logs
+    mem_limit: ${ERPNEXT_CONFIGURATOR_MEM_LIMIT:-512m}
+    networks: [lds-network]
+
+  # One-shot site creation: `bench new-site ... --install-app erpnext` on FIRST
+  # boot only (skips when data/erpnext/sites/<site> already exists). Creates the
+  # site DB on the SHARED lds-postgres (default) or lds-mariadb, using the root
+  # creds written into common_site_config.json by the configurator above.
+  erpnext-create-site:
+    image: frappe/erpnext:v${ERPNEXT_VERSION:-16.31.1}
+    container_name: lds-erpnext-create-site
+    profiles: [erpnext, all]
+    restart: "no"
+    <<: *dns
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        if [ "$${ERPNEXT_DB_TYPE}" = "postgres" ]; then
+        wait-for-it -t 120 postgres:5432;
+        else
+        wait-for-it -t 120 mariadb:3306;
+        fi
+        wait-for-it -t 120 redis:6379;
+        export start=`date +%s`;
+        until [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".db_host // empty"` ]] && \
+        [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".redis_cache // empty"` ]] && \
+        [[ -n `grep -hs ^ sites/common_site_config.json | jq -r ".redis_queue // empty"` ]];
+        do
+        echo "Waiting for sites/common_site_config.json to be created";
+        sleep 5;
+        if (( `date +%s`-start > 120 )); then
+        echo "could not find sites/common_site_config.json with required keys";
+        exit 1
+        fi
+        done;
+        echo "sites/common_site_config.json found";
+        if [ -d "sites/$${ERPNEXT_SITE}" ]; then
+        echo "Site $${ERPNEXT_SITE} already exists, skipping creation";
+        else
+        if [ "$${ERPNEXT_DB_TYPE}" = "postgres" ]; then
+        bench new-site --db-type postgres --db-host postgres --admin-password=$${ERPNEXT_ADMIN_PASSWORD} --install-app erpnext --set-default $${ERPNEXT_SITE};
+        else
+        bench new-site --db-type mariadb --db-host mariadb --mariadb-user-host-login-scope='%' --admin-password=$${ERPNEXT_ADMIN_PASSWORD} --db-root-username=root --db-root-password=$${MARIADB_ROOT_PASSWORD} --install-app erpnext --set-default $${ERPNEXT_SITE};
+        fi
+        fi
+    environment:
+      ERPNEXT_DB_TYPE: ${ERPNEXT_DB_TYPE:-postgres}
+      ERPNEXT_SITE: ${ERPNEXT_SITE:-frontend}
+      ERPNEXT_ADMIN_PASSWORD: ${ERPNEXT_ADMIN_PASSWORD:-admin}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root}
+    volumes:
+      - ./data/erpnext/sites:/home/frappe/frappe-bench/sites
+      - ./data/erpnext/logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      erpnext-configurator:
+        condition: service_completed_successfully
+    mem_limit: ${ERPNEXT_CREATE_SITE_MEM_LIMIT:-2g}
+    networks: [lds-network]
+
+  erpnext-backend:
+    image: frappe/erpnext:v${ERPNEXT_VERSION:-16.31.1}
+    container_name: lds-erpnext-backend
+    profiles: [erpnext, all]
+    restart: *restart
+    <<: *dns
+    environment:
+      GUNICORN_THREADS: ${ERPNEXT_GUNICORN_THREADS:-4}
+      GUNICORN_WORKERS: ${ERPNEXT_GUNICORN_WORKERS:-2}
+      GUNICORN_TIMEOUT: ${ERPNEXT_GUNICORN_TIMEOUT:-120}
+    volumes:
+      - ./data/erpnext/sites:/home/frappe/frappe-bench/sites
+      - ./data/erpnext/logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      erpnext-configurator:
+        condition: service_completed_successfully
+    mem_limit: ${ERPNEXT_BACKEND_MEM_LIMIT:-2g}
+    networks: [lds-network]
+
+  erpnext-frontend:
+    image: frappe/erpnext:v${ERPNEXT_VERSION:-16.31.1}
+    container_name: lds-erpnext-frontend
+    profiles: [erpnext, all]
+    restart: *restart
+    <<: *dns
+    command: ["nginx-entrypoint.sh"]
+    environment:
+      BACKEND: erpnext-backend:8000
+      SOCKETIO: erpnext-websocket:9000
+      # nginx serves the site dir named FRAPPE_SITE_NAME_HEADER regardless of
+      # the external Host header, so erpnext.test works with no extra config.
+      FRAPPE_SITE_NAME_HEADER: ${ERPNEXT_SITE:-frontend}
+      UPSTREAM_REAL_IP_ADDRESS: 127.0.0.1
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: "off"
+      PROXY_READ_TIMEOUT: 120
+      CLIENT_MAX_BODY_SIZE: 50m
+      VIRTUAL_HOST: ${ERPNEXT_HOST:-erpnext.test}
+      VIRTUAL_PORT: "8080"
+      CERT_NAME: _.test
+    expose:
+      - "8080"
+    ports:
+      - "${ERPNEXT_HOST_PORT:-4529}:8080"
+    volumes:
+      - ./data/erpnext/sites:/home/frappe/frappe-bench/sites
+      - ./data/erpnext/logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      - erpnext-backend
+      - erpnext-websocket
+    mem_limit: ${ERPNEXT_FRONTEND_MEM_LIMIT:-256m}
+    networks: [lds-network]
+
+  erpnext-worker:
+    image: frappe/erpnext:v${ERPNEXT_VERSION:-16.31.1}
+    container_name: lds-erpnext-worker
+    profiles: [erpnext, all]
+    restart: *restart
+    <<: *dns
+    command: ["bench", "worker", "--queue", "short,default"]
+    environment:
+      FRAPPE_REDIS_CACHE: redis://redis:6379/${ERPNEXT_REDIS_CACHE_DB:-5}
+      FRAPPE_REDIS_QUEUE: redis://redis:6379/${ERPNEXT_REDIS_QUEUE_DB:-6}
+    volumes:
+      - ./data/erpnext/sites:/home/frappe/frappe-bench/sites
+      - ./data/erpnext/logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      erpnext-configurator:
+        condition: service_completed_successfully
+    mem_limit: ${ERPNEXT_WORKER_MEM_LIMIT:-1g}
+    networks: [lds-network]
+
+  erpnext-worker-long:
+    image: frappe/erpnext:v${ERPNEXT_VERSION:-16.31.1}
+    container_name: lds-erpnext-worker-long
+    profiles: [erpnext, all]
+    restart: *restart
+    <<: *dns
+    command: ["bench", "worker", "--queue", "long,default,short"]
+    environment:
+      FRAPPE_REDIS_CACHE: redis://redis:6379/${ERPNEXT_REDIS_CACHE_DB:-5}
+      FRAPPE_REDIS_QUEUE: redis://redis:6379/${ERPNEXT_REDIS_QUEUE_DB:-6}
+    volumes:
+      - ./data/erpnext/sites:/home/frappe/frappe-bench/sites
+      - ./data/erpnext/logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      erpnext-configurator:
+        condition: service_completed_successfully
+    mem_limit: ${ERPNEXT_WORKER_LONG_MEM_LIMIT:-1g}
+    networks: [lds-network]
+
+  erpnext-scheduler:
+    image: frappe/erpnext:v${ERPNEXT_VERSION:-16.31.1}
+    container_name: lds-erpnext-scheduler
+    profiles: [erpnext, all]
+    restart: *restart
+    <<: *dns
+    command: ["bench", "schedule"]
+    environment:
+      FRAPPE_REDIS_CACHE: redis://redis:6379/${ERPNEXT_REDIS_CACHE_DB:-5}
+      FRAPPE_REDIS_QUEUE: redis://redis:6379/${ERPNEXT_REDIS_QUEUE_DB:-6}
+    volumes:
+      - ./data/erpnext/sites:/home/frappe/frappe-bench/sites
+      - ./data/erpnext/logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      erpnext-configurator:
+        condition: service_completed_successfully
+    mem_limit: ${ERPNEXT_SCHEDULER_MEM_LIMIT:-512m}
+    networks: [lds-network]
+
+  erpnext-websocket:
+    image: frappe/erpnext:v${ERPNEXT_VERSION:-16.31.1}
+    container_name: lds-erpnext-websocket
+    profiles: [erpnext, all]
+    restart: *restart
+    <<: *dns
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+    environment:
+      FRAPPE_REDIS_CACHE: redis://redis:6379/${ERPNEXT_REDIS_CACHE_DB:-5}
+      FRAPPE_REDIS_QUEUE: redis://redis:6379/${ERPNEXT_REDIS_QUEUE_DB:-6}
+    volumes:
+      - ./data/erpnext/sites:/home/frappe/frappe-bench/sites
+      - ./data/erpnext/logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      erpnext-configurator:
+        condition: service_completed_successfully
+    mem_limit: ${ERPNEXT_WEBSOCKET_MEM_LIMIT:-256m}
     networks: [lds-network]
 
 # -----------------------------------------------------------------------------
@@ -2061,6 +2488,9 @@ networks:
 
 volumes:
   mysql-data:
+  mariadb-data:
+  mssql-data:
+  oracle-data:
   postgres-data:
   mongo-data:
   mongo-config:

@@ -29,7 +29,12 @@ gated behind **profiles** and share one external network `lds-network`.
   plus folder-per-project under `projects/`),
   `superset/` (Superset metadata — SQLite DB, dashboards, connections; data lives
   directly on disk, read/written by the app),
-  `dbgate/` (DBGate UI-created connections + app state).
+  `dbgate/` (DBGate UI-created connections + app state),
+  `semgrep/reports/`, `trivy/reports/`, `crg/reports/` (scanner report viewers),
+  `playwright/{projects,reports}` (E2E projects + HTML reports),
+  `mailpit/` (Mailpit messages), `penpot/assets/` (design assets),
+  `instatic/` (SQLite `cms.db` + uploads), `erpnext/{sites,logs}` (Frappe site),
+  `headlessx/` (browser-automation source checkout + state).
 - `www/` — example PHP project folders (parent dir set by `PHP_PROJECTS_PATH`,
   default `./www`); each `<folder>` is served at
   `<folder>.test`, docroot auto-detected (public/ > htdocs/ > root). Sample in
@@ -168,54 +173,79 @@ gated behind **profiles** and share one external network `lds-network`.
 - `docs/en`, `docs/id` — bilingual docs, modular numbered files
   (`01-overview.md` … `10-databases.md`) with a `README.md` index in each.
 
-## Profiles`proxy` `php` `mysql` `postgres` `mongo` `redis` `memcached` `kafka`
-`phpcacheadmin` `dbgate` `drawdb` `hop` `superset` `semgrep` `zap` `trivy` `soketi` `centrifugo` `emqx` `duckdb` `trino` `all`
+## Profiles
+
+`proxy` `php` `mysql` `mariadb` `mssql` `oracle` `postgres` `mongo` `redis`
+`valkey` `memcached` `kafka` `phpcacheadmin` `dbgate` `drawdb` `hop` `superset`
+`duckdb` `trino` `semgrep` `zap` `trivy` `crg` `vaultwarden` `mail` `penpot`
+`instatic` `analytics` `tasks` `wiki` `openwa` `rustfs` `headlessx` `playwright`
+`erpnext` `soketi` `centrifugo` `mqtt` `all`
 
 `phpcacheadmin` and `dbgate` are the two web admin UIs, each on its OWN profile
 (no `tools` umbrella — toggle them independently): **phpCacheAdmin** (`cache.test`
-/ :4421, Redis+Memcached) and **DBGate** (`db.test` / :4422, pre-connected to
+/ :4500, Redis+Valkey+Memcached) and **DBGate** (`db.test` / :4501, pre-connected to
 MySQL+Postgres). They need the matching data profile (and `proxy` for the `.test`
 URL) running to be useful.
 
-`soketi` / `centrifugo` / `emqx` = realtime / pub-sub WebSocket brokers (host ports
-`443x`), all **off by default** and **stateless** (no volume → no disk creep), each
+`soketi` / `centrifugo` / `mqtt` = realtime / pub-sub WebSocket brokers (host ports
+`444x`), all **off by default** and **stateless** (no volume → no disk creep), each
 mem/cpu-capped. They speak DIFFERENT client protocols and are not interchangeable:
 **Soketi** = Pusher protocol (Laravel Reverb/Echo + pusher-js compatible, headless,
-:4430); **Centrifugo** = raw WebSocket channels + admin UI (Centrifuge JS SDK,
-`centrifugo.test` / :4431, runs in dev `--*_insecure` mode); **EMQX** = MQTT +
-MQTT-over-WebSocket + dashboard (MQTT.js/Paho clients, MQTT :4432, WS `/mqtt` :4433,
-dashboard `mqtt.test` / :4434, anonymous allowed in dev, wildcard `#` lets the
-dashboard watch every topic). One broker serves unlimited channels/topics.
+:4440); **Centrifugo** = raw WebSocket channels + admin UI (Centrifuge JS SDK,
+`centrifugo.test` / :4441, runs in dev `--*_insecure` mode); **MQTT** = Mosquitto
+broker + MQTTX web client (MQTT.js/Paho clients, native MQTT :4442, MQTT-over-
+WebSocket :4443, browser client `mqtt.test` / :4444 — a client UI, not a broker
+dashboard). One broker serves unlimited channels/topics.
 
 Data tools (all **off by default**, own profiles): **DrawDB** = browser ER/schema
-designer (`drawdb`, :4462 — open at `localhost:4462`, NOT `drawdb.test`: it needs
+designer (`drawdb`, :4502 — open at `localhost:4502`, NOT `drawdb.test`: it needs
 `crypto.randomUUID` which requires a secure context). **Apache Hop** = ETL designer
-(`hop`, `hop.test` / :4424, image `apache/hop-web` Tomcat — NOT `apache/hop`
+(`hop`, `hop.test` / :4503, image `apache/hop-web` Tomcat — NOT `apache/hop`
 hop-server; no login, served at `/ui`; session timeout disabled; MySQL Connector/J
 added via `assets/jdbc/` single-file mount since it's not bundled;
 project data bind-mounted to `data/hop/` so pipelines/workflows are
 accessible on disk; folder-per-project via `HOP_PROJECTS_PATH` — each subfolder
 is a Hop project registered automatically via `hop-conf` on `lds up hop`).
-**Apache Superset** = BI (`superset`, `superset.test` / :4425, DHI image, nonroot,
+**Apache Superset** = BI (`superset`, `superset.test` / :4504, DHI image, nonroot,
 self-init via venv python, admin/admin, SQLite metadata in `data/superset/`).
 Data lives directly on disk via bind mount — no export/import needed; Superset
 reads and writes to `data/superset/` directly (like Hop's project mechanism).
 **Semgrep** = SAST, two services: `semgrep` (nginx SARIF viewer, `semgrep.test` /
-:4426) + `semgrep-scan` (pinned `semgrep/semgrep` CLI, its own run-only profile so
+:4505) + `semgrep-scan` (pinned `semgrep/semgrep` CLI, its own run-only profile so
 it never auto-starts). `lds tools semgrep [path]` scans via `docker run` and
 writes `data/semgrep/reports/report.sarif`, shown by the viewer.
+**CRG** (code-review-graph) = AI code-intelligence, same split: `crg` viewer at
+`crg.test` / :4530 + one-shot `lds/crg` scanner image (built from `configs/crg`;
+upstream ships no image) invoked by `lds tools crg <path>` → interactive D3 HTML
+in `data/crg/reports/<name>/`. The graph DB lives inside the scanned repo
+(`.code-review-graph/`, auto-gitignored → incremental re-scans); the optional MCP
+server + embeddings run on the host (`pip install code-review-graph`).
 
 **ZAP** + **Trivy** = the vulnerability scanners. **ZAP** = DAST (OWASP Top 10)
 against RUNNING apps: the desktop UI in the browser (WebSwing) at `zap.test` /
-:4470 (UI) + :4472 (ZAP proxy/API), command `zap-webswing.sh`, bind-mounted
+:4510 (UI) + :4512 (ZAP proxy/API), command `zap-webswing.sh`, bind-mounted
 runtime data at `data/zap/` (`/zap/wrk` + `/home/zap`). It resolves `*.test` through a SECOND dnsmasq view inside the
 `dns` container (10.99.0.53 on the compose-defined `lds-dnsnet` network) that
 answers `*.test` with the PROXY container IP (the host-facing view still answers
 127.0.0.1), so ZAP can scan local apps from inside the network. **Trivy** = CVE/SCA
 of containers/filesystems/deps, mirroring the semgrep split: `trivy` viewer at
-`trivy.test` / :4471 + one-shot `trivy-scan` (own profile, never auto-starts),
+`trivy.test` / :4511 + one-shot `trivy-scan` (own profile, never auto-starts),
 invoked by `lds tools trivy [path]` / `lds tools trivy image <name>` → HTML
 report served by the viewer; the vuln DB is cached in `data/trivy/cache`.
+**Instatic** = self-hosted visual CMS / website builder (`instatic.test` /
+:4528, admin at `/admin`; SQLite + uploads in `data/instatic/`; official image,
+pre-1.0). **ERPNext** = full ERP suite on Frappe (`erpnext.test` / :4529) — DB on
+the shared `postgres` by default (`ERPNEXT_DB_TYPE=postgres`) or `mariadb` via
+`ERPNEXT_DB_TYPE=mariadb`, queues on shared `redis` logical DBs 5/6; ~8 services +
+two one-shot bootstraps, **heavy** (~3-6 GB RAM, multi-GB pulls).
+
+**HeadlessX** = undetected browser automation platform (web `headlessx.test` /
+:4515, API/MCP :4516, sidecars :4517/:4519) — built from source at
+`data/headlessx`, reuses shared `postgres` + `redis`. **Playwright** = E2E test
+runner (warm container, browsers preinstalled) + report viewer at
+`playwright.test` / :4526 (UI Mode :4527); driven by `lds playwright` / `lds e2e` /
+`lds tools playwright`.
+
 Full detail: `docs/en/15-data-tools.md`. The `http://localhost` control panel
 (`configs/web/dashboard/index.php`, served from `/var/lds-dashboard` outside the
 project path) links every tool/project with live status — there is no
@@ -261,12 +291,12 @@ proxy comes along regardless, since both live in the `php` profile).
   image is nonroot uid 65532, which can't write the data volume).
 - Two Kafka Connect workers (different images/plugins):
   `connect-debezium` = Debezium image (`quay.io/debezium`, no DHI variant; CDC
-  sources, REST host :4413); `connect-generic` = the DHI `kafka` image run as a
+  sources, REST host :4423); `connect-generic` = the DHI `kafka` image run as a
   Connect worker (entrypoint → `connect-distributed.sh` + mounted properties; no
   bundled connectors beyond Kafka's built-in MirrorMaker ones — add more with
   `lds connect-plugin <jdbc|s3|http|opensearch|URL>` (drops them into
   `configs/kafka/connect-generic/plugins/`; restart the worker to load),
-  REST host :4412). Each uses its own group + state topics. MySQL has binlog/GTID,
+  REST host :4422). Each uses its own group + state topics. MySQL has binlog/GTID,
   Postgres has logical WAL.
 - Schema Registry = Apicurio Registry (Apache 2.0, `apicurio-registry-mem`),
   in-memory. Avro values via Apicurio's Connect converter (the Debezium worker

@@ -25,4 +25,4 @@ if [ -s "$DBDIR/connections.jsonl" ]; then
 fi
 
 cp "$SEED" "$DBDIR/connections.jsonl"
-echo "Seeded DBGate with MySQL + Postgres + Mongo connections."
+echo "Seeded DBGate with MySQL + MariaDB + Postgres + Mongo + SQL Server + Oracle connections."

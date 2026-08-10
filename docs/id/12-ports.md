@@ -1,7 +1,7 @@
 # 12 · Port
 
-Semua port host berada di blok **`44xx`** agar tidak bentrok dengan apa pun di
-mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
+Semua port host berada di blok **`44xx`–`45xx`** agar tidak bentrok dengan apa pun
+di mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 
 <table>
 <thead>
@@ -23,6 +23,24 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 <td>MySQL</td>
 <td><code>localhost:4400</code></td>
 <td><code>mysql:3306</code></td>
+</tr>
+<tr>
+<td></td>
+<td>MariaDB</td>
+<td><code>localhost:4406</code></td>
+<td><code>mariadb:3306</code></td>
+</tr>
+<tr>
+<td></td>
+<td>SQL Server 2025 (Developer)</td>
+<td><code>localhost:4407</code></td>
+<td><code>mssql:1433</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Oracle Database Free (23ai)</td>
+<td><code>localhost:4408</code> (EM Express: <code>localhost:4409/em</code>)</td>
+<td><code>oracle:1521</code></td>
 </tr>
 <tr>
 <td></td>
@@ -91,7 +109,7 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 </tr>
 <tr>
 <td colspan="4">
-    <b>Realtime</b> <code>4440–4459</code>
+    <b>Realtime</b> <code>4440–4449</code>
 </td>
 </tr>
 <tr>
@@ -126,7 +144,7 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 </tr>
 <tr>
 <td colspan="4">
-    <b>Mesin query analitis</b> <code>4451–4459</code>
+    <b>Mesin query analitis</b> <code>4450–4459</code>
 </td>
 </tr>
 <tr>
@@ -143,144 +161,198 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 </tr>
 <tr>
 <td colspan="4">
-    <b>Alat admin</b> <code>4460–4479</code>
+    <b>Alat admin</b> <code>4500–4530</code>
 </td>
 </tr>
 <tr>
 <td></td>
 <td>phpCacheAdmin</td>
-<td><code>localhost:4460</code> (<code>cache.test</code>)</td>
+<td><code>localhost:4500</code> (<code>cache.test</code>)</td>
 <td><code>phpcacheadmin:80</code></td>
 </tr>
 <tr>
 <td></td>
 <td>DBGate</td>
-<td><code>localhost:4461</code> (<code>db.test</code>)</td>
+<td><code>localhost:4501</code> (<code>db.test</code>)</td>
 <td><code>dbgate:3000</code></td>
 </tr>
 <tr>
 <td></td>
 <td>DrawDB</td>
-<td><code>localhost:4462</code> (buka di sini, <b>bukan</b> <code>drawdb.test</code>)</td>
+<td><code>localhost:4502</code> (buka di sini, <b>bukan</b> <code>drawdb.test</code>)</td>
 <td><code>drawdb:80</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Apache Hop</td>
-<td><code>localhost:4463</code> (<code>hop.test</code>)</td>
+<td><code>localhost:4503</code> (<code>hop.test</code>)</td>
 <td><code>hop:8080</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Apache Superset</td>
-<td><code>localhost:4464</code> (<code>superset.test</code>)</td>
+<td><code>localhost:4504</code> (<code>superset.test</code>)</td>
 <td><code>superset:8088</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Viewer Semgrep</td>
-<td><code>localhost:4465</code> (<code>semgrep.test</code>)</td>
+<td><code>localhost:4505</code> (<code>semgrep.test</code>)</td>
 <td><code>semgrep:8080</code></td>
 </tr>
 <tr>
 <td></td>
 <td>OWASP ZAP — UI</td>
-<td><code>localhost:4470</code> (<code>zap.test</code>)</td>
+<td><code>localhost:4510</code> (<code>zap.test</code>)</td>
 <td><code>zap:8080</code></td>
 </tr>
 <tr>
 <td></td>
 <td>OWASP ZAP — proxy/API</td>
-<td><code>localhost:4472</code></td>
+<td><code>localhost:4512</code></td>
 <td><code>zap:8090</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Viewer Trivy</td>
-<td><code>localhost:4471</code> (<code>trivy.test</code>)</td>
+<td><code>localhost:4511</code> (<code>trivy.test</code>)</td>
 <td><code>trivy:8080</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Mailpit — inbox web</td>
-<td><code>localhost:4473</code> (<code>mail.test</code>)</td>
+<td><code>localhost:4513</code> (<code>mail.test</code>)</td>
 <td><code>mailpit:8025</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Mailpit — SMTP</td>
-<td><code>localhost:4474</code></td>
+<td><code>localhost:4514</code></td>
 <td><code>mailpit:1025</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Vaultwarden</td>
-<td><code>localhost:4466</code> (<code>vaultwarden.test</code>)</td>
+<td><code>localhost:4506</code> (<code>vaultwarden.test</code>)</td>
 <td><code>vaultwarden:80</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Penpot</td>
-<td><code>localhost:4478</code> (<code>penpot.test</code>)</td>
+<td><code>localhost:4518</code> (<code>penpot.test</code>)</td>
 <td><code>penpot-frontend:8080</code></td>
 </tr>
 <tr>
 <td></td>
 <td>OpenWA</td>
-<td><code>localhost:4467</code> (<code>openwa.test</code>)</td>
-<td><code>openwa:8080</code></td>
+<td><code>localhost:4507</code> (<code>openwa.test</code>)</td>
+<td><code>openwa:2785</code></td>
 </tr>
 <tr>
 <td></td>
 <td>RustFS — API</td>
-<td><code>localhost:4468</code></td>
+<td><code>localhost:4508</code></td>
 <td><code>rustfs:9000</code></td>
 </tr>
 <tr>
 <td></td>
 <td>RustFS — Console</td>
-<td><code>localhost:4469</code> (<code>rustfs.test</code>)</td>
+<td><code>localhost:4509</code> (<code>rustfs.test</code>)</td>
 <td><code>rustfs:9001</code></td>
 </tr>
 <tr>
+<td></td>
+<td>HeadlessX — dashboard web</td>
+<td><code>localhost:4515</code> (<code>headlessx.test</code>)</td>
+<td><code>headlessx-web:3000</code></td>
+</tr>
+<tr>
+<td></td>
+<td>HeadlessX — API / MCP</td>
+<td><code>localhost:4516</code> (<code>headlessx-api.test</code>)</td>
+<td><code>headlessx-api:8000</code></td>
+</tr>
+<tr>
+<td></td>
+<td>HeadlessX — sidecar HTML→MD</td>
+<td><code>localhost:4517</code></td>
+<td><code>headlessx-html-to-md:8080</code></td>
+</tr>
+<tr>
+<td></td>
+<td>HeadlessX — YT engine</td>
+<td><code>localhost:4519</code></td>
+<td><code>headlessx-yt-engine:8090</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Playwright — viewer laporan</td>
+<td><code>localhost:4526</code> (<code>playwright.test</code>)</td>
+<td><code>playwright-report:8080</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Playwright — UI Mode</td>
+<td><code>localhost:4527</code> (buka via `lds playwright ui &lt;nama&gt;`)</td>
+<td><code>playwright:8787</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Instatic — visual CMS</td>
+<td><code>localhost:4528</code> (<code>instatic.test</code>, admin di <code>/admin</code>)</td>
+<td><code>instatic:3001</code></td>
+</tr>
+<tr>
+<td></td>
+<td>ERPNext — frontend</td>
+<td><code>localhost:4529</code> (<code>erpnext.test</code>)</td>
+<td><code>erpnext-frontend:8080</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Viewer code-review-graph</td>
+<td><code>localhost:4530</code> (<code>crg.test</code>)</td>
+<td><code>crg:8080</code></td>
+</tr>
+<tr>
 <td colspan="4">
-    <b>Aplikasi LDS</b> <code>4480–4499</code>
+    <b>Aplikasi LDS</b> <code>4520–4525</code>
 </td>
 </tr>
 <tr>
 <td></td>
 <td>Analytics API</td>
-<td><code>localhost:4480</code></td>
+<td><code>localhost:4520</code></td>
 <td><code>analytics-api:3001</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Analytics UI</td>
-<td><code>localhost:4481</code> (<code>analytics.test</code>)</td>
+<td><code>localhost:4521</code> (<code>analytics.test</code>)</td>
 <td><code>analytics-ui:4173</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Tasks API</td>
-<td><code>localhost:4482</code></td>
+<td><code>localhost:4522</code></td>
 <td><code>tasks-api:3002</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Tasks UI</td>
-<td><code>localhost:4483</code> (<code>tasks.test</code>)</td>
+<td><code>localhost:4523</code> (<code>tasks.test</code>)</td>
 <td><code>tasks-ui:4174</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Wiki API</td>
-<td><code>localhost:4484</code></td>
+<td><code>localhost:4524</code></td>
 <td><code>wiki-api:3003</code></td>
 </tr>
 <tr>
 <td></td>
 <td>Wiki UI</td>
-<td><code>localhost:4485</code> (<code>wiki.test</code>)</td>
+<td><code>localhost:4525</code> (<code>wiki.test</code>)</td>
 <td><code>wiki-ui:4175</code></td>
 </tr>
 <tr>
@@ -317,7 +389,7 @@ mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
   me-resolve `*.test`).
 - **Panel kontrol:** `http://localhost` (dilayani container php, rute default
   proxy) menampilkan semua tool + proyek — lihat [15 · Dashboard & data tools](15-data-tools.md).
-- **Pengecualian DrawDB:** buka di `localhost:4462`, **bukan** `drawdb.test` via
+- **Pengecualian DrawDB:** buka di `localhost:4502`, **bukan** `drawdb.test` via
   http — butuh secure context (`localhost` atau HTTPS) untuk `crypto.randomUUID`.
 - **HTTPS opt-in:** port `443` (`WEB_HTTPS_PORT`) hanya dipublikasikan saat
   `LDS_ENABLE_HTTPS=true`. Jalankan `lds certs` sekali untuk membuat cert dev

@@ -28,7 +28,7 @@ usage: lds playwright <command> [args]
   init <name> [url]      scaffold a Playwright E2E project (data/playwright/projects/<name>)
   run <name> [args…]     run its tests inside the runner container (extra args -> playwright CLI)
   codegen [url]          open the interactive test recorder (needs a TTY)
-  ui <name>              open Playwright UI Mode in your browser (localhost:4487)
+  ui <name>              open Playwright UI Mode in your browser (localhost:4527)
   shell                  open a bash shell inside the runner container
   report                 show the HTML report viewer URL
 
@@ -89,7 +89,7 @@ case "$cmd" in
     name="${2:-}"
     if [ -z "$name" ]; then usage; exit 1; fi
     ensure_up
-    echo "Playwright UI Mode: open http://localhost:${PLAYWRIGHT_UI_HOST_PORT:-4487} in your browser"
+    echo "Playwright UI Mode: open http://localhost:${PLAYWRIGHT_UI_HOST_PORT:-4527} in your browser"
     echo "  (UI server runs inside the container; Ctrl+C to stop)"
     docker compose "${CF[@]}" exec playwright bash -lc \
       "cd /e2e/projects/$name && { [ -d node_modules ] || npm install --no-audit --no-fund; } && npx playwright test --ui --ui-host=0.0.0.0 --ui-port=8787"
@@ -101,7 +101,7 @@ case "$cmd" in
   report)
     ensure_up
     echo "Playwright report viewer: http://${PLAYWRIGHT_REPORT_HOST:-playwright.test}"
-    echo "  (direct: http://localhost:${PLAYWRIGHT_REPORT_HOST_PORT:-4486})"
+    echo "  (direct: http://localhost:${PLAYWRIGHT_REPORT_HOST_PORT:-4526})"
     ;;
   help|-h|--help)
     usage
