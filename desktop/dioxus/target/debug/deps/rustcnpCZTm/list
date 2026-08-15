@@ -1,0 +1,8 @@
+{
+  global:
+    __rustc_proc_macro_decls_710114b82dc65cc6__;
+    rust_metadata_profiling_procmacros_710114b82dc65cc6;
+
+  local:
+    *;
+};

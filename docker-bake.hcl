@@ -21,7 +21,7 @@ variable "NGINX_VERSION" { default = "1.27" }
 variable "DUCKDB_VERSION" { default = "1.2.0" }
 
 group "default" {
-  targets = ["php", "go-dev", "rust-dev", "node-dev", "python-dev", "java-dev", "nginx", "duckdev"]
+  targets = ["php", "go-dev", "rust-dev", "node-dev", "python-dev", "java-dev", "nginx", "duckdev", "tauri-dev", "javafx-dev", "nativephp-dev"]
 }
 
 # The ONE PHP base — context is the repo root so it can bake configs/php-app/*.
@@ -46,6 +46,38 @@ target "rust-dev" {
   dockerfile = "base-images/rust-dev/Dockerfile"
   args       = { RUST_VERSION = "${RUST_VERSION}", DHI_REGISTRY = "${DHI_REGISTRY}" }
   tags       = ["lds/rust-dev:${RUST_VERSION}"]
+}
+
+target "tauri-dev" {
+  context    = "."
+  dockerfile = "base-images/tauri-dev/Dockerfile"
+  args       = { RUST_VERSION = "${RUST_VERSION}", DHI_REGISTRY = "${DHI_REGISTRY}" }
+  tags       = ["lds/tauri-dev:${RUST_VERSION}"]
+}
+
+# Tauri Windows cross-compile image — NOT in the default group: it adds ~2.5 GB
+# of mingw-w64 + rustup and is only needed for `desktop/build.sh tauri
+# --os win --container` (builds a PE32+ .exe from the Linux container). Built on
+# demand by build.sh's ensure_image.
+target "tauri-win-dev" {
+  context    = "."
+  dockerfile = "base-images/tauri-win-dev/Dockerfile"
+  args       = { RUST_VERSION = "${RUST_VERSION}", DHI_REGISTRY = "${DHI_REGISTRY}" }
+  tags       = ["lds/tauri-win-dev:${RUST_VERSION}"]
+}
+
+target "javafx-dev" {
+  context    = "."
+  dockerfile = "base-images/javafx-dev/Dockerfile"
+  args       = { JAVA_VERSION = "${JAVA_VERSION}", DHI_REGISTRY = "${DHI_REGISTRY}" }
+  tags       = ["lds/javafx-dev:${JAVA_VERSION}"]
+}
+
+target "nativephp-dev" {
+  context    = "."
+  dockerfile = "base-images/nativephp-dev/Dockerfile"
+  args       = { PHP_VERSION = "${PHP_VERSION}", DHI_REGISTRY = "${DHI_REGISTRY}" }
+  tags       = ["lds/nativephp-dev:${PHP_VERSION}"]
 }
 
 target "node-dev" {

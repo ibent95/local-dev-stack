@@ -1,0 +1,8 @@
+{
+  global:
+    __rustc_proc_macro_decls_bf6a76e2fd608d2__;
+    rust_metadata_dlopen2_derive_bf6a76e2fd608d2;
+
+  local:
+    *;
+};

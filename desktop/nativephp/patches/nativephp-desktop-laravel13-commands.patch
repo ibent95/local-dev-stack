@@ -1,0 +1,49 @@
+diff -ruN a/src/Commands/FreshCommand.php b/src/Commands/FreshCommand.php
+--- a/src/Commands/FreshCommand.php	2026-08-11 18:34:52.860128600 +0700
++++ b/src/Commands/FreshCommand.php	2026-08-11 18:34:52.916880500 +0700
+@@ -3,6 +3,7 @@
+ namespace Native\Desktop\Commands;
+ 
+ use Illuminate\Database\Console\Migrations\FreshCommand as BaseFreshCommand;
++use Illuminate\Database\Migrations\Migrator;
+ use Native\Desktop\NativeServiceProvider;
+ use Symfony\Component\Console\Attribute\AsCommand;
+ 
+@@ -16,6 +17,17 @@
+ 
+     protected $description = 'Drop all tables and re-run all migrations in the NativePHP development environment';
+ 
++    public function __construct(Migrator $migrator)
++    {
++        // Mirror MigrateCommand: the inherited $signature would otherwise win
++        // over both the #[AsCommand] attribute and $name, registering the
++        // command as `migrate:fresh` instead of `native:migrate:fresh` and
++        // breaking artisan with "registered under multiple names" on Laravel 13.
++        $this->signature = 'native:'.$this->signature;
++
++        parent::__construct($migrator);
++    }
++
+     public function handle()
+     {
+         $nativeServiceProvider = new NativeServiceProvider($this->laravel);
+diff -ruN a/src/Commands/WipeDatabaseCommand.php b/src/Commands/WipeDatabaseCommand.php
+--- a/src/Commands/WipeDatabaseCommand.php	2026-08-11 18:34:52.884711200 +0700
++++ b/src/Commands/WipeDatabaseCommand.php	2026-08-11 18:34:52.943639800 +0700
+@@ -11,6 +11,16 @@
+ 
+     protected $description = 'Wipe the database in the NativePHP development environment';
+ 
++    public function __construct()
++    {
++        // Mirror MigrateCommand: the inherited $signature would otherwise win
++        // over $name, silently registering this command as `db:wipe` (shadowing
++        // Laravel's own command) instead of `native:db:wipe`.
++        $this->signature = 'native:'.$this->signature;
++
++        parent::__construct();
++    }
++
+     public function handle()
+     {
+         (new NativeServiceProvider($this->laravel))->rewriteDatabase();

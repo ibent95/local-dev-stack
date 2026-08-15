@@ -1,0 +1,8 @@
+{
+  global:
+    __rustc_proc_macro_decls_349e81cb7a250249__;
+    rust_metadata_dioxus_stores_macro_349e81cb7a250249;
+
+  local:
+    *;
+};

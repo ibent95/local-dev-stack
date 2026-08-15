@@ -1,0 +1,17 @@
+{
+    "_hash": "feb8d14ce7260d13842f83aa231eea32452806bc9b71b3d9c29d0ec6dcd5abb9",
+    "patches": {
+        "nativephp/desktop": [
+            {
+                "package": "nativephp/desktop",
+                "description": "Fix artisan command name conflicts on Laravel 13 (FreshCommand + WipeDatabaseCommand)",
+                "url": "patches/nativephp-desktop-laravel13-commands.patch",
+                "sha256": "6d35812bf91167d471eb9f7899b173b23f6cbd88be4f153f69c3d6149958cf2d",
+                "depth": 1,
+                "extra": {
+                    "provenance": "root"
+                }
+            }
+        ]
+    }
+}

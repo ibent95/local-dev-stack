@@ -7,6 +7,11 @@ REM   lds app logs    [dir] [svc]  tail logs
 REM   lds app ps      [dir]        status
 setlocal enabledelayedexpansion
 
+REM %~dp0 must be captured BEFORE the shifts below (shift moves the old
+REM %1 into %0, so %~dp0 later would resolve against the cwd and the
+REM %SCRIPT_DIR%up.bat call below would fail).
+set "SCRIPT_DIR=%~dp0"
+
 set "SUB=%~1"
 if "%SUB%"=="" goto usage
 if /I "%SUB%"=="-h" goto usage
@@ -49,7 +54,7 @@ if /I "%SUB%"=="ps"      goto ps
 
 :start
 echo ==^> ensuring LDS proxy + dns + network are up
-call "%~dp0up.bat" proxy
+call "%SCRIPT_DIR%up.bat" proxy
 echo ==^> building + starting project in: %DIR%
 pushd "%DIR%"
 docker compose up --build -d %REST%

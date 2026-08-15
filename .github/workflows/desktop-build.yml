@@ -1,0 +1,141 @@
+# =============================================================================
+# LDS Desktop — cross-platform release builds.
+#
+# The containerized `desktop/build.sh --os linux` builds are compile-checks
+# (they cannot emit macOS installers, and the tauri/javafx images are
+# Alpine/musl). Real installers must be built on each target OS — that is
+# exactly what this workflow does: a 3 (runners) × 3 (variants) matrix that
+# produces Windows, Linux and macOS artifacts and uploads them as workflow
+# artifacts.
+#
+# Trigger: manual (workflow_dispatch) or on any push touching desktop/.
+#   * Tauri     — tauri-action (official): cargo tauri build with per-OS bundles
+#   * JavaFX    — mvn package + jpackage app-image (desktop/javafx/package.sh)
+#   * NativePHP — composer install (applies the Laravel-13 patch) + vite build
+#                 + `php artisan native:build <os>` (unsecure path, no account
+#                 needed; the bifrost bundle path needs nativephp credentials)
+# =============================================================================
+name: desktop-build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/desktop-build.yml'
+      - 'docker-bake.hcl'
+      - 'base-images/**'
+
+permissions:
+  contents: read
+
+jobs:
+  tauri:
+    name: Tauri (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+            args: '--bundles deb,appimage'
+          - platform: windows-latest
+            args: '--bundles nsis,msi'
+          - platform: macos-latest
+            args: '--bundles app,dmg'
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Install Linux system deps (webkit2gtk etc.)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      - name: Build + upload (tauri-action)
+        uses: tauri-apps/tauri-action@v1
+        with:
+          projectPath: desktop/tauri/src-tauri
+          args: ${{ matrix.args }}
+          uploadWorkflowArtifacts: true
+          uploadUpdaterJson: false
+
+  javafx:
+    name: JavaFX (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Package app (jar + jpackage app-image)
+        run: bash desktop/javafx/package.sh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: javafx-${{ matrix.os }}
+          path: desktop/javafx/target/dist/
+          if-no-files-found: error
+
+  nativephp:
+    name: NativePHP (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: linux
+          - os: windows-latest
+            target: win
+          - os: macos-latest
+            target: mac
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP + composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: zip, sqlite3, pdo_sqlite, mbstring
+          tools: composer:v2
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps (composer patch applies automatically)
+        working-directory: desktop/nativephp
+        run: composer install --no-interaction --no-progress
+
+      - name: Build frontend (vite)
+        working-directory: desktop/nativephp
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Build desktop app for ${{ matrix.target }}
+        working-directory: desktop/nativephp
+        run: php artisan native:build ${{ matrix.target }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nativephp-${{ matrix.os }}
+          path: desktop/nativephp/build/
+          if-no-files-found: warn

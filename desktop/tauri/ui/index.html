@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LDS Desktop</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>LDS Desktop</h1>
+      <span class="subtitle">local-dev-stack companion</span>
+    </div>
+    <div class="actions">
+      <span id="status-dot" class="dot" title="Stack status"></span>
+      <span id="last-updated" class="last-updated"></span>
+      <button id="auto-refresh" class="on" title="Toggle auto-refresh (every 5s)">⟳ Auto</button>
+      <button id="refresh-btn" title="Refresh status now">⟳ Refresh</button>
+      <button id="hosts-btn" title="Sync *.test hosts (elevated)">hosts-sync</button>
+      <button id="up-all" class="primary">Start all</button>
+      <button id="down-all">Stop all</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="lifecycle">
+      <h2>Lifecycle</h2>
+      <div class="chips">
+        <button id="lc-start" class="primary" title="lds start — full lifecycle: init → down → rm → build-bases → up">lds start</button>
+        <button id="lc-stop" title="lds stop — stop but keep containers">lds stop</button>
+        <button id="lc-down" title="lds down — remove containers">lds down</button>
+        <button id="lc-ps" title="lds ps — docker compose ps">lds ps</button>
+        <button id="lc-logs" title="lds logs — docker compose logs (all)">lds logs</button>
+      </div>
+      <div class="chips">
+        <button id="lc-certs" title="lds certs — mint the wildcard *.test TLS cert">certs</button>
+        <button id="lc-db-init" title="lds db init all — create default DBs/users">db init</button>
+        <button id="lc-hosts" title="lds hosts-sync — write *.test hosts (elevated)">hosts-sync</button>
+      </div>
+    </section>
+
+    <section id="tools-cli">
+      <h2>lds tools</h2>
+      <div class="chips-row">
+        <input id="tool-path" type="text" placeholder="path to scan (project dir)…" />
+        <button id="tl-semgrep">semgrep</button>
+        <button id="tl-trivy">trivy</button>
+        <button id="tl-crg">crg</button>
+      </div>
+    </section>
+
+    <section id="profiles">
+      <h2>Profiles</h2>
+      <div id="profile-buttons" class="chips"></div>
+      <div class="chips-row">
+        <input id="custom-profile" type="text" placeholder="custom profile…" />
+        <button id="custom-up">up</button>
+        <button id="custom-down">down</button>
+      </div>
+    </section>
+
+    <section id="tools">
+      <h2>Admin tools</h2>
+      <div id="tool-cards" class="cards"></div>
+    </section>
+
+    <section id="status">
+      <h2>Containers</h2>
+      <table>
+        <thead>
+          <tr><th>Service</th><th>Container</th><th>State</th><th>Health</th><th>Status</th></tr>
+        </thead>
+        <tbody id="status-body">
+          <tr><td colspan="5" class="muted">Loading…</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="logs">
+      <h2>Logs</h2>
+      <div class="chips-row">
+        <select id="log-service"></select>
+        <input id="log-lines" type="number" value="200" min="10" max="5000" step="10" />
+        <button id="log-stream" class="primary" title="docker compose logs --tail N --follow">Stream</button>
+        <button id="log-stop" disabled>Stop</button>
+        <button id="log-btn" title="One-shot snapshot (no follow)">Tail</button>
+        <button id="log-clear">Clear</button>
+      </div>
+      <pre id="log-output" class="log"></pre>
+    </section>
+
+    <section id="result">
+      <h2>Output</h2>
+      <pre id="run-output" class="log"></pre>
+    </section>
+  </main>
+
+  <script src="main.js"></script>
+</body>
+</html>

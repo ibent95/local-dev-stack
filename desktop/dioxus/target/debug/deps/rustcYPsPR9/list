@@ -1,0 +1,8 @@
+{
+  global:
+    __rustc_proc_macro_decls_a8bb82b19d0fe5c4__;
+    rust_metadata_sledgehammer_bindgen_macro_a8bb82b19d0fe5c4;
+
+  local:
+    *;
+};

@@ -1,0 +1,8 @@
+{
+  global:
+    __rustc_proc_macro_decls_e17bc6c4cda8e602__;
+    rust_metadata_dioxus_core_macro_e17bc6c4cda8e602;
+
+  local:
+    *;
+};

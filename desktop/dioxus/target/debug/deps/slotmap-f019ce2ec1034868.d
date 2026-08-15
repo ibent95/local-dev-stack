@@ -1,0 +1,13 @@
+/app/desktop/dioxus/target/debug/deps/slotmap-f019ce2ec1034868.d: /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/lib.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/basic.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/dense.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/hop.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/secondary.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/sparse_secondary.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/util.rs
+
+/app/desktop/dioxus/target/debug/deps/libslotmap-f019ce2ec1034868.rlib: /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/lib.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/basic.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/dense.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/hop.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/secondary.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/sparse_secondary.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/util.rs
+
+/app/desktop/dioxus/target/debug/deps/libslotmap-f019ce2ec1034868.rmeta: /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/lib.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/basic.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/dense.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/hop.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/secondary.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/sparse_secondary.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/util.rs
+
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/lib.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/basic.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/dense.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/hop.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/secondary.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/sparse_secondary.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slotmap-1.1.1/src/util.rs:

@@ -1,0 +1,8 @@
+# Dioxus project config (used by `dx` — serve, hot-patching, bundle).
+# The containerized compile-check uses plain `cargo build` and does NOT need
+# this file; it exists so `dx serve` / `dx bundle` work on a host later.
+[application]
+name = "lds-desktop-dioxus"
+default_platform = "desktop"
+out_dir = "dist"
+asset_dir = "assets"

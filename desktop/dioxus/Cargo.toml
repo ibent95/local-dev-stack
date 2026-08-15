@@ -1,0 +1,19 @@
+[package]
+name = "lds-desktop-dioxus"
+version = "0.1.0"
+edition = "2021"
+description = "LDS Desktop (Dioxus spike) — tray + panel companion for the local-dev-stack"
+license = "MIT"
+
+[dependencies]
+# Dioxus 0.7 (stable line; 0.7.10 as of Aug 2026). The `desktop` feature wires
+# the dioxus-desktop (wry/tao webview) renderer into the umbrella crate.
+dioxus = { version = "0.7", features = ["desktop"] }
+dioxus-desktop = "0.7"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# dioxus-desktop runs futures on tokio; `time` is needed for the poll sleep.
+tokio = { version = "1", features = ["time"] }
+
+[profile.dev]
+# Containerized compile-check only — keep the default profile settings.

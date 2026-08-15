@@ -1,0 +1,9 @@
+# Rust / Cargo
+src-tauri/target/
+**/*.rs.bk
+
+# Tauri generated schemas
+src-tauri/gen/
+
+# Node (not used today, in case a bundler is added later)
+node_modules/

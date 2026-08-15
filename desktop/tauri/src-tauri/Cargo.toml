@@ -1,0 +1,30 @@
+[package]
+name = "lds-desktop"
+version = "0.1.0"
+description = "LDS Desktop — tray + panel companion for the local-dev-stack"
+edition = "2021"
+license = "MIT"
+
+[lib]
+name = "lds_desktop_lib"
+# Desktop-only app: a plain rlib is all the bin needs. The Tauri template's
+# "staticlib/cdylib" pair exists for MOBILE embedding (iOS/Android) and is not
+# used here. Keeping cdylib breaks x86_64-pc-windows-gnu cross-compiles — mingw's
+# ld fails with "export ordinal too large" building the export table for the
+# whole tauri surface.
+crate-type = ["rlib"]
+
+[[bin]]
+name = "lds-desktop"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]

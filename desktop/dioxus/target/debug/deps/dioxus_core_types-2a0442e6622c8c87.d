@@ -1,0 +1,11 @@
+/app/desktop/dioxus/target/debug/deps/dioxus_core_types-2a0442e6622c8c87.d: /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/lib.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/bubbles.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/bundled.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/formatter.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/hr_context.rs
+
+/app/desktop/dioxus/target/debug/deps/libdioxus_core_types-2a0442e6622c8c87.rlib: /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/lib.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/bubbles.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/bundled.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/formatter.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/hr_context.rs
+
+/app/desktop/dioxus/target/debug/deps/libdioxus_core_types-2a0442e6622c8c87.rmeta: /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/lib.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/bubbles.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/bundled.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/formatter.rs /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/hr_context.rs
+
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/lib.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/bubbles.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/bundled.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/formatter.rs:
+/root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/dioxus-core-types-0.7.10/src/hr_context.rs:
