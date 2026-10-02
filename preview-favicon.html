@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LDS Favicon Preview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    background: #0f1419;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    padding: 40px 20px;
+    color: #e6edf3;
+  }
+  h1 { font-size: 24px; margin-bottom: 10px; }
+  h1 .red { color: #EF4444; }
+  .subtitle { color: #8b98a5; font-size: 14px; margin-bottom: 20px; }
+
+  .preview-grid {
+    display: flex;
+    gap: 40px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .preview-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .preview-item .label {
+    font-size: 12px;
+    color: #8b98a5;
+    font-family: monospace;
+  }
+
+  /* Favicon rendered as CSS flame */
+  .flame-favicon {
+    position: relative;
+    background: #0f1419;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .flame-favicon::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(220, 38, 38, 0.4);
+  }
+
+  .flame-svg {
+    filter: drop-shadow(0 0 8px rgba(220, 38, 38, 0.5));
+  }
+
+  .sizes {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    margin-top: 30px;
+  }
+  .size-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .size-box .dims {
+    font-size: 11px;
+    color: #8b98a5;
+    font-family: monospace;
+  }
+
+  .info {
+    max-width: 500px;
+    text-align: center;
+    margin-top: 30px;
+    padding: 20px;
+    background: #1a212b;
+    border: 1px solid #2c3743;
+    border-radius: 10px;
+  }
+  .info h3 { font-size: 14px; margin-bottom: 10px; }
+  .info p { font-size: 13px; color: #8b98a5; line-height: 1.6; }
+  .info code {
+    background: #222b38;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #EF4444;
+  }
+
+  .palette-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+  }
+  .swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+  }
+</style>
+</head>
+<body>
+
+<h1><span class="red">LDS</span> Favicon Preview</h1>
+<p class="subtitle">Flame icon with LDS red brand palette</p>
+
+<div class="preview-grid">
+  <!-- Large preview -->
+  <div class="preview-item">
+    <svg class="flame-svg" width="128" height="128" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="flame-outer" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#EF4444"/>
+          <stop offset="100%" stop-color="#991B1B"/>
+        </linearGradient>
+        <linearGradient id="flame-mid" x1="16" y1="6" x2="16" y2="28" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#EF4444"/>
+          <stop offset="100%" stop-color="#DC2626"/>
+        </linearGradient>
+        <linearGradient id="flame-inner" x1="16" y1="10" x2="16" y2="25" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#FCA5A5"/>
+          <stop offset="100%" stop-color="#EF4444"/>
+        </linearGradient>
+      </defs>
+      <!-- Outer flame -->
+      <path d="M16 2 C16 2, 28 10, 28 18 C28 26, 22 30, 16 30 C10 30, 4 26, 4 18 C4 10, 16 2, 16 2Z" fill="url(#flame-outer)"/>
+      <!-- Mid flame -->
+      <path d="M16 6 C16 6, 24 12, 24 18 C24 24, 20 28, 16 28 C12 28, 8 24, 8 18 C8 12, 16 6, 16 6Z" fill="url(#flame-mid)"/>
+      <!-- Inner flame -->
+      <path d="M16 10 C16 10, 21 14, 21 18 C21 22, 19 25, 16 25 C13 25, 11 22, 11 18 C11 14, 16 10, 16 10Z" fill="url(#flame-inner)" opacity="0.9"/>
+      <!-- Core highlight -->
+      <ellipse cx="16" cy="20" rx="3" ry="4" fill="#FEF2F2" opacity="0.7"/>
+    </svg>
+    <span class="label">128×128</span>
+  </div>
+
+  <!-- Medium -->
+  <div class="preview-item">
+    <svg class="flame-svg" width="64" height="64" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <use href="#flame-shape"/>
+    </svg>
+    <span class="label">64×64</span>
+  </div>
+
+  <!-- Small -->
+  <div class="preview-item">
+    <svg class="flame-svg" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <use href="#flame-shape"/>
+    </svg>
+    <span class="label">32×32</span>
+  </div>
+
+  <!-- Tiny -->
+  <div class="preview-item">
+    <svg class="flame-svg" width="16" height="16" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <use href="#flame-shape"/>
+    </svg>
+    <span class="label">16×16</span>
+  </div>
+
+  <!-- Icon -->
+  <div class="preview-item">
+    <svg class="flame-svg" width="48" height="48" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="32" height="32" rx="6" fill="#0f1419"/>
+      <use href="#flame-shape"/>
+    </svg>
+    <span class="label">app icon</span>
+  </div>
+</div>
+
+<!-- Hidden SVG defs -->
+<svg style="display:none">
+  <defs>
+    <linearGradient id="flame-outer2" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#991B1B"/>
+    </linearGradient>
+    <linearGradient id="flame-mid2" x1="16" y1="6" x2="16" y2="28" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#DC2626"/>
+    </linearGradient>
+    <linearGradient id="flame-inner2" x1="16" y1="10" x2="16" y2="25" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FCA5A5"/>
+      <stop offset="100%" stop-color="#EF4444"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="info">
+  <h3>🔥 LDS Flame Favicon</h3>
+  <p>
+    The favicon uses the LDS red brand palette with a layered flame design.
+    Run <code>php generate_favicon.php</code> to generate the ICO + PNG files.
+    The flame scales cleanly from 16×16 to 128×128.
+  </p>
+  <div class="palette-row">
+    <div class="swatch" style="background:#EF4444" title="#EF4444"></div>
+    <div class="swatch" style="background:#DC2626" title="#DC2626"></div>
+    <div class="swatch" style="background:#B91C1C" title="#B91C1C"></div>
+    <div class="swatch" style="background:#991B1B" title="#991B1B"></div>
+    <div class="swatch" style="background:#FCA5A5" title="#FCA5A5"></div>
+    <div class="swatch" style="background:#FEF2F2" title="#FEF2F2"></div>
+  </div>
+</div>
+
+</body>
+</html>

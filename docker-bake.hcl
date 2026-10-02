@@ -21,7 +21,7 @@ variable "NGINX_VERSION" { default = "1.27" }
 variable "DUCKDB_VERSION" { default = "1.2.0" }
 
 group "default" {
-  targets = ["php", "go-dev", "rust-dev", "node-dev", "python-dev", "java-dev", "nginx", "duckdev", "tauri-dev", "javafx-dev", "nativephp-dev"]
+  targets = ["php", "go-dev", "rust-dev", "node-dev", "python-dev", "java-dev", "nginx", "duckdev"] #, "tauri-dev", "javafx-dev", "nativephp-dev"
 }
 
 # The ONE PHP base — context is the repo root so it can bake configs/php-app/*.

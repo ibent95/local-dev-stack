@@ -1,0 +1,5 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="60" cy="60" r="56" fill="#FFFFFF"/>
+  <circle cx="60" cy="60" r="48" fill="none" stroke="#FFFFFF" stroke-width="0.8" opacity="0.3"/>
+  <text x="60" y="72" font-family="'Segoe UI', system-ui, sans-serif" font-size="28" font-weight="900" fill="#000000" text-anchor="middle" opacity="0.85">LDS</text>
+</svg>

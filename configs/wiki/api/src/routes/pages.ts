@@ -5,6 +5,18 @@ import { eq, and, desc, asc, sql } from "drizzle-orm";
 
 export const pagesRouter = new Hono();
 
+// ─── Helpers ────────────────────────────────────────────────────
+function slugify(name: string): string {
+  let slug = name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  if (!slug) slug = `page-${Date.now()}`;
+  return slug;
+}
+
 // ─── Pages CRUD ──────────────────────────────────────────────────
 
 // GET /api/pages — list all pages (with space/category info)
@@ -94,7 +106,7 @@ pagesRouter.post("/", async (c) => {
     tagIds?: number[];
   }>();
 
-  const slug = body.slug || body.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const slug = body.slug || slugify(body.title);
 
   const [page] = await db.insert(pages).values({
     spaceId: body.spaceId,

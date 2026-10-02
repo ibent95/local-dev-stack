@@ -5,6 +5,21 @@ import { eq, asc, desc, sql } from "drizzle-orm";
 
 export const spacesRouter = new Hono();
 
+// ─── Helpers ────────────────────────────────────────────────────
+
+/** Generate a URL-safe slug from a name. Falls back to `space-{id}` if the name
+ *  contains only non-Latin characters (e.g. CJK, emoji) that strip to empty. */
+function slugify(name: string, id?: number): string {
+  let slug = name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "") // strip combining diacritics
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  if (!slug) slug = id ? `space-${id}` : `space-${Date.now()}`;
+  return slug;
+}
+
 // ─── Spaces CRUD ─────────────────────────────────────────────────
 
 // GET /api/spaces — list all spaces (with page counts)
@@ -39,11 +54,27 @@ spacesRouter.post("/", async (c) => {
     color?: string;
   }>();
 
-  const slug = body.slug || body.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  if (!body.name?.trim()) {
+    return c.json({ error: "Space name is required" }, 400);
+  }
+
+  const slug = body.slug || slugify(body.name);
+
+  // Ensure slug uniqueness — append a short suffix on collision
+  let finalSlug = slug;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const existing = await db
+      .select({ id: spaces.id })
+      .from(spaces)
+      .where(eq(spaces.slug, finalSlug))
+      .limit(1);
+    if (existing.length === 0) break;
+    finalSlug = `${slug}-${Date.now().toString(36)}`;
+  }
 
   const [row] = await db.insert(spaces).values({
-    name: body.name,
-    slug,
+    name: body.name.trim(),
+    slug: finalSlug,
     description: body.description,
     icon: body.icon,
     color: body.color,
@@ -119,7 +150,7 @@ spacesRouter.post("/:slug/categories", async (c) => {
     position?: number;
   }>();
 
-  const slug = body.slug || body.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const slug = body.slug || slugify(body.name);
 
   const [row] = await db.insert(categories).values({
     spaceId: space.id,

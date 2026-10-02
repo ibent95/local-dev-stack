@@ -1,0 +1,11 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="i64-g" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#991B1B"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#i64-g)"/>
+  <circle cx="32" cy="32" r="25" fill="none" stroke="#FCA5A5" stroke-width="0.6" opacity="0.4"/>
+  <text x="32" y="38" font-family="'Segoe UI', system-ui, sans-serif" font-size="14" font-weight="900" fill="#FEF2F2" text-anchor="middle" opacity="0.95">LDS</text>
+</svg>
