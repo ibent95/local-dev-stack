@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LDS — Local Dev Stack | Red Brand Identity</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 60px;
+    background: #0a0a0a;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    padding: 40px 20px;
+    color: #fff;
+  }
+
+  .section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .section-label {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #555;
+  }
+
+  /* ── Logo 1: Flame Mark ── */
+  .flame-mark { filter: drop-shadow(0 0 30px rgba(220, 38, 38, 0.5)); }
+
+  /* ── Logo 2: Hex Badge ── */
+  .hex-badge { filter: drop-shadow(0 0 20px rgba(220, 38, 38, 0.4)); }
+
+  /* ── Logo 3: Wordmark ── */
+  .wordmark { filter: drop-shadow(0 0 15px rgba(220, 38, 38, 0.35)); }
+
+  /* ── Logo 4: Monogram ── */
+  .monogram { filter: drop-shadow(0 0 25px rgba(220, 38, 38, 0.45)); }
+
+  /* ── Logo 5: Stacked ── */
+  .stacked { filter: drop-shadow(0 0 20px rgba(220, 38, 38, 0.4)); }
+
+  /* ── Color Palette ── */
+  .palette {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .swatch {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    position: relative;
+    transition: transform 0.2s;
+  }
+  .swatch:hover { transform: scale(1.15); }
+  .swatch-label {
+    font-size: 9px;
+    color: #666;
+    text-align: center;
+    margin-top: 6px;
+    font-family: monospace;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ LOGO 1: Flame Mark ═══════════════ -->
+<div class="section">
+  <div class="section-label">Flame Mark</div>
+  <svg class="flame-mark" width="140" height="140" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="flame-grad" x1="70" y1="0" x2="70" y2="140" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#EF4444"/>
+        <stop offset="50%" stop-color="#DC2626"/>
+        <stop offset="100%" stop-color="#991B1B"/>
+      </linearGradient>
+      <linearGradient id="flame-inner" x1="70" y1="30" x2="70" y2="120" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#FCA5A5"/>
+        <stop offset="100%" stop-color="#EF4444"/>
+      </linearGradient>
+    </defs>
+    <!-- Outer flame -->
+    <path d="M70 8 C70 8, 120 45, 120 85 C120 115, 98 132, 70 132 C42 132, 20 115, 20 85 C20 45, 70 8, 70 8Z" fill="url(#flame-grad)"/>
+    <!-- Inner flame -->
+    <path d="M70 38 C70 38, 98 60, 98 85 C98 103, 86 115, 70 115 C54 115, 42 103, 42 85 C42 60, 70 38, 70 38Z" fill="url(#flame-inner)" opacity="0.9"/>
+    <!-- Core highlight -->
+    <ellipse cx="70" cy="88" rx="12" ry="18" fill="#FEF2F2" opacity="0.6"/>
+  </svg>
+</div>
+
+<!-- ═══════════════ LOGO 2: Hex Badge ═══════════════ -->
+<div class="section">
+  <div class="section-label">Hex Badge</div>
+  <svg class="hex-badge" width="140" height="140" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="hex-grad" x1="0" y1="0" x2="140" y2="140" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#EF4444"/>
+        <stop offset="100%" stop-color="#B91C1C"/>
+      </linearGradient>
+    </defs>
+    <!-- Hexagon -->
+    <polygon points="70,5 130,37.5 130,102.5 70,135 10,102.5 10,37.5" fill="url(#hex-grad)"/>
+    <!-- Inner hexagon -->
+    <polygon points="70,18 118,45 118,95 70,122 22,95 22,45" fill="none" stroke="#FCA5A5" stroke-width="1.5" opacity="0.5"/>
+    <!-- Lightning bolt -->
+    <text x="70" y="82" font-family="'Courier New', monospace" font-size="32" font-weight="700" fill="#FEF2F2" text-anchor="middle">&lt;/&gt;</text>
+  </svg>
+</div>
+
+<!-- ═══════════════ LOGO 3: Wordmark ═══════════════ -->
+<div class="section">
+  <div class="section-label">Wordmark</div>
+  <svg class="wordmark" width="320" height="60" viewBox="0 0 320 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="wm-grad" x1="0" y1="0" x2="320" y2="0" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#EF4444"/>
+        <stop offset="100%" stop-color="#DC2626"/>
+      </linearGradient>
+    </defs>
+    <!-- Accent bar -->
+    <rect x="0" y="0" width="4" height="60" rx="2" fill="#EF4444"/>
+    <!-- Wordmark text -->
+    <text x="20" y="42" font-family="'Segoe UI', system-ui, sans-serif" font-size="38" font-weight="800" letter-spacing="-1" fill="url(#wm-grad)">LDS</text>
+    <!-- Tagline -->
+    <text x="20" y="56" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" letter-spacing="4" fill="#666">LOCAL DEV STACK</text>
+  </svg>
+</div>
+
+<!-- ═══════════════ LOGO 4: Monogram ═══════════════ -->
+<div class="section">
+  <div class="section-label">Monogram</div>
+  <svg class="monogram" width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="mono-grad" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#EF4444"/>
+        <stop offset="100%" stop-color="#991B1B"/>
+      </linearGradient>
+    </defs>
+    <!-- Circle -->
+    <circle cx="60" cy="60" r="56" fill="url(#mono-grad)"/>
+    <!-- Inner ring -->
+    <circle cx="60" cy="60" r="48" fill="none" stroke="#FCA5A5" stroke-width="0.8" opacity="0.4"/>
+    <!-- Letter I -->
+    <text x="60" y="72" font-family="'Segoe UI', system-ui, sans-serif" font-size="28" font-weight="900" fill="#FEF2F2" text-anchor="middle" opacity="0.95">LDS</text>
+  </svg>
+</div>
+
+<!-- ═══════════════ LOGO 5: Stacked Lockup ═══════════════ -->
+<div class="section">
+  <div class="section-label">Stacked Lockup</div>
+  <svg class="stacked" width="160" height="120" viewBox="0 0 160 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="st-grad" x1="30" y1="0" x2="130" y2="80" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stop-color="#EF4444"/>
+        <stop offset="100%" stop-color="#B91C1C"/>
+      </linearGradient>
+    </defs>
+    <!-- Abstract mark -->
+    <circle cx="50" cy="36" r="28" fill="url(#st-grad)"/>
+    <path d="M50 16 C50 16, 74 28, 74 36 C74 48, 50 56, 50 56 C50 56, 26 48, 26 36 C26 28, 50 16, 50 16Z" fill="#FCA5A5" opacity="0.6"/>
+    <circle cx="50" cy="36" r="8" fill="#FEF2F2" opacity="0.8"/>
+    <!-- Text -->
+    <text x="95" y="30" font-family="'Segoe UI', system-ui, sans-serif" font-size="22" font-weight="800" fill="#EF4444">LDS</text>
+    <text x="95" y="44" font-family="'Segoe UI', system-ui, sans-serif" font-size="7" letter-spacing="3" fill="#666">LOCAL DEV STACK</text>
+    <!-- Divider -->
+    <line x1="95" y1="52" x2="150" y2="52" stroke="#DC2626" stroke-width="1" opacity="0.4"/>
+    <!-- Tagline -->
+    <text x="95" y="66" font-family="'Segoe UI', system-ui, sans-serif" font-size="7" letter-spacing="2" fill="#555">BUILD. DEPLOY. REPEAT.</text>
+  </svg>
+</div>
+
+<!-- ═══════════════ COLOR PALETTE ═══════════════ -->
+<div class="section">
+  <div class="section-label">Brand Palette</div>
+  <div class="palette">
+    <div>
+      <div class="swatch" style="background: #EF4444;"></div>
+      <div class="swatch-label">#EF4444</div>
+    </div>
+    <div>
+      <div class="swatch" style="background: #DC2626;"></div>
+      <div class="swatch-label">#DC2626</div>
+    </div>
+    <div>
+      <div class="swatch" style="background: #B91C1C;"></div>
+      <div class="swatch-label">#B91C1C</div>
+    </div>
+    <div>
+      <div class="swatch" style="background: #991B1B;"></div>
+      <div class="swatch-label">#991B1B</div>
+    </div>
+    <div>
+      <div class="swatch" style="background: #FCA5A5;"></div>
+      <div class="swatch-label">#FCA5A5</div>
+    </div>
+    <div>
+      <div class="swatch" style="background: #FEF2F2;"></div>
+      <div class="swatch-label">#FEF2F2</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

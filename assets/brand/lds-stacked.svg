@@ -1,0 +1,15 @@
+<svg width="160" height="120" viewBox="0 0 160 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="st-grad" x1="30" y1="0" x2="130" y2="80" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#B91C1C"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="36" r="28" fill="url(#st-grad)"/>
+  <path d="M50 16 C50 16, 74 28, 74 36 C74 48, 50 56, 50 56 C50 56, 26 48, 26 36 C26 28, 50 16, 50 16Z" fill="#FCA5A5" opacity="0.6"/>
+  <circle cx="50" cy="36" r="8" fill="#FEF2F2" opacity="0.8"/>
+  <text x="95" y="30" font-family="'Segoe UI', system-ui, sans-serif" font-size="22" font-weight="800" fill="#EF4444">LDS</text>
+  <text x="95" y="44" font-family="'Segoe UI', system-ui, sans-serif" font-size="7" letter-spacing="3" fill="#666">LOCAL DEV STACK</text>
+  <line x1="95" y1="52" x2="150" y2="52" stroke="#DC2626" stroke-width="1" opacity="0.4"/>
+  <text x="95" y="66" font-family="'Segoe UI', system-ui, sans-serif" font-size="7" letter-spacing="2" fill="#555">BUILD. DEPLOY. REPEAT.</text>
+</svg>

@@ -100,6 +100,9 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
     cpus: ${PHP_CPUS:-2}
     mem_limit: ${PHP_MEM_LIMIT:-512m}
     networks: [lds-network]
@@ -333,7 +336,11 @@ services:
         /usr/local/bin/docker-entrypoint.sh \
           -c wal_level=logical \
           -c max_wal_senders=10 \
-          -c max_replication_slots=10 &
+          -c max_replication_slots=10 \
+          -c tcp_keepalives_idle=60 \
+          -c tcp_keepalives_interval=10 \
+          -c tcp_keepalives_count=6 \
+          -c statement_timeout=30000 &
         PG_PID=$$!
 
         # Wait for postgres to accept connections
@@ -1065,7 +1072,7 @@ services:
       TZ: ${TZ:-Asia/Jakarta}
       PORT: "3001"
       DATABASE_URL: postgresql://${ANALYTICS_POSTGRES_USER:-app}:${ANALYTICS_POSTGRES_PASSWORD:-app}@postgres:5432/${ANALYTICS_POSTGRES_DB:-lds_analytics}
-      CORS_ORIGIN: ${ANALYTICS_CORS_ORIGIN:-http://localhost:4173,http://analytics.test}
+      CORS_ORIGIN: ${ANALYTICS_CORS_ORIGIN:-http://localhost:4173,http://analytics.test,https://analytics.test}
     expose:
       - "3001"
     ports:
@@ -1126,7 +1133,7 @@ services:
       TZ: ${TZ:-Asia/Jakarta}
       PORT: "3002"
       DATABASE_URL: postgresql://${TASKS_POSTGRES_USER:-app}:${TASKS_POSTGRES_PASSWORD:-app}@postgres:5432/${TASKS_POSTGRES_DB:-lds_tasks}
-      CORS_ORIGIN: ${TASKS_CORS_ORIGIN:-http://localhost:4174,http://tasks.test}
+      CORS_ORIGIN: ${TASKS_CORS_ORIGIN:-http://localhost:4174,http://tasks.test,https://tasks.test}
     expose:
       - "3002"
     ports:
@@ -1182,7 +1189,7 @@ services:
       TZ: ${TZ:-Asia/Jakarta}
       PORT: "3003"
       DATABASE_URL: postgresql://${WIKI_POSTGRES_USER:-app}:${WIKI_POSTGRES_PASSWORD:-app}@postgres:5432/${WIKI_POSTGRES_DB:-lds_wiki}
-      CORS_ORIGIN: ${WIKI_CORS_ORIGIN:-http://localhost:4175,http://wiki.test}
+      CORS_ORIGIN: ${WIKI_CORS_ORIGIN:-http://localhost:4175,http://wiki.test,https://wiki.test}
     expose:
       - "3003"
     ports:

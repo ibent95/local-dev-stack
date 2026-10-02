@@ -195,6 +195,7 @@ unset($apps);
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<link rel="icon" href="favicon.ico" type="image/x-icon">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- Keep status dots live + let "unknown" services fill in over time. Cheap:
      most loads hit the fresh status cache; cold/stale loads are time-budgeted. -->
@@ -203,7 +204,7 @@ unset($apps);
 <style>
   :root{
     --bg:#0f1419; --card:#1a212b; --card2:#222b38; --line:#2c3743;
-    --fg:#e6edf3; --muted:#8b98a5; --accent:#4cc2ff; --good:#3fb950; --bad:#f85149;
+    --fg:#e6edf3; --muted:#8b98a5; --accent:#EF4444; --good:#3fb950; --bad:#f85149;
   }
   *{box-sizing:border-box}
   body{margin:0;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
@@ -242,7 +243,29 @@ unset($apps);
 </head>
 <body>
 <div class="wrap">
-  <h1><span class="dot">●</span> Local Dev Stack</h1>
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:4px">
+    <svg width="40" height="40" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 0 10px rgba(220,38,38,0.5))">
+      <defs>
+        <linearGradient id="hdr-flame" x1="70" y1="0" x2="70" y2="140" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#EF4444"/>
+          <stop offset="100%" stop-color="#991B1B"/>
+        </linearGradient>
+        <linearGradient id="hdr-inner" x1="70" y1="30" x2="70" y2="120" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#FCA5A5"/>
+          <stop offset="100%" stop-color="#EF4444"/>
+        </linearGradient>
+      </defs>
+      <path d="M70 8 C70 8, 120 45, 120 85 C120 115, 98 132, 70 132 C42 132, 20 115, 20 85 C20 45, 70 8, 70 8Z" fill="url(#hdr-flame)"/>
+      <path d="M70 38 C70 38, 98 60, 98 85 C98 103, 86 115, 70 115 C54 115, 42 103, 42 85 C42 60, 70 38, 70 38Z" fill="url(#hdr-inner)" opacity="0.9"/>
+      <ellipse cx="70" cy="88" rx="12" ry="18" fill="#FEF2F2" opacity="0.6"/>
+    </svg>
+    <div>
+      <h1 style="margin:0"><span class="dot">●</span> LDS <span style="color:var(--muted);font-weight:400;font-size:16px">Local Dev Stack</span></h1>
+    </div>
+    <div style="margin-left:auto">
+      <a href="/about.php" style="color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:5px 12px;border-radius:7px;transition:.15s" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--line)'">About</a>
+    </div>
+  </div>
   <p class="sub">Drop a folder into your projects path and it's served instantly at
      <code>&lt;folder&gt;.<?= $tld ?></code>. Tool links use default hostnames — enable each
      profile (<code>LDS_ENABLE_*</code>) for it to respond.</p>
@@ -297,7 +320,7 @@ unset($apps);
   </div>
 
   <footer>
-    PHP <?= PHP_VERSION ?> · extensions:
+    LDS <?= PHP_VERSION ?> · extensions:
     <?= implode(', ', array_filter(['rdkafka','redis','memcached','pdo_mysql','pdo_pgsql'], 'extension_loaded')) ?>
     · status: <span class="stat up"></span> reachable
     · <span class="stat down"></span> down

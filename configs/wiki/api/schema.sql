@@ -77,5 +77,6 @@ CREATE TABLE IF NOT EXISTS tags (
 -- Page ↔ Tags (many-to-many)
 CREATE TABLE IF NOT EXISTS page_tags (
   page_id INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
-  tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE
+  tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (page_id, tag_id)
 );

@@ -1,0 +1,5 @@
+<svg width="320" height="60" viewBox="0 0 320 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="4" height="60" rx="2" fill="#FFFFFF"/>
+  <text x="20" y="42" font-family="'Segoe UI', system-ui, sans-serif" font-size="38" font-weight="800" letter-spacing="-1" fill="#FFFFFF">LDS</text>
+  <text x="20" y="56" font-family="'Segoe UI', system-ui, sans-serif" font-size="9" letter-spacing="4" fill="#AAAAAA">LOCAL DEV STACK</text>
+</svg>

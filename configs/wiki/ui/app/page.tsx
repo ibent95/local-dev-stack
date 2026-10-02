@@ -12,16 +12,23 @@ export default function WikiHome() {
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     fetchJson<Space[]>("/spaces")
       .then(setSpaces)
-      .catch(console.error)
+      .catch((err) => {
+        console.error(err);
+        setError("Failed to load spaces. Is the Wiki API running?");
+      })
       .finally(() => setLoading(false));
   }, []);
 
   const createSpace = async () => {
     if (!newName.trim()) return;
+    setError("");
+    setCreating(true);
     try {
       const space = await postJson<Space>("/spaces", {
         name: newName,
@@ -31,8 +38,18 @@ export default function WikiHome() {
       setNewName("");
       setNewDesc("");
       setShowNewForm(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      const msg = err?.message || "Unknown error";
+      if (msg.includes("409")) {
+        setError("A space with a similar name already exists. Try a different name.");
+      } else if (msg.includes("500")) {
+        setError("Server error — please check the Wiki API logs.");
+      } else {
+        setError(`Failed to create space: ${msg}`);
+      }
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -94,12 +111,18 @@ export default function WikiHome() {
             placeholder="Description (optional)"
             className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm outline-none focus:border-indigo-500"
           />
+          {error && (
+            <div className="mb-3 rounded-lg border border-red-800 bg-red-900/30 px-4 py-2 text-sm text-red-400">
+              {error}
+            </div>
+          )}
           <div className="flex gap-2">
             <button
               onClick={createSpace}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition-colors"
+              disabled={creating || !newName.trim()}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create
+              {creating ? "Creating…" : "Create"}
             </button>
             <button
               onClick={() => {

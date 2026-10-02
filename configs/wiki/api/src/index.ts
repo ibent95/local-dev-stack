@@ -14,7 +14,7 @@ const app = new Hono();
 // ─── Middleware ────────────────────────────────────────────────────
 app.use("*", logger());
 app.use("*", cors({
-  origin: process.env.CORS_ORIGIN || "*",
+  origin: (process.env.CORS_ORIGIN || "*").split(",").map((s) => s.trim()),
   allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowHeaders: ["Content-Type"],
 }));
