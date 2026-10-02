@@ -11,7 +11,7 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
   mengabaikan toggle di bawah. Mis. `lds up kafka` atau `lds up mysql redis`.
 - **Set default:** `lds up` **tanpa argumen** menjalankan setiap profile yang
   toggle `LDS_ENABLE_<PROFILE>=true`-nya disetel di `.env`. Default: `proxy`,
-  `php`, `mysql`, `dbgate` aktif; selain itu mati. Jika semua toggle
+  `php`, `mysql`, `dbx` aktif; selain itu mati. Jika semua toggle
   `false` → jatuh ke `all`.
 - Satu layanan bisa termasuk beberapa profile. `proxy` + `dns` termasuk dalam
   **kedua** profile `proxy` dan `php`, jadi mengaktifkan `php` otomatis ikut
@@ -106,10 +106,10 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 <td>`phpcacheadmin`</td>
 </tr>
 <tr>
-<td>`dbgate`</td>
-<td>`LDS_ENABLE_DBGATE`</td>
+<td>`dbx`</td>
+<td>`LDS_ENABLE_DBX`</td>
 <td>✅</td>
-<td>`dbgate`</td>
+<td>`dbx`</td>
 </tr>
 <tr>
 <td>`soketi`</td>
@@ -485,7 +485,7 @@ default.**
   `lds kafka-topics`).
 - **Volume:** `kafka-controller-data`, `kafka-broker-data`.
 
-## UI admin — `phpcacheadmin` dan `dbgate`
+## UI admin — `phpcacheadmin` dan `dbx`
 
 Kedua UI admin web kini punya **profile masing-masing** sehingga dapat diaktifkan
 secara independen (tidak ada lagi umbrella `tools`). Keduanya dijangkau via proxy
@@ -505,17 +505,26 @@ secara default** (aktifkan saat Anda menjalankan `redis`/`memcached`).
 - Sudah diarahkan ke layanan `redis`, `valkey`, dan `memcached` — jalankan salah satu (atau
   keduanya) untuk melihat data. Tanpa volume (UI stateless).
 
-### `dbgate` — client DB web
+### `dbx` — client DB web
 
-**Menjalankan:** `dbgate`. **Toggle:** `LDS_ENABLE_DBGATE`. **Aktif secara
+**Menjalankan:** `dbx`. **Toggle:** `LDS_ENABLE_DBX`. **Aktif secara
 default.**
 
-- Client DB web. `${DB_ADMIN_HOST}` (default `db.test`) / host
+- Client DB web untuk **100+ engine** (MySQL, MariaDB, Postgres, MongoDB, SQL
+  Server, Oracle, Redis, DuckDB, …), lengkap dengan SQL editor, ER diagram dan
+  server MCP. `${DB_ADMIN_HOST}` (default `db.test`) / host
   `${DB_ADMIN_HOST_PORT}` (default `4501`).
-- Berjalan terbuka penuh (tambah/edit/hapus koneksi di UI); MySQL + Postgres stack
-  otomatis terdaftar via `scripts/run/dbgate-seed.*` (otomatis dijalankan `lds up`
-  untuk profile `dbgate`/`all`). Koneksi buatan UI tersimpan di direktori
-  bind-mount `data/dbgate/`.
+- **Terbuka secara default** — `DBX_DISABLE_PASSWORD=1` berarti tanpa halaman
+  login (set `0` + `DBX_PASSWORD=…` di `.env` untuk mengunci UI). Tambah/edit/
+  hapus koneksi bebas.
+- MySQL + MariaDB + Postgres + MongoDB + SQL Server + Oracle stack otomatis
+  terdaftar via `scripts/run/dbx-seed.*` (otomatis dijalankan `lds up`
+  untuk profile `dbx`/`all`; script ini POST ke Web API DBX **setelah**
+  container naik, dan dilewati bila koneksi sudah ada).
+- Koneksi tersimpan di `dbx.db` di direktori bind-mount `data/dbx/`
+  (bersama `.dbx/secret.key` — cadangkan keduanya sebagai pasangan).
+- Image `t8y2/dbx` (Apache-2.0, upstream — bukan image DHI), dipin oleh
+  `DBX_VERSION`, dibatasi mem oleh `DBX_MEM_LIMIT` (default `768m`).
 
 ## Broker realtime / pub-sub — `soketi`, `centrifugo`, `mqtt`
 

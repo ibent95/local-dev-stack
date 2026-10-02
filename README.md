@@ -103,7 +103,7 @@ talk to them.
 </tr>
 <tr>
 <td>Admin UIs</td>
-<td>`phpcacheadmin` / `dbgate`</td>
+<td>`phpcacheadmin` / `dbx`</td>
 <td>cache browser / web DB client</td>
 <td>4500 / 4501</td>
 </tr>
@@ -264,7 +264,7 @@ cp .env.example .env             # then edit if needed
 
 > **Default run-set:** `lds up` with no arguments starts every profile whose
 > **`LDS_ENABLE_<PROFILE>`** toggle in `.env` is `true` (defaults: `proxy`, `php`,
-> `mysql`, `dbgate` on → edge proxy, DNS, PHP, MySQL, DBGate).
+> `mysql`, `dbx` on → edge proxy, DNS, PHP, MySQL, DBX).
 > One independent on/off switch per service — flip a single line (e.g.
 > `LDS_ENABLE_KAFKA=true`) to add/remove a group. Passing explicit profiles
 > (`lds up kafka`) ignores the toggles and starts only those.
@@ -473,9 +473,9 @@ From other containers on `lds-network`, use the service name + its internal port
 </tr>
 <tr>
 <td></td>
-<td>DBGate</td>
+<td>DBX</td>
 <td>`localhost:4501` (`db.test`)</td>
-<td>`dbgate:3000`</td>
+<td>`dbx:4224`</td>
 </tr>
 <tr>
 <td></td>

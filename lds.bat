@@ -41,7 +41,7 @@ if /I "%CMD%"=="kafka-topics"        call "%ROOT%scripts\run\kafka-topics.bat" %
 if /I "%CMD%"=="mysql-init"          call "%ROOT%scripts\run\mysql-init.bat" %REST% & goto end
 if /I "%CMD%"=="postgres-init"       call "%ROOT%scripts\run\postgres-init.bat" %REST% & goto end
 if /I "%CMD%"=="mongo-init"          call "%ROOT%scripts\run\mongo-init.bat" %REST% & goto end
-if /I "%CMD%"=="dbgate-seed"         call "%ROOT%scripts\run\dbgate-seed.bat" %REST% & goto end
+if /I "%CMD%"=="dbx-seed"            call "%ROOT%scripts\run\dbx-seed.bat" %REST% & goto end
 if /I "%CMD%"=="certs"               call "%ROOT%scripts\run\certs.bat" %REST% & goto end
 if /I "%CMD%"=="register-connectors" call "%ROOT%scripts\run\register-connectors.bat" %REST% & goto end
 if /I "%CMD%"=="connect-plugin"      call "%ROOT%scripts\run\connect-plugin.bat" %REST% & goto end
@@ -73,7 +73,7 @@ if /I "!SUB!"=="init" (
   if /I "!WHICH!"=="mongo" ( call "%ROOT%scripts\run\mongo-init.bat" & goto end )
   call "%ROOT%scripts\run\mysql-init.bat" & call "%ROOT%scripts\run\postgres-init.bat" & call "%ROOT%scripts\run\mongo-init.bat" & goto end
 )
-if /I "!SUB!"=="seed"                ( call "%ROOT%scripts\run\dbgate-seed.bat" & goto end )
+if /I "!SUB!"=="seed"                ( call "%ROOT%scripts\run\dbx-seed.bat" & goto end )
 echo usage: lds db ^<init [mysql^|postgres^|mongo^|all] ^| seed^>
 goto end
 
@@ -112,7 +112,7 @@ echo   ps                            status of all services
 echo   exec ^<service^> [cmd...]       run a command (or open a shell) in a service container
 echo.
 echo  kafka ^<sub^>                    topics ^| connect-plugin [--generic^|--debezium] ^<name^> ^| register-connectors ^| init
-echo  db ^<sub^>                       init [mysql^|postgres^|mongo^|all] ^| seed (DBGate connections)
+echo  db ^<sub^>                       init [mysql^|postgres^|mongo^|all] ^| seed (DBX connections)
 echo  tools ^<sub^>                    semgrep [path^|clear] ^| trivy [path^|clear] ^| trivy image ^<name^>
 echo                                 ^| crg ^<path^> [name] ^| playwright ^<init^|run^|codegen^|ui^|shell^|report^> (alias)
 echo                                 (scan; view at semgrep.test / trivy.test / crg.test via the matching up)

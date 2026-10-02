@@ -90,7 +90,7 @@ There is no repository-wide unit/integration test runner at repo root; validatio
 5. **Two app-hosting modes.**
    - **Plain PHP folders** in `PHP_PROJECTS_PATH` are served by one shared `php` container via mass vhost (docroot auto-detect: `public/` -> `htdocs/` -> root).
    - **Non-PHP apps** are independent template projects (`templates/*`) with their own compose files using `VIRTUAL_HOST`/`VIRTUAL_PORT` on `lds-network`.
-6. **`up` performs post-start initialization hooks.** After compose up, scripts auto-run profile-coupled tasks such as `dbgate-seed`, `mysql-init`, `mongo-init`, `kafka-topics`, and `hop-register`.
+6. **`up` performs post-start initialization hooks.** After compose up, scripts auto-run profile-coupled tasks such as `dbx-seed`, `mysql-init`, `mongo-init`, `kafka-topics`, and `hop-register`.
 7. **Kafka, Semgrep and Trivy are split intentionally.**
    - Kafka uses KRaft controller+broker, Apicurio registry, and two Connect workers (`connect-debezium`, `connect-generic`).
    - Semgrep and Trivy each separate a long-running viewer (`semgrep`, `trivy`) from a one-shot scanner (`semgrep-scan`, `trivy-scan`), invoked by `lds tools semgrep` / `lds tools trivy`.

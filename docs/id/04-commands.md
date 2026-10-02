@@ -49,7 +49,7 @@
 </tr>
 <tr>
 <td>`db &lt;sub&gt;`</td>
-<td>`init [mysql\|postgres\|mongo\|all]` (buat db/user default + spec tool opsional via `*_INIT_SPECS`) · `seed` (koneksi DBGate)</td>
+<td>`init [mysql\|postgres\|mongo\|all]` (buat db/user default + spec tool opsional via `*_INIT_SPECS`) · `seed` (koneksi DBX)</td>
 </tr>
 <tr>
 <td>`tools &lt;sub&gt;`</td>
@@ -84,7 +84,7 @@
 
 > Subperintah berkelompok ini menggantikan nama datar lama, yang **tetap bekerja
 > sebagai alias**: `kafka-topics`, `register-connectors`, `connect-plugin`,
-> `mysql-init`, `mongo-init`, `dbgate-seed`.
+> `mysql-init`, `mongo-init`, `dbx-seed`.
 
 Tiap skrip juga ada mandiri di `scripts/run/` dan `scripts/build/`, dalam
 bentuk `.sh` dan `.bat`.

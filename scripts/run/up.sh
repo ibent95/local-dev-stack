@@ -35,7 +35,7 @@ if [ $# -gt 0 ]; then
 else
   profiles=()
   # Canonical profile order; each maps to LDS_ENABLE_<UPPER>=true in .env.
-  for p in proxy php mysql mariadb mssql oracle postgres mongo redis valkey memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep zap trivy crg vaultwarden mail penpot instatic analytics tasks wiki openwa headlessx playwright erpnext rustfs duckdb trino; do
+  for p in proxy php mysql mariadb mssql oracle postgres mongo redis valkey memcached kafka phpcacheadmin dbx soketi centrifugo mqtt drawdb hop superset semgrep zap trivy crg vaultwarden mail penpot instatic analytics tasks wiki openwa headlessx playwright erpnext rustfs duckdb trino; do
     var="LDS_ENABLE_$(printf '%s' "$p" | tr '[:lower:]' '[:upper:]')"
     val="$(grep -E "^[[:space:]]*${var}=" .env 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/#.*//' | tr -d '[:space:]\r')"
     case "$val" in
@@ -140,12 +140,6 @@ case " ${profiles[*]} " in
     fi ;;
 esac
 
-# Seed DBGate connections into its volume BEFORE it starts (fresh setups only;
-# skips if you already have connections). Keeps the stack DBs auto-listed.
-case " ${profiles[*]} " in
-  *" dbgate "*|*" all "*) sub "dbgate-seed"; "$ROOT/scripts/run/dbgate-seed.sh" || true; subdone ;;
-esac
-
 # Seed sample Parquet/CSV/JSON data for DuckDB and Trino. Runs before compose
 # up so the files are available when the containers start. Skips if files exist.
 case " ${profiles[*]} " in
@@ -179,6 +173,13 @@ if ! docker compose "${compose_files[@]}" "${args[@]}" up "${up_flags[@]}"; then
 fi
 docker compose "${compose_files[@]}" "${args[@]}" ps
 subdone
+
+# Seed DBX connections AFTER it is up (the seed goes through DBX's Web API, so
+# the container must be answering; fresh setups only — skips if you already
+# added connections). Keeps the stack DBs auto-listed.
+case " ${profiles[*]} " in
+  *" dbx "*|*" all "*) sub "dbx-seed"; "$ROOT/scripts/run/dbx-seed.sh" || true; subdone ;;
+esac
 
 # LDS app DBs are now created inline by the postgres service (entrypoint wrapper).
 # The mysql-init.sh and postgres-init.sh scripts are kept for manual use:

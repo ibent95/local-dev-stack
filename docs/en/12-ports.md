@@ -173,9 +173,9 @@ anything else on your machine. Each one is set by a `*_HOST_PORT` variable in
 </tr>
 <tr>
 <td></td>
-<td>DBGate</td>
+<td>DBX</td>
 <td><code>localhost:4501</code> (<code>db.test</code>)</td>
-<td><code>dbgate:3000</code></td>
+<td><code>dbx:4224</code></td>
 </tr>
 <tr>
 <td></td>

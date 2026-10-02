@@ -1,4 +1,4 @@
--- Demo data so tools (Hop, DBGate, Superset) have something to read in `app`.
+-- Demo data so tools (Hop, DBX, Superset) have something to read in `app`.
 -- Applied to the `app` database by scripts/run/mysql-init.* (DHI mysql ignores
 -- /docker-entrypoint-initdb.d, so the init script runs these files instead).
 -- Idempotent: CREATE ... IF NOT EXISTS + INSERT IGNORE on fixed primary keys.

@@ -50,7 +50,7 @@ case "$cmd" in
           all|"") "$ROOT/scripts/run/mysql-init.sh" || true; "$ROOT/scripts/run/postgres-init.sh" || true; exec "$ROOT/scripts/run/mongo-init.sh" ;;
           *) echo "usage: lds db init [mysql|postgres|mongo|all]"; exit 1 ;;
         esac ;;
-      seed)  exec "$ROOT/scripts/run/dbgate-seed.sh" "$@" ;;
+      seed)  exec "$ROOT/scripts/run/dbx-seed.sh" "$@" ;;
       *) echo "usage: lds db <init [mysql|postgres|mongo|all] | seed>"; exit 1 ;;
     esac ;;
   # --- lifecycle / scaffolding (flat) ------------------------------------
@@ -79,7 +79,7 @@ case "$cmd" in
   mysql-init)          exec "$ROOT/scripts/run/mysql-init.sh" "$@" ;;
   postgres-init)       exec "$ROOT/scripts/run/postgres-init.sh" "$@" ;;
   mongo-init)          exec "$ROOT/scripts/run/mongo-init.sh" "$@" ;;
-  dbgate-seed)         exec "$ROOT/scripts/run/dbgate-seed.sh" "$@" ;;
+  dbx-seed)           exec "$ROOT/scripts/run/dbx-seed.sh" "$@" ;;
   help|-h|--help)
     cat <<'EOF'
 local-dev-stack — usage: ./lds.sh <command> [args]
@@ -105,7 +105,7 @@ local-dev-stack — usage: ./lds.sh <command> [args]
 
  kafka <sub>                    topics | connect-plugin [--generic|--debezium] <name>
                                   | register-connectors | init (topics + connectors)
- db <sub>                       init [mysql|postgres|mongo|all] | seed (DBGate connections)
+ db <sub>                       init [mysql|postgres|mongo|all] | seed (DBX connections)
  tools <sub>                    semgrep [path|clear] | trivy [path|clear] | trivy image <name>
                                   | crg <path> [name] | playwright <init|run|codegen|ui|shell|report> (alias)
                                   (scan; view at semgrep.test / trivy.test / crg.test via the matching `up`)
@@ -121,8 +121,8 @@ local-dev-stack — usage: ./lds.sh <command> [args]
   build-php [--push]            (re)build just the PHP service image
   help                          show this message
 
-  (old flat names — kafka-topics, mongo-init, postgres-init, mysql-init, register-connectors,
-   connect-plugin, dbgate-seed — still work as aliases.)
+   (old flat names — kafka-topics, mongo-init, postgres-init, mysql-init, register-connectors,
+    connect-plugin, dbx-seed — still work as aliases.)
 EOF
     ;;
   *) echo "Unknown command: $cmd"; "$0" help; exit 1 ;;

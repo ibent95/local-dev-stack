@@ -36,7 +36,7 @@ lds stop | down [-v]      stop+keep | remove (-v wipes volumes)
 lds ps | logs [service]   status | tail logs
 lds exec <svc> [cmd…]     shell/command in a container
 lds hosts-sync            write projects + tool hosts into the hosts file (admin)
-lds db init [mysql|postgres|mongo|all] | seed     create default db/users (+ optional `*_INIT_SPECS`) | DBGate conns
+lds db init [mysql|postgres|mongo|all] | seed     create default db/users (+ optional `*_INIT_SPECS`) | DBX conns
 lds kafka topics | connect-plugin [--generic] <name> | register-connectors | init
 lds tools semgrep [path|clear]  run/clear a Semgrep scan → data/semgrep/reports/report.sarif
 lds tools trivy [path|clear] | trivy image <name>  run/clear a Trivy scan → data/trivy/reports/report.html
@@ -46,13 +46,13 @@ lds certs [--force]       mint the wildcard *.test dev TLS cert (LDS_ENABLE_HTTP
 ```
 
 Old flat names (`kafka-topics`, `mysql-init`, `mongo-init`, `register-connectors`,
-`connect-plugin`, `dbgate-seed`) still work as aliases.
+`connect-plugin`, `dbx-seed`) still work as aliases.
 
 ## Layout / ordering
 
 `docker-compose.yml` is ordered by importance of usage: **web foundation**
 (proxy, dns, php) → **databases** (mysql, mariadb, mssql, oracle, postgres, mongo, redis, valkey, memcached) →
-**admin UIs** (phpcacheadmin, dbgate) → **data tools** (drawdb, hop, superset,
+**admin UIs** (phpcacheadmin, dbx) → **data tools** (drawdb, hop, superset,
 semgrep, zap, trivy, crg, vaultwarden, mailpit, penpot, instatic, analytics, tasks, wiki) → **realtime brokers** (soketi, centrifugo, mqtt) → **Kafka** (last,
 heaviest, off by default) → **HeadlessX/Playwright** → **ERPNext** (reuses shared
 postgres + redis, heavy — off by default).

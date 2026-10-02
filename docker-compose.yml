@@ -13,7 +13,7 @@
 # Services are ordered by importance of usage: web foundation → databases →
 # admin UIs → data tools → realtime brokers → Kafka (heaviest, off by default).
 # Profiles: proxy | php | mysql | mariadb | mssql | oracle | postgres | mongo | redis | valkey | memcached |
-#           phpcacheadmin | dbgate | drawdb | hop | superset | semgrep | zap | trivy | crg |
+#           phpcacheadmin | dbx | drawdb | hop | superset | semgrep | zap | trivy | crg |
 #           vaultwarden | mail | penpot | instatic | analytics | tasks | wiki |
 #           soketi | centrifugo | mqtt | kafka | openwa | rustfs | headlessx |
 #           playwright | erpnext | duckdb | trino | hive-metastore | all
@@ -23,7 +23,7 @@
 #   4420-4439  Kafka          (Broker, Schema Registry, Connect, UI)
 #   4440-4449  Realtime       (Soketi, Centrifugo, Mosquitto, MQTTX)
 #   4450-4459  Query engines  (DuckDB, Trino)
-#   4500-4530  Web UIs & apps (phpCacheAdmin, DBGate, DrawDB, Hop, Superset, Semgrep, ZAP, Trivy,
+#   4500-4530  Web UIs & apps (phpCacheAdmin, DBX, DrawDB, Hop, Superset, Semgrep, ZAP, Trivy,
 #                             CRG, Vaultwarden, Mailpit, Penpot, Instatic, HeadlessX, Playwright,
 #                             ERPNext, OpenWA, RustFS, Analytics, Tasks, Wiki)
 #   Data tools (drawdb/hop/superset/semgrep/zap/trivy/vaultwarden) + the http://localhost control panel:
@@ -518,7 +518,7 @@ services:
 
   # ===========================================================================
   # Admin tools — web UIs for the backing services. Each has its OWN profile
-  # (phpcacheadmin | dbgate) so you can turn them on independently; both also
+  # (phpcacheadmin | dbx) so you can turn them on independently; both also
   # join `all`. Reachable via the proxy (*.test) AND a direct host port. They
   # show data only when the matching profile is also up (redis/memcached,
   # mysql/postgres).
@@ -549,41 +549,50 @@ services:
       - "${CACHE_ADMIN_HOST_PORT:-4500}:80"
     networks: [lds-network]
 
-  # DBGate — web DB client, pre-connected to MySQL + Postgres.  (profile: dbgate, all)
-  # Persistence: bind-mounted host dir (data/dbgate/) holds UI-created
-  # connections + app state — directly accessible on disk for backup or sharing.
-  dbgate:
-    image: dbgate/dbgate:${DBGATE_VERSION:-7.2.0}
-    container_name: lds-dbgate
-    profiles: [dbgate, all]
+  # DBX — web DB client (100+ engines: MySQL, Postgres, Mongo, SQL Server,
+  # Oracle, Redis, DuckDB, ...).  (profile: dbx, all)
+  # Persistence: bind-mounted host dir (data/dbx/) holds dbx.db + the connection
+  # encryption key (.dbx/secret.key) — directly accessible on disk for backup
+  # or sharing. Seeded with the stack DBs by scripts/run/dbx-seed.* (post-up
+  # hook) through DBX's Web API, so it works without touching the SQLite file.
+  dbx:
+    image: t8y2/dbx:${DBX_VERSION:-0.6.31}
+    container_name: lds-dbx
+    profiles: [dbx, all]
     restart: *restart
     <<: *dns
     environment:
       VIRTUAL_HOST: ${DB_ADMIN_HOST:-db.test}
-      VIRTUAL_PORT: "3000"
+      VIRTUAL_PORT: "4224"
       CERT_NAME: _.test
-      # Full Community feature set. We intentionally do NOT predefine CONNECTIONS:
-      # doing so locks the UI into read-only "preconfigured" mode and disables
-      # "Add connection". Left unset, DBGate runs fully open — add/edit/delete
-      # connections in the UI (persisted in the bind-mounted data/dbgate/ dir).
-      SHELL_CONNECTION: "true" # connections definable from shell
-      SHELL_SCRIPTING: "true" # enable custom JavaScript shell scripts
+      # Local-dev default: no login wall (the stack DBs are already open on the
+      # shared network) and it lets `dbx-seed` POST connections without a session
+      # cookie. Set DBX_DISABLE_PASSWORD=0 in .env to gate the UI behind a login
+      # (DBX_PASSWORD is then used; it is ignored entirely while disabled).
+      DBX_DISABLE_PASSWORD: ${DBX_DISABLE_PASSWORD:-1}
+      DBX_PASSWORD: ${DBX_PASSWORD:-dbx}
+      # Container-internal listen port (host side is DB_ADMIN_HOST_PORT below).
+      DBX_PORT: "4224"
     expose:
-      - "3000"
+      - "4224"
     ports:
-      - "${DB_ADMIN_HOST_PORT:-4501}:3000"
+      - "${DB_ADMIN_HOST_PORT:-4501}:4224"
     volumes:
-      # Persist UI-created connections + app state (the MySQL/Postgres entries
-      # above are predefined/read-only; anything you add yourself lives here).
-      # Bind-mounted so you can inspect, backup, or version-control connections.
-      - ./data/dbgate:/root/.dbgate
-      # Shared writable view of the DuckDB data engine. DuckDB needs to create a
-      # lock/WAL file (data.duckdb.wal) even for reads, so the mount must be
-      # writable — a read-only mount fails with "Cannot open file: Read-only file
-      # system". DuckDB's own file locking prevents simultaneous writers, so set
-      # the DuckDB connection to read-only in the DBGate UI to avoid contention.
+      # dbx.db + .dbx/secret.key — persist them together, they are a pair.
+      - ./data/dbx:/app/data
+      # Shared writable view of the DuckDB data engine (the duckdb service's
+      # volume): DuckDB creates a lock/WAL file even for reads, so the mount must
+      # be writable. Set the DuckDB connection to read-only in the DBX UI to avoid
+      # write contention with the duckdb service.
       - duckdb-data:/data
-    mem_limit: ${DBGATE_MEM_LIMIT:-384m}
+    healthcheck:
+      # Debian-slim ships no curl/wget — open the listener with bash /dev/tcp.
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/4224'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    mem_limit: ${DBX_MEM_LIMIT:-768m}
     networks: [lds-network]
 
   # ===========================================================================
@@ -772,8 +781,8 @@ services:
   # ===========================================================================
   # DuckDB — embedded analytical SQL engine, persistent file-based.  (profile: duckdb, all)
   # No REST API, no network port. DuckDB is an embedded database (like SQLite).
-  # The data.duckdb file lives on a persistent named volume shared with DBGate
-  # (read-only) so the GUI can query the same database.
+  # The data.duckdb file lives on a persistent named volume shared with DBX
+  # so the GUI can query the same database.
   #   docker exec -it lds-duckdb duckdb /data/data.duckdb
   #   docker exec lds-duckdb duckdb -c "SELECT * FROM read_parquet('/data/sales.parquet')" /data/data.duckdb
   duckdb:

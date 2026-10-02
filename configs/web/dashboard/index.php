@@ -69,7 +69,7 @@ $serviceGroups = [
 $uiGroups = [
     'Data management' => [
         ['label' => 'phpCacheAdmin', 'desc' => 'Redis · Memcached',     'url' => '//cache.test',      'alt' => 'localhost:4500', 'health' => ['phpcacheadmin', 80]],
-        ['label' => 'DBGate',        'desc' => 'MySQL · PostgreSQL',     'url' => '//db.test',         'alt' => 'localhost:4501', 'health' => ['dbgate', 3000]],
+        ['label' => 'DBX',            'desc' => 'MySQL · Postgres · Mongo',  'url' => '//db.test',         'alt' => 'localhost:4501', 'health' => ['dbx', 4224]],
         ['label' => 'Kafka UI',          'desc' => 'topics · connectors',      'url' => 'http://localhost:4424', 'alt' => null, 'health' => ['kafka-ui', 8080]],
         ['label' => 'Connector builder', 'desc' => 'build Connect connectors', 'url' => '/connectors.php',       'alt' => null, 'health' => null],
     ],

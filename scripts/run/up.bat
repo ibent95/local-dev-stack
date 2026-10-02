@@ -31,7 +31,7 @@ REM "all". Canonical profile order; each maps to LDS_ENABLE_<NAME> (matched
 REM case-insensitively).
 if "%PROFILES%"=="" (
   set "PROFILES="
-  for %%p in (proxy php mysql mariadb mssql oracle postgres mongo redis valkey memcached kafka phpcacheadmin dbgate soketi centrifugo mqtt drawdb hop superset semgrep zap trivy crg vaultwarden mail penpot instatic analytics tasks wiki openwa headlessx playwright erpnext rustfs duckdb trino) do (
+  for %%p in (proxy php mysql mariadb mssql oracle postgres mongo redis valkey memcached kafka phpcacheadmin dbx soketi centrifugo mqtt drawdb hop superset semgrep zap trivy crg vaultwarden mail penpot instatic analytics tasks wiki openwa headlessx playwright erpnext rustfs duckdb trino) do (
     set "VAL="
     if exist .env for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do if /I "%%a"=="LDS_ENABLE_%%p" set "VAL=%%b"
     set "VAL=!VAL: =!"
@@ -135,14 +135,6 @@ if not errorlevel 1 (
   )
 )
 
-REM Seed DBGate connections into its volume BEFORE it starts (fresh setups only).
-echo %PROFILES% | findstr /I /C:"dbgate" /C:"all" >nul
-if not errorlevel 1 (
-  call :sub "dbgate-seed"
-  call "%~dp0dbgate-seed.bat"
-  call :subdone
-)
-
 REM Seed sample Parquet/CSV/JSON data for DuckDB and Trino.
 echo %PROFILES% | findstr /I /C:"duckdb" /C:"trino" /C:"all" >nul
 if not errorlevel 1 (
@@ -181,6 +173,16 @@ if errorlevel 1 (
 )
 docker compose !CFILES! !ARGS! ps
 call :subdone
+
+REM Seed DBX connections AFTER it is up (the seed goes through DBX's Web API, so
+REM the container must be answering; fresh setups only - skips if you already
+REM added connections). Keeps the stack DBs auto-listed.
+echo %PROFILES% | findstr /I /C:"dbx" /C:"all" >nul
+if not errorlevel 1 (
+  call :sub "dbx-seed"
+  call "%~dp0dbx-seed.bat"
+  call :subdone
+)
 
 REM DB services now self-initialize on startup (see docker-compose.yml).
 REM The mysql-init and postgres-init scripts are kept for manual use via `lds exec`.

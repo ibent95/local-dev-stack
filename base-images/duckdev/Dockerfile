@@ -15,7 +15,7 @@
 #
 # Context is the repo root so it can COPY assets/ (see docker-bake.hcl).
 # No network port — DuckDB is embedded (like SQLite); the container holds the
-# CLI + the data.duckdb file on a persistent volume shared with DBGate.
+# CLI + the data.duckdb file on a persistent volume shared with DBX.
 # =============================================================================
 ARG DUCKDB_VERSION=1.2.0
 FROM debian:13-slim

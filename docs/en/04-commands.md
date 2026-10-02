@@ -49,7 +49,7 @@
 </tr>
 <tr>
 <td>`db &lt;sub&gt;`</td>
-<td>`init [mysql\|postgres\|mongo\|all]` (create default db/users + optional tool specs via `*_INIT_SPECS`) · `seed` (DBGate connections)</td>
+<td>`init [mysql\|postgres\|mongo\|all]` (create default db/users + optional tool specs via `*_INIT_SPECS`) · `seed` (DBX connections)</td>
 </tr>
 <tr>
 <td>`tools &lt;sub&gt;`</td>
@@ -84,7 +84,7 @@
 
 > The grouped subcommands replace the old flat names, which **still work as
 > aliases**: `kafka-topics`, `register-connectors`, `connect-plugin`,
-> `mysql-init`, `postgres-init`, `mongo-init`, `dbgate-seed`.
+> `mysql-init`, `postgres-init`, `mongo-init`, `dbx-seed`.
 
 Each script also exists standalone in `scripts/run/` and `scripts/build/` in
 both `.sh` and `.bat` form.

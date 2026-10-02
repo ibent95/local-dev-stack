@@ -11,14 +11,14 @@ projects across many languages and frameworks.
 
 - Services are gated by profiles: `proxy`, `php`, `mysql`, `mariadb`, `mssql`,
   `oracle`, `postgres`, `mongo`, `redis`, `valkey`, `memcached`, `kafka`,
-  `phpcacheadmin`, `dbgate`, `drawdb`, `hop`, `superset`, `duckdb`, `trino`,
+  `phpcacheadmin`, `dbx`, `drawdb`, `hop`, `superset`, `duckdb`, `trino`,
   `semgrep`, `zap`, `trivy`, `crg`, `vaultwarden`, `mail`, `penpot`, `instatic`,
   `analytics`, `tasks`, `wiki`, `openwa`, `rustfs`, `headlessx`, `playwright`,
   `erpnext`, `soketi`, `centrifugo`, `mqtt`, `all`.
   Each one is described in detail in
   [13 · Profiles](13-profiles.md).
 - `lds up` with no profiles starts every profile whose `LDS_ENABLE_<PROFILE>`
-  toggle in `.env` is `true` (defaults: `proxy`, `php`, `mysql`, `dbgate` on).
+  toggle in `.env` is `true` (defaults: `proxy`, `php`, `mysql`, `dbx` on).
   Flip a single line (e.g. `LDS_ENABLE_KAFKA=true`) to add a group. The realtime brokers
   (`soketi`, `centrifugo`, `mqtt`) are off by default — start one with
   `lds up <name>` or flip its toggle.

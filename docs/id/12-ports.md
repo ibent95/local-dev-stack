@@ -172,9 +172,9 @@ di mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 </tr>
 <tr>
 <td></td>
-<td>DBGate</td>
+<td>DBX</td>
 <td><code>localhost:4501</code> (<code>db.test</code>)</td>
-<td><code>dbgate:3000</code></td>
+<td><code>dbx:4224</code></td>
 </tr>
 <tr>
 <td></td>

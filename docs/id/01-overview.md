@@ -10,7 +10,7 @@ tiap proyek hostname `<nama>.test`, dan pustaka **template** men-scaffold proyek
 baru untuk berbagai bahasa dan framework.
 
 - Profile: `proxy`, `php`, `mysql`, `mariadb`, `mssql`, `oracle`, `postgres`,
-  `mongo`, `redis`, `valkey`, `memcached`, `kafka`, `phpcacheadmin`, `dbgate`,
+  `mongo`, `redis`, `valkey`, `memcached`, `kafka`, `phpcacheadmin`, `dbx`,
   `drawdb`, `hop`, `superset`, `duckdb`, `trino`, `semgrep`, `zap`, `trivy`,
   `crg`, `vaultwarden`, `mail`, `penpot`, `instatic`, `analytics`, `tasks`,
   `wiki`, `openwa`, `rustfs`, `headlessx`, `playwright`, `erpnext`, `soketi`,
@@ -18,7 +18,7 @@ baru untuk berbagai bahasa dan framework.
   profile dijelaskan rinci di [13 · Profile](13-profiles.md).
 - `lds up` tanpa profile menjalankan setiap profile yang toggle
   `LDS_ENABLE_<PROFILE>`-nya di `.env` bernilai `true` (default: `proxy`, `php`,
-  `mysql`, `dbgate` aktif). Ubah satu baris (mis. `LDS_ENABLE_KAFKA=true`) untuk menambah
+  `mysql`, `dbx` aktif). Ubah satu baris (mis. `LDS_ENABLE_KAFKA=true`) untuk menambah
   grup. Broker realtime (`soketi`, `centrifugo`, `mqtt`) mati secara default —
   jalankan salah satu dengan `lds up <nama>` atau ubah toggle-nya.
 - Semua berbagi satu jaringan eksternal, `lds-network`.

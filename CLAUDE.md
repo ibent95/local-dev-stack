@@ -29,7 +29,8 @@ gated behind **profiles** and share one external network `lds-network`.
   plus folder-per-project under `projects/`),
   `superset/` (Superset metadata — SQLite DB, dashboards, connections; data lives
   directly on disk, read/written by the app),
-  `dbgate/` (DBGate UI-created connections + app state),
+  `dbx/` (DBX connections `dbx.db` + `.dbx/secret.key`; a leftover `dbgate/`
+  from the retired DBGate UI may still exist on older checkouts),
   `semgrep/reports/`, `trivy/reports/`, `crg/reports/` (scanner report viewers),
   `playwright/{projects,reports}` (E2E projects + HTML reports),
   `mailpit/` (Mailpit messages), `penpot/assets/` (design assets),
@@ -112,9 +113,10 @@ gated behind **profiles** and share one external network `lds-network`.
   `mongo-init` (initiates the single-node replica set `rs0` + creates
   the root/app users via the localhost exception + materializes the `app` db;
   auto-run by `up` for mongo/all;
-  idempotent), `dbgate-seed` (writes `configs/dbgate/connections.seed.jsonl` into
-  DBGate's volume so the stack DBs are auto-listed without the UI-locking
-  `CONNECTIONS` env; idempotent, auto-run by `up` for dbgate/all),
+  idempotent), `dbx-seed` (POSTs `configs/dbx/connections.seed.json` to DBX's
+  Web API so the stack DBs are auto-listed (no `CONNECTIONS` env, no UI lock);
+  skips when connections already exist; idempotent, auto-run by `up` for
+  dbx/all),
   `hop-register` (registers all folders under `HOP_PROJECTS_PATH` as Hop projects
   in `hop-config.json` via `hop-conf` inside the running container; idempotent,
   auto-run by `up` for hop/all),
@@ -176,16 +178,17 @@ gated behind **profiles** and share one external network `lds-network`.
 ## Profiles
 
 `proxy` `php` `mysql` `mariadb` `mssql` `oracle` `postgres` `mongo` `redis`
-`valkey` `memcached` `kafka` `phpcacheadmin` `dbgate` `drawdb` `hop` `superset`
+`valkey` `memcached` `kafka` `phpcacheadmin` `dbx` `drawdb` `hop` `superset`
 `duckdb` `trino` `semgrep` `zap` `trivy` `crg` `vaultwarden` `mail` `penpot`
 `instatic` `analytics` `tasks` `wiki` `openwa` `rustfs` `headlessx` `playwright`
 `erpnext` `soketi` `centrifugo` `mqtt` `all`
 
-`phpcacheadmin` and `dbgate` are the two web admin UIs, each on its OWN profile
+`phpcacheadmin` and `dbx` are the two web admin UIs, each on its OWN profile
 (no `tools` umbrella — toggle them independently): **phpCacheAdmin** (`cache.test`
-/ :4500, Redis+Valkey+Memcached) and **DBGate** (`db.test` / :4501, pre-connected to
-MySQL+Postgres). They need the matching data profile (and `proxy` for the `.test`
-URL) running to be useful.
+/ :4500, Redis+Valkey+Memcached) and **DBX** (`db.test` / :4501, 100+ engines,
+pre-seeded with the stack's MySQL/MariaDB/Postgres/MongoDB/SQL Server/Oracle,
+open UI via `DBX_DISABLE_PASSWORD=1`). They need the matching data profile (and
+`proxy` for the `.test` URL) running to be useful.
 
 `soketi` / `centrifugo` / `mqtt` = realtime / pub-sub WebSocket brokers (host ports
 `444x`), all **off by default** and **stateless** (no volume → no disk creep), each
@@ -255,7 +258,7 @@ project path) links every tool/project with live status — there is no
 
 `.env` defines one independent boolean toggle per profile —
 `LDS_ENABLE_<PROFILE>=true|false` (e.g. `LDS_ENABLE_MYSQL=true`). Defaults to
-`proxy`, `php`, `mysql`, `dbgate` on; everything else off. `lds up` / `lds start` with **no
+`proxy`, `php`, `mysql`, `dbx` on; everything else off. `lds up` / `lds start` with **no
 profile args** start exactly the set whose toggle is `true`; passing explicit
 profiles (`lds up kafka`) ignores all toggles and starts only those. `up.sh` /
 `up.bat` walk the canonical profile list and read each `LDS_ENABLE_<UPPER>` from

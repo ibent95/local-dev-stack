@@ -11,7 +11,7 @@ when you'd turn it on.
   the toggles below. E.g. `lds up kafka` or `lds up mysql redis`.
 - **Default run-set:** `lds up` with **no args** starts every profile whose
   `LDS_ENABLE_<PROFILE>=true` toggle is set in `.env`. Defaults: `proxy`, `php`,
-  `mysql`, `dbgate` on; everything else off. If every toggle is false →
+  `mysql`, `dbx` on; everything else off. If every toggle is false →
   falls back to `all`.
 - A service can belong to several profiles. `proxy` + `dns` belong to **both**
   `proxy` and `php`, so turning on `php` brings the proxy and DNS along
@@ -106,10 +106,10 @@ when you'd turn it on.
 <td>`phpcacheadmin`</td>
 </tr>
 <tr>
-<td>`dbgate`</td>
-<td>`LDS_ENABLE_DBGATE`</td>
+<td>`dbx`</td>
+<td>`LDS_ENABLE_DBX`</td>
 <td>✅</td>
-<td>`dbgate`</td>
+<td>`dbx`</td>
 </tr>
 <tr>
 <td>`soketi`</td>
@@ -474,7 +474,7 @@ requires one). `ORACLE_PASSWORD` is **required** and sets `SYS`/`SYSTEM`;
   (auto-run by `lds up` for the kafka profile, or manually via `lds kafka-topics`).
 - **Volumes:** `kafka-controller-data`, `kafka-broker-data`.
 
-## Admin UIs — `phpcacheadmin` and `dbgate`
+## Admin UIs — `phpcacheadmin` and `dbx`
 
 The two web admin UIs each have **their own profile** so you can turn them on
 independently (there is no `tools` umbrella). Both are reachable via the proxy
@@ -494,16 +494,25 @@ default** (turn it on when you run `redis`/`memcached`).
 - Pre-pointed at the `redis`, `valkey`, and `memcached` services — start one (or more) to
   see data. No volume (stateless UI).
 
-### `dbgate` — web DB client
+### `dbx` — web DB client
 
-**Starts:** `dbgate`. **Toggle:** `LDS_ENABLE_DBGATE`. **On by default.**
+**Starts:** `dbx`. **Toggle:** `LDS_ENABLE_DBX`. **On by default.**
 
-- Web DB client. `${DB_ADMIN_HOST}` (default `db.test`) / host
+- Web DB client for **100+ engines** (MySQL, MariaDB, Postgres, MongoDB, SQL
+  Server, Oracle, Redis, DuckDB, …), with a built-in SQL editor, ER diagrams and
+  an MCP server. `${DB_ADMIN_HOST}` (default `db.test`) / host
   `${DB_ADMIN_HOST_PORT}` (default `4501`).
-- Runs fully open (add/edit/delete connections in the UI); the stack's MySQL +
-  Postgres are auto-listed via `scripts/run/dbgate-seed.*` (auto-run by `lds up`
-  for the `dbgate`/`all` profile). UI-created connections persist in the
-  bind-mounted `data/dbgate/` directory.
+- **Open by default** — `DBX_DISABLE_PASSWORD=1` means no login wall (set it to
+  `0` + `DBX_PASSWORD=…` in `.env` to gate the UI). Add/edit/delete connections
+  freely.
+- The stack's MySQL + MariaDB + Postgres + MongoDB + SQL Server + Oracle are
+  auto-listed via `scripts/run/dbx-seed.*` (auto-run by `lds up` for the
+  `dbx`/`all` profile; it POSTs to DBX's Web API **after** the container is up,
+  and skips when connections already exist).
+- Connections live in `dbx.db` inside the bind-mounted `data/dbx/` directory
+  (together with `.dbx/secret.key` — back them up as a pair).
+- Image `t8y2/dbx` (Apache-2.0, upstream — not a DHI image), pinned by
+  `DBX_VERSION`, mem-capped by `DBX_MEM_LIMIT` (default `768m`).
 
 ## Realtime / pub-sub brokers — `soketi`, `centrifugo`, `mqtt`
 

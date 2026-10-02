@@ -9,7 +9,7 @@ mandiri yang ditambahkan di atas stack inti: **DrawDB** (perancangan skema),
 (desain), **Instatic** (visual CMS), **OpenWA** (API WhatsApp), **RustFS**
 (berbagi file), **HeadlessX** (automasi browser anti-deteksi), **Playwright**
 (pengujian End-To-End), **aplikasi LDS** (Analytics, Tasks, Wiki), dan
-**ERPNext** (ERP di atas Frappe). Dua browser layanan pendukung, `phpcacheadmin` dan `dbgate`,
+**ERPNext** (ERP di atas Frappe). Dua browser layanan pendukung, `phpcacheadmin` dan `dbx`,
 didokumentasikan di [13 · Profile](13-profiles.md).
 
 ## Panel kontrol — `http://localhost`
@@ -18,7 +18,7 @@ Container PHP melayani panel kontrol sebagai situs default-nya, dapat diakses di
 **`http://localhost`** (tanpa perlu entri hosts). Dibuat oleh
 `configs/web/dashboard/index.php` dan menampilkan, secara langsung:
 
-- **Tool & UI web**, dikelompokkan — *Data management* (phpCacheAdmin, DBGate,
+- **Tool & UI web**, dikelompokkan — *Data management* (phpCacheAdmin, DBX,
   Kafka UI, Connector builder), *File storage* (RustFS), *Documents &
   credentials* (Tasks, Wiki, Vaultwarden), *Messaging / Socials* (Mailpit,
   OpenWA), *Browser automation & scraping* (HeadlessX), *Design* (Penpot,
@@ -315,7 +315,7 @@ data dan pelaporan.
 Embedded OLAP engine berjalan di base image **`lds/duckdev`** (DHI alpine-base
 + binary DuckDB CLI). DuckDB bersifat embedded seperti SQLite — tanpa server,
 tanpa REST API. File `data.duckdb` disimpan di named volume persistent yang
-dibagi dengan DBGate untuk akses GUI.
+dibagi dengan DBX untuk akses GUI.
 
 - **Tanpa network port:** DuckDB bukan server. Query via `docker exec`:
   ```sh
@@ -323,9 +323,10 @@ dibagi dengan DBGate untuk akses GUI.
   docker exec lds-duckdb duckdb -c "SELECT * FROM read_parquet('/data/sales.parquet') LIMIT 10" /data/data.duckdb
   ```
 
-- **Konektivitas DBGate:** Plugin DuckDB DBGate membuka file `data.duckdb` yang
-  sama (read-only, di-mount dari shared volume `duckdb-data`). Tambah koneksi
-  DuckDB di DBGate dengan path `/data/data.duckdb` dan mode **read-only**.
+- **Konektivitas DBX:** volume shared `duckdb-data` juga di-mount di `/data`
+  dalam DBX, sehingga driver DuckDB-nya membuka file `data.duckdb` yang sama.
+  Tambah koneksi DuckDB di DBX dengan path `/data/data.duckdb` dan mode
+  **read-only**.
 
 - **Direktori data:** `data/duckdb/` di host. Letakkan file `.parquet`, `.csv`,
   `.json`. Di dalam container muncul di `/data/`. Query dengan

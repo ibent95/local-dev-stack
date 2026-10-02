@@ -1,0 +1,65 @@
+{
+  "configs": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "name": "MySQL (LDS)",
+      "db_type": "mysql",
+      "host": "mysql",
+      "port": 3306,
+      "username": "root",
+      "password": "root",
+      "database": "app"
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "name": "MariaDB (LDS)",
+      "db_type": "mysql",
+      "host": "mariadb",
+      "port": 3306,
+      "username": "root",
+      "password": "root",
+      "database": "app"
+    },
+    {
+      "id": "33333333-3333-4333-8333-333333333333",
+      "name": "PostgreSQL (LDS)",
+      "db_type": "postgres",
+      "host": "postgres",
+      "port": 5432,
+      "username": "app",
+      "password": "app",
+      "database": "app"
+    },
+    {
+      "id": "44444444-4444-4444-8444-444444444444",
+      "name": "MongoDB (LDS)",
+      "db_type": "mongodb",
+      "host": "mongo",
+      "port": 27017,
+      "username": "root",
+      "password": "root",
+      "database": "admin"
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555555",
+      "name": "SQL Server (LDS)",
+      "db_type": "sqlserver",
+      "host": "mssql",
+      "port": 1433,
+      "username": "sa",
+      "password": "Lds-dev-2024!",
+      "database": "master"
+    },
+    {
+      "id": "66666666-6666-4666-8666-666666666666",
+      "name": "Oracle Free (LDS)",
+      "db_type": "oracle",
+      "host": "oracle",
+      "port": 1521,
+      "username": "system",
+      "password": "Oracle-dev-2024!",
+      "database": "FREE"
+    }
+  ],
+  "removedIds": []
+}
