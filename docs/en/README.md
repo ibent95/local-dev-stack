@@ -17,5 +17,8 @@ Read in order:
 13. [Profiles (every profile in detail)](13-profiles.md)
 14. [Resolving `*.test` (DNS)](14-dns.md)
 15. [Dashboard & data tools (DrawDB, Hop, Superset, Semgrep, ZAP, Trivy, CRG, Playwright, HeadlessX, …)](15-data-tools.md)
+16. [Contributing](16-contributing.md)
+17. [Security](17-security.md)
+18. [Credits & third-party software](18-credits.md)
 
 > Bahasa Indonesia: see `../id/`.

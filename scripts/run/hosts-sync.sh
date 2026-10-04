@@ -68,6 +68,11 @@ add "${HEADLESSX_API_HOST:-headlessx-api.test}" "(MCP + API — headlessx-api.te
 group "Designers"
 add "${PENPOT_HOST:-penpot.test}"
 add "${DRAWDB_HOST:-drawdb.test}" "(open via http://localhost:4502 — needs a secure context)"
+add "${DRAWIO_HOST:-drawio.test}" "(self-hosted diagrams — use ?offline=1&https=0)"
+
+group "File conversion"
+add "${SNAPOTTER_HOST:-snapotter.test}" "(file platform - convert · OCR · AI)"
+add "${IMGCOMPRESS_HOST:-imgcompress.test}" "(image toolbox - 70+ formats)"
 
 group "Data tools"
 add "${SUPERSET_HOST:-superset.test}"
@@ -85,12 +90,16 @@ add "${TRIVY_HOST:-trivy.test}"
 add "${ZAP_HOST:-zap.test}"
 
 group "LDS apps"
-add "${ANALYTICS_HOST:-analytics.test}"
-add "${TASKS_HOST:-tasks.test}"
-add "${WIKI_HOST:-wiki.test}"
+add "${ANALYTICS_HOST:-lds-analytics.test}"
+add "${TASKS_HOST:-lds-tasks.test}"
+add "${WIKI_HOST:-lds-wiki.test}"
 
 group "Analytical query engines"
 add "${DUCKDB_HOST:-duckdb.test}"
+
+group "Monitoring"
+add "${PROMETHEUS_HOST:-prometheus.test}" "(metrics TSDB)"
+add "${GRAFANA_HOST:-grafana.test}" "(dashboards - admin/admin)"
 
 group "Realtime dashboards"
 add "${SOKETI_HOST:-ws.test}"

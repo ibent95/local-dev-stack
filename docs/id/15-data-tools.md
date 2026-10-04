@@ -8,8 +8,13 @@ mandiri yang ditambahkan di atas stack inti: **DrawDB** (perancangan skema),
 **Vaultwarden** (password manager), **Mailpit** (SMTP + inbox), **Penpot**
 (desain), **Instatic** (visual CMS), **OpenWA** (API WhatsApp), **RustFS**
 (berbagi file), **HeadlessX** (automasi browser anti-deteksi), **Playwright**
-(pengujian End-To-End), **aplikasi LDS** (Analytics, Tasks, Wiki), dan
-**ERPNext** (ERP di atas Frappe). Dua browser layanan pendukung, `phpcacheadmin` dan `dbx`,
+(pengujian End-To-End), **aplikasi LDS** (Analytics, Tasks, Wiki), **ERPNext**
+(ERP di atas Frappe), **SnapOtter** + **ImgCompress** (konversi file & gambar),
+**draw.io** (diagram), **LLDAP** + **OpenLDAP** (direktori LDAP),
+**Prometheus** + **Grafana**
+(monitoring), serta utilitas bawaan **LDS Text Diff** + **LDS Palette Generator** yang
+disajikan langsung dari panel kontrol. Dua browser layanan pendukung,
+`phpcacheadmin` dan `dbx`,
 didokumentasikan di [13 · Profile](13-profiles.md).
 
 ## Panel kontrol — `http://localhost`
@@ -19,18 +24,27 @@ Container PHP melayani panel kontrol sebagai situs default-nya, dapat diakses di
 `configs/web/dashboard/index.php` dan menampilkan, secara langsung:
 
 - **Tool & UI web**, dikelompokkan — *Data management* (phpCacheAdmin, DBX,
-  Kafka UI, Connector builder), *File storage* (RustFS), *Documents &
-  credentials* (Tasks, Wiki, Vaultwarden), *Messaging / Socials* (Mailpit,
+  Kafka UI, LDS Kafka connector builder), *File storage* (RustFS), *Documents &
+  credentials* (Tasks, Wiki, Vaultwarden), *File conversion* (SnapOtter,
+  ImgCompress), *Identity (LDAP)* (LLDAP, OpenLDAP), *Messaging / Socials* (Mailpit,
   OpenWA), *Browser automation & scraping* (HeadlessX), *Design* (Penpot,
-  DrawDB), *Websites & CMS* (Instatic), *ERP & business* (ERPNext), *Analytic &
-  Business intelligence* (Analytics, Hop, Trino, Superset), *Code & security
+  DrawDB, draw.io, LDS Palette Generator), *Websites & CMS* (Instatic), *ERP &
+  business* (ERPNext), *Analytic &
+  Business intelligence* (Analytics, Hop, Trino, Superset), *Monitoring &
+  observability* (Grafana, Prometheus), *Code & security
   quality scanner* (Semgrep, Trivy, ZAP, code-review-graph), *Testing tools*
-  (Playwright), dan *Websockets monitoring* (Centrifugo, MQTTX) —
+  (Playwright), *Developer utilities* (LDS Text Diff), dan *Websockets monitoring*
+  (Centrifugo, MQTTX) —
   masing-masing dengan titik ●/○ status keterjangkauan.
 - **Proyek** — setiap folder di `${PHP_PROJECTS_PATH}`, ditautkan ke host
   `<nama>.test`-nya.
 - **Layanan pendukung** — MySQL/Postgres/Mongo/Redis/Memcached/Kafka/broker,
   diperiksa hidup/mati.
+- **Docs** — panduan ini, dirender di browser pada **`http://localhost/docs.php`**
+  (daftar bab di sidebar, TOC dalam halaman, prev/next, sakelar EN/ID). Struktur
+  `docs/` di-mount read-only ke `/var/lds-docs` dan diubah ke HTML oleh
+  `configs/web/dashboard/docs.php` + `lib/parsedown.php`, jadi mengedit `.md`
+  langsung terlihat pada request berikutnya.
 
 > Dilayani dari `/var/lds-dashboard` (di-mount **di luar** path proyek), jadi
 > **bukan** sebuah proyek — tidak ada `__dashboard.test`, dan tak pernah muncul
@@ -258,7 +272,7 @@ lds tools crg clear           # hapus semua laporan dari viewer
 Web analytics self-hosted (frontend Nuxt/Vue + API Hono) yang ditambahkan ringan di atas stack inti.
 
 - Reuse **`lds-postgres`** bersama (tanpa container Postgres khusus analytics).
-- UI: `http://localhost:4521` / `analytics.test`
+- UI: `http://localhost:4521` / `lds-analytics.test`
 - API: `http://localhost:4520`
 - Bootstrap DB otomatis saat profile ini start (`analytics-init` →
   `postgres-init`).
@@ -300,7 +314,7 @@ Tool desain kolaboratif self-hosted:
 Aplikasi project management/kolaborasi tim self-hosted (frontend Angular + API Hono).
 
 - Reuse **`lds-postgres`** bersama (tanpa container Postgres khusus tasks).
-- UI: `http://localhost:4523` / `tasks.test`
+- UI: `http://localhost:4523` / `lds-tasks.test`
 - API: `http://localhost:4522`
 - Bootstrap DB otomatis saat profile ini start (`tasks-init` → `postgres-init`).
 
@@ -434,7 +448,7 @@ direktori bersama `assets/jdbc/`.
 Aplikasi wiki/dokumentasi self-hosted (frontend Next.js + API Hono).
 
 - Reuse **`lds-postgres`** bersama (tanpa container Postgres khusus wiki).
-- UI: `http://localhost:4525` / `wiki.test`
+- UI: `http://localhost:4525` / `lds-wiki.test`
 - API: `http://localhost:4524`
 - Bootstrap DB otomatis saat profile ini start (`wiki-init` → `postgres-init`).
 
@@ -570,6 +584,128 @@ Boot pertama menjalankan dua service bootstrap sekali-jalan
   teruji; sebagian laporan atau modul long-tail mungkin masih menemui sisi kasar.
   Itulah trade-off tidak menjalankan database khusus — balik
   `ERPNEXT_DB_TYPE=mariadb` jika ada yang bermasalah.
+
+## Konversi file — SnapOtter & ImgCompress
+
+**Profile:** `snapotter` (`LDS_ENABLE_SNAPOTTER`), `imgcompress`
+(`LDS_ENABLE_IMGCOMPRESS`). **Keduanya mati secara default.**
+
+Dua konverter dengan cakupan berlawanan:
+
+- **SnapOtter** — platform pemrosesan file yang di-host sendiri (300+ tool
+  untuk gambar, video, audio, PDF dan dokumen: konversi, kompres, OCR,
+  transkripsi, plus AI lokal seperti hapus latar dan upscaling) dengan web
+  UI, REST API, dan pipeline.
+  - URL: `snapotter.test` / `localhost:4538`
+  - Image di-pin: `snapotter/snapotter` (`SNAPOTTER_VERSION`)
+  - Berbagi `postgres` stack (`lds_snapotter`, dibuat via
+    `POSTGRES_INIT_SPECS`) + `redis` (logical DB 7, antrean BullMQ) —
+    idiom yang sama dengan Analytics/Tasks/Wiki.
+  - Persistensi: `data/snapotter/` (file unggahan + model AI); scratch
+    pemrosesan ada di named volume sementara (`snapotter-workspace`).
+  - Tanpa login secara default: `AUTH_ENABLED=false`
+    (`SNAPOTTER_AUTH_ENABLED`) — setiap request dianggap admin di jaringan
+    lokal tepercaya. Set `true` untuk login `admin` / `admin`
+    (`SNAPOTTER_DEFAULT_PASSWORD`, tanpa paksaan ganti password). Telemetri
+    (PostHog + Sentry, API dan browser SDK) dimatikan oleh
+    `SNAPOTTER_TELEMETRY=0` — tidak ada data keluar dari mesin; image resmi
+    mengaktifkannya, set `1` untuk ikut serta kembali.
+- **ImgCompress** — toolbox gambar saja: 70+ format input (HEIC, PSD, RAW,
+  …), kompres massal, crop per file, gambar → PDF, dan hapus latar AI
+  lokal, semuanya dalam satu container hardened mandiri
+  (`karimz1/imgcompress`, `IMGCOMPRESS_VERSION`; basis DHI, nonroot, tanpa
+  shell). Stateless — file ada di dalam container, tanpa DB, tanpa volume.
+  - URL: `imgcompress.test` / `localhost:4539`
+
+## Diagram — draw.io
+
+**Profile:** `drawio` (`LDS_ENABLE_DRAWIO`). **Mati secara default.**
+
+**draw.io** mandiri (`jgraph/drawio`, `DRAWIO_VERSION`) untuk flowchart,
+diagram jaringan, model ER, bagan organisasi, dll.:
+
+- URL: `drawio.test` / `localhost:4535`
+- Panel kontrol menautkannya dengan `?offline=1&https=0`, yang menonaktifkan
+  backend cloud — diagram tetap di browser (LocalStorage / sistem file lokal)
+  dan tak pernah menyentuh `app.diagrams.net`.
+- Melengkapi DrawDB (skema basis data) dan Penpot (desain UI).
+
+## Identitas — LLDAP & OpenLDAP
+
+Dua direktori LDAP untuk autentikasi aplikasi (bind DN, pencarian grup) dengan
+trade-off berbeda. Keduanya di-seed sebagai koneksi DBX — **LLDAP (LDS)** dan
+**OpenLDAP (LDS)** — sehingga bisa dijelajahi dan di-query dari `db.test`
+(plugin LDAP Studio DBX terpasang otomatis di setiap `lds up dbx`).
+
+**LLDAP** — **Profile:** `lldap` (`LDS_ENABLE_LLDAP`). **Mati secara default.**
+
+Direktori LDAP ringan (Rust, SQLite) — alternatif modern kecil untuk OpenLDAP.
+Web UI-nya sengaja TIDAK di-proxy di stack ini (tanpa `lldap.test`, tanpa
+port host): kelola entri via DBX atau tool LDAP apa pun.
+
+- Endpoint LDAP: `localhost:4537` → dalam jaringan `lldap:3890`, base DN
+  `LLDAP_BASE_DN` (default `dc=lds,dc=test`), bind DN
+  `cn=admin,ou=people,dc=lds,dc=test` — login **`admin`** /
+  `LLDAP_ADMIN_PASSWORD` (default `adminadmin` - LLDAP mewajibkan 8+ karakter)
+- Persistensi: `data/lldap/` (SQLite)
+- `LLDAP_JWT_SECRET` / `LLDAP_KEY_SEED` dikirim sebagai default khusus dev —
+  ubah untuk apa pun di luar eksperimen lokal.
+
+**OpenLDAP** — **Profile:** `openldap` (`LDS_ENABLE_OPENLDAP`). **Mati secara
+default.**
+
+Implementasi rujukan (`cleanstart/openldap`, OpenLDAP 2.7) saat Anda
+membutuhkan kepatuhan standar — direktori kaya skema, aplikasi client lama,
+skrip `ldapmodify`. Tanpa web UI sama sekali; kelola via DBX atau CLI LDAP.
+
+- Endpoint LDAP: `localhost:4540` → dalam jaringan `openldap:389`, base DN
+  `OPENLDAP_BASE_DN` (default `dc=lds,dc=test`), bind DN
+  `cn=admin,dc=lds,dc=test` / `adminadmin` (`OPENLDAP_ADMIN_PASSWORD`)
+- Boot pertama mem-bootstrap konfigurasi slapd + admin dari
+  `configs/openldap/`; data persist di `data/openldap/` (hapus dengan
+  `lds down openldap -v` atau hapus foldernya)
+
+## Monitoring — Prometheus & Grafana
+
+**Profile:** `monitoring` (`LDS_ENABLE_MONITORING`) — menjalankan **kedua**
+service. **Mati secara default.**
+
+- **Prometheus** (`prom/prometheus`, `PROMETHEUS_VERSION`) — TSDB metrik
+  pull-based di `prometheus.test` / `localhost:4533`. Meng-scrape dirinya
+  sendiri + Grafana sejak awal; tambahkan job `/metrics` layanan Anda di
+  `configs/prometheus/prometheus.yml` (di-bind mount, restart untuk
+  menerapkan). Retensi 15 hari; TSDB ada di volume `prometheus-data`
+  (terhapus oleh `down -v`, seperti database).
+- **Grafana** (`grafana/grafana`, `GRAFANA_VERSION`) — dashboard + alerting di
+  `grafana.test` / `localhost:4532` — tanpa login: akses anonymous Admin
+  (`GRAFANA_ANONYMOUS=true`; set `false` untuk kembali ke **`admin`** /
+  `GRAFANA_ADMIN_PASSWORD`, pendaftaran nonaktif; cek update/usage
+  phone-home juga nonaktif). Datasource Prometheus di-provision otomatis
+  dari `configs/grafana/provisioning/`, jadi grafik langsung bisa dipakai
+  tanpa login; state (SQLite + plugin) ada di volume `grafana-data`.
+
+Keduanya dibatasi mem (`PROMETHEUS_MEM_LIMIT`, `GRAFANA_MEM_LIMIT`); versi
+di-pin di `.env`.
+
+## Utilitas bawaan — LDS Text Diff & LDS Palette Generator
+
+Tanpa profile dan tanpa container — dua halaman statis yang disajikan langsung
+dari document root panel kontrol itu sendiri
+(`configs/web/dashboard/tools/`, di-mount read-only ke `lds-php`):
+
+- **LDS Text Diff** — `http://localhost/tools/diff/` — perbandingan teks kaya
+  berdampingan: ketik atau tempel HTML di kedua panel; baris di-diff (LCS) dan
+  kata yang berubah di-highlight (hijau penyisipan, merah penghapusan). Satu
+  file mandiri, tanpa dependensi JS.
+- **LDS Palette Generator** — `http://localhost/tools/palette/` — papan warna
+  gaya Coolors: mode harmoni (random, analogous, komplementer, triadic,
+  tetradic, monokromatik), kunci per kolom, klik kolom untuk salin HEX,
+  penyetelan H/S/L dengan petunjuk kontras WCAG, ekspor HEX/RGB/HSL/var-CSS,
+  `Space` menghasilkan ulang, palet diingat di `localStorage`.
+
+Keduanya muncul di panel kontrol di bawah *Developer utilities* dan *Design*
+tanpa titik keterjangkauan — keduanya tidak bisa mati selama panel itu sendiri
+ter-render.
 
 ---
 

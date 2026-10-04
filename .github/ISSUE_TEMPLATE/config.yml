@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/ibent95/local-dev-stack/security/advisories/new
+    about: Private vulnerability reporting — please do not open a public issue for security reports.
+  - name: Handbook (docs)
+    url: https://github.com/ibent95/local-dev-stack/tree/master/docs/en
+    about: "Bilingual reference - commands, ports, profiles, DNS, tools, contributing, security."

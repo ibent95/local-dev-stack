@@ -256,6 +256,42 @@ when you'd turn it on.
 <td>`erpnext-*` — full ERP suite on Frappe, DB on the shared `postgres` (or `mariadb` via `ERPNEXT_DB_TYPE`); **heavy** (~3-6 GB RAM, multi-GB pulls)</td>
 </tr>
 <tr>
+<td>`snapotter`</td>
+<td>`LDS_ENABLE_SNAPOTTER`</td>
+<td>❌</td>
+<td>`snapotter` — file-processing platform (convert · OCR · AI, 300+ tools) at `snapotter.test`; shares `postgres` + `redis`</td>
+</tr>
+<tr>
+<td>`imgcompress`</td>
+<td>`LDS_ENABLE_IMGCOMPRESS`</td>
+<td>❌</td>
+<td>`imgcompress` — image toolbox (70+ formats · bulk compress · AI bg removal) at `imgcompress.test`</td>
+</tr>
+<tr>
+<td>`drawio`</td>
+<td>`LDS_ENABLE_DRAWIO`</td>
+<td>❌</td>
+<td>`drawio` — self-hosted draw.io diagramming at `drawio.test`</td>
+</tr>
+<tr>
+<td>`lldap`</td>
+<td>`LDS_ENABLE_LLDAP`</td>
+<td>❌</td>
+<td>`lldap` — lightweight LDAP directory (LDAP `:4537`; web UI not exposed — manage via DBX or LDAP tools)</td>
+</tr>
+<tr>
+<td>`openldap`</td>
+<td>`LDS_ENABLE_OPENLDAP`</td>
+<td>❌</td>
+<td>`openldap` — standards-compliant OpenLDAP server (LDAP `:4540`, no web UI — manage via DBX)</td>
+</tr>
+<tr>
+<td>`monitoring`</td>
+<td>`LDS_ENABLE_MONITORING`</td>
+<td>❌</td>
+<td>`prometheus`, `grafana` — metrics TSDB + dashboards (`prometheus.test`, `grafana.test`)</td>
+</tr>
+<tr>
 <td>`all`</td>
 <td>—</td>
 <td>—</td>
@@ -266,8 +302,9 @@ when you'd turn it on.
 
 > **Custom apps** (`analytics`, `tasks`, `wiki`), **data tools** (`drawdb`, `hop`,
 > `superset`, `semgrep`, `zap`, `trivy`, `crg`, `vaultwarden`, `mail`, `penpot`,
-> `instatic`, `openwa`, `rustfs`) and the **automation/testing profiles**
-> (`headlessx`, `playwright`) get their own page —
+> `instatic`, `openwa`, `rustfs`), the **automation/testing profiles**
+> (`headlessx`, `playwright`) and the **utilities** (`snapotter`, `imgcompress`,
+> `drawio`, `lldap`, `openldap`, `monitoring`) get their own page —
 > see [15 · Dashboard & data tools](15-data-tools.md). The `http://localhost`
 > control panel links them all with live status.
 
@@ -508,7 +545,10 @@ default** (turn it on when you run `redis`/`memcached`).
 - The stack's MySQL + MariaDB + Postgres + MongoDB + SQL Server + Oracle are
   auto-listed via `scripts/run/dbx-seed.*` (auto-run by `lds up` for the
   `dbx`/`all` profile; it POSTs to DBX's Web API **after** the container is up,
-  and skips when connections already exist).
+  and skips when connections already exist). The same hook installs the JDBC
+  and LDAP Studio plugins (idempotent - retried on the next start if the
+  download fails) and seeds the **LLDAP (LDS)** / **OpenLDAP (LDS)**
+  connections when a connection with that name is missing.
 - Connections live in `dbx.db` inside the bind-mounted `data/dbx/` directory
   (together with `.dbx/secret.key` — back them up as a pair).
 - Image `t8y2/dbx` (Apache-2.0, upstream — not a DHI image), pinned by

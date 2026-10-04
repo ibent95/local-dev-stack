@@ -14,7 +14,8 @@ baru untuk berbagai bahasa dan framework.
   `drawdb`, `hop`, `superset`, `duckdb`, `trino`, `semgrep`, `zap`, `trivy`,
   `crg`, `vaultwarden`, `mail`, `penpot`, `instatic`, `analytics`, `tasks`,
   `wiki`, `openwa`, `rustfs`, `headlessx`, `playwright`, `erpnext`, `soketi`,
-  `centrifugo`, `mqtt`, `all`. Tiap
+  `centrifugo`, `mqtt`, `snapotter`, `imgcompress`, `drawio`, `lldap`,
+  `openldap`, `monitoring`, `all`. Tiap
   profile dijelaskan rinci di [13 · Profile](13-profiles.md).
 - `lds up` tanpa profile menjalankan setiap profile yang toggle
   `LDS_ENABLE_<PROFILE>`-nya di `.env` bernilai `true` (default: `proxy`, `php`,

@@ -14,7 +14,8 @@ projects across many languages and frameworks.
   `phpcacheadmin`, `dbx`, `drawdb`, `hop`, `superset`, `duckdb`, `trino`,
   `semgrep`, `zap`, `trivy`, `crg`, `vaultwarden`, `mail`, `penpot`, `instatic`,
   `analytics`, `tasks`, `wiki`, `openwa`, `rustfs`, `headlessx`, `playwright`,
-  `erpnext`, `soketi`, `centrifugo`, `mqtt`, `all`.
+  `erpnext`, `soketi`, `centrifugo`, `mqtt`, `snapotter`, `imgcompress`,
+  `drawio`, `lldap`, `openldap`, `monitoring`, `all`.
   Each one is described in detail in
   [13 · Profiles](13-profiles.md).
 - `lds up` with no profiles starts every profile whose `LDS_ENABLE_<PROFILE>`

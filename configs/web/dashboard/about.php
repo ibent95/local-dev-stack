@@ -367,6 +367,16 @@ $year    = date('Y');
         <h3>Dashboard</h3>
         <p>Back to control panel</p>
       </a>
+      <a class="feature" href="/docs.php" style="text-decoration:none;color:inherit">
+        <div class="icon">📚</div>
+        <h3>Docs</h3>
+        <p>Handbook — commands, ports, profiles, DNS, tools (EN/ID)</p>
+      </a>
+      <a class="feature" href="/docs.php?doc=18-credits" style="text-decoration:none;color:inherit">
+        <div class="icon">🤝</div>
+        <h3>Credits</h3>
+        <p>Every third-party project the stack runs, with licenses</p>
+      </a>
       <a class="feature" href="/connectors.php" style="text-decoration:none;color:inherit">
         <div class="icon">🔌</div>
         <h3>Connectors</h3>

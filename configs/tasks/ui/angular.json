@@ -76,7 +76,7 @@
           "defaultConfiguration": "development",
           "options": {
             "allowedHosts": [
-              "tasks.test",
+              "lds-tasks.test",
               "localhost"
             ]
           }

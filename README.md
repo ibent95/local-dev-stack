@@ -624,19 +624,19 @@ From other containers on `lds-network`, use the service name + its internal port
 <tr>
 <td></td>
 <td>Analytics — API/UI</td>
-<td>`localhost:4520` / `localhost:4521` (`analytics.test`)</td>
+<td>`localhost:4520` / `localhost:4521` (`lds-analytics.test`)</td>
 <td>`analytics-api:3001` / `analytics-ui:4173`</td>
 </tr>
 <tr>
 <td></td>
 <td>Tasks — API/UI</td>
-<td>`localhost:4522` / `localhost:4523` (`tasks.test`)</td>
+<td>`localhost:4522` / `localhost:4523` (`lds-tasks.test`)</td>
 <td>`tasks-api:3002` / `tasks-ui:4174`</td>
 </tr>
 <tr>
 <td></td>
 <td>Wiki — API/UI</td>
-<td>`localhost:4524` / `localhost:4525` (`wiki.test`)</td>
+<td>`localhost:4524` / `localhost:4525` (`lds-wiki.test`)</td>
 <td>`wiki-api:3003` / `wiki-ui:4175`</td>
 </tr>
 <tr>

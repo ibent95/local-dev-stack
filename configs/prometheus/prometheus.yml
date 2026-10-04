@@ -1,0 +1,30 @@
+# =============================================================================
+# Prometheus — scrape config for the LDS monitoring profile.
+# Bind-mounted read-only into lds-prometheus at /etc/prometheus/prometheus.yml
+# (restart with: lds restart monitoring).
+#
+# Out of the box it scrapes itself + Grafana's own /metrics endpoint. Most LDS
+# services don't expose Prometheus metrics yet — add any that do (or your own
+# apps on lds-network) under scrape_configs below. A target that is DOWN only
+# shows up in Status > Targets; it never breaks Prometheus itself.
+# =============================================================================
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: grafana
+    static_configs:
+      - targets: ["grafana:3000"]
+
+  # --- Your services ----------------------------------------------------------
+  # Any container on lds-network that serves a Prometheus /metrics endpoint:
+  #
+  # - job_name: myapp
+  #   metrics_path: /metrics          # default — omit if your path differs
+  #   static_configs:
+  #     - targets: ["tasks-api:3002"]

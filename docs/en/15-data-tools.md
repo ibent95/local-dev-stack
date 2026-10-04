@@ -8,9 +8,13 @@ vulnerability scanning), **code-review-graph** (AI code intelligence),
 **Vaultwarden** (password manager), **Mailpit** (SMTP + inbox), **Penpot**
 (design), **Instatic** (visual CMS), **OpenWA** (WhatsApp API), **RustFS**
 (file sharing), **HeadlessX** (undetected browser automation), **Playwright**
-(End-To-End testing), the **LDS apps** (Analytics, Tasks, Wiki), and
-**ERPNext** (ERP on Frappe). The two backing-service
-browsers, `phpcacheadmin` and `dbx`, are documented in
+(End-To-End testing), the **LDS apps** (Analytics, Tasks, Wiki), **ERPNext**
+(ERP on Frappe), **SnapOtter** + **ImgCompress** (file & image conversion),
+**draw.io** (diagramming), **LLDAP** + **OpenLDAP** (LDAP directories),
+**Prometheus** +
+**Grafana** (monitoring), and the built-in **LDS Text Diff** + **LDS Palette
+Generator** utilities served straight from the control panel. The two
+backing-service browsers, `phpcacheadmin` and `dbx`, are documented in
 [13 · Profiles](13-profiles.md).
 
 
@@ -21,18 +25,29 @@ The PHP container serves a control panel as its default site, reachable at
 `configs/web/dashboard/index.php` and shows, live:
 
 - **Tools & web UIs**, grouped — *Data management* (phpCacheAdmin, DBX, Kafka
-  UI, Connector builder), *File storage* (RustFS), *Documents & credentials*
-  (Tasks, Wiki, Vaultwarden), *Messaging / Socials* (Mailpit, OpenWA), *Browser
-  automation & scraping* (HeadlessX), *Design* (Penpot, DrawDB), *Websites &
+  UI, LDS Kafka connector builder), *File storage* (RustFS), *Documents &
+  credentials* (Tasks, Wiki, Vaultwarden), *File conversion* (SnapOtter,
+  ImgCompress),
+  *Identity (LDAP)* (LLDAP, OpenLDAP), *Messaging / Socials* (Mailpit,
+  OpenWA), *Browser
+  automation & scraping* (HeadlessX), *Design* (Penpot, DrawDB, draw.io,
+  LDS Palette Generator), *Websites &
   CMS* (Instatic), *ERP & business* (ERPNext), *Analytic & Business
-  intelligence* (Analytics, Hop, Trino, Superset), *Code & security quality
+  intelligence* (Analytics, Hop, Trino, Superset), *Monitoring &
+  observability* (Grafana, Prometheus), *Code & security quality
   scanner* (Semgrep, Trivy, ZAP, code-review-graph), *Testing tools*
-  (Playwright), and *Websockets monitoring* (Centrifugo, MQTTX) — each with a
+  (Playwright), *Developer utilities* (LDS Text Diff), and *Websockets monitoring*
+  (Centrifugo, MQTTX) — each with a
   ●/○ reachability dot.
 - **Projects** — every folder under `${PHP_PROJECTS_PATH}`, linked at its
   `<name>.test` host.
 - **Backing services** — MySQL/Postgres/Mongo/Redis/Memcached/Kafka/brokers,
   probed for up/down.
+- **Docs** — this handbook, rendered in-browser at **`http://localhost/docs.php`**
+  (chapter sidebar, in-page TOC, prev/next, EN/ID switch). The `docs/` tree is
+  bind-mounted read-only at `/var/lds-docs` and turned into HTML by
+  `configs/web/dashboard/docs.php` + `lib/parsedown.php`, so editing a `.md`
+  shows up on the very next request.
 
 > It is served from `/var/lds-dashboard` (mounted **outside** the project path),
 > so it is **not** a project — there is no `__dashboard.test`, and it never shows
@@ -258,7 +273,7 @@ lds tools crg clear           # clear all reports from the viewer
 Self-hosted analytics (Nuxt/Vue frontend + Hono API) integrated as a lightweight stack add-on.
 
 - Reuses shared **`lds-postgres`** (no dedicated analytics postgres container).
-- UI: `http://localhost:4521` / `analytics.test`
+- UI: `http://localhost:4521` / `lds-analytics.test`
 - API: `http://localhost:4520`
 - DB bootstrap is automatic when this profile starts (`analytics-init` →
   `postgres-init`).
@@ -300,7 +315,7 @@ Self-hosted collaborative design tool:
 Self-hosted team project management/collaboration app (Angular frontend + Hono API).
 
 - Reuses shared **`lds-postgres`** (no dedicated tasks postgres container).
-- UI: `http://localhost:4523` / `tasks.test`
+- UI: `http://localhost:4523` / `lds-tasks.test`
 - API: `http://localhost:4522`
 - DB bootstrap is automatic when this profile starts (`tasks-init` → `postgres-init`).
 
@@ -435,7 +450,7 @@ the shared `assets/jdbc/` directory.
 Self-hosted documentation/wiki app (Next.js frontend + Hono API).
 
 - Reuses shared **`lds-postgres`** (no dedicated wiki postgres container).
-- UI: `http://localhost:4525` / `wiki.test`
+- UI: `http://localhost:4525` / `lds-wiki.test`
 - API: `http://localhost:4524`
 - DB bootstrap is automatic when this profile starts (`wiki-init` → `postgres-init`).
 
@@ -569,6 +584,128 @@ First boot runs two one-shot bootstrap services (`erpnext-configurator` writes
   surface; some long-tail reports or modules may still hit rough edges. That's
   the trade-off for not running a dedicated database — flip
   `ERPNEXT_DB_TYPE=mariadb` if anything misbehaves.
+
+## File conversion — SnapOtter & ImgCompress
+
+**Profiles:** `snapotter` (`LDS_ENABLE_SNAPOTTER`), `imgcompress`
+(`LDS_ENABLE_IMGCOMPRESS`). **Both off by default.**
+
+Two converters with opposite scopes:
+
+- **SnapOtter** — self-hosted file-processing platform (300+ tools over
+  images, video, audio, PDF and documents: convert, compress, OCR,
+  transcribe, plus local AI such as background removal and upscaling) with
+  a web UI, REST API and pipelines.
+  - URL: `snapotter.test` / `localhost:4538`
+  - Pinned image: `snapotter/snapotter` (`SNAPOTTER_VERSION`)
+  - Shares the stack's `postgres` (`lds_snapotter`, created via
+    `POSTGRES_INIT_SPECS`) + `redis` (logical DB 7, BullMQ queues) — same
+    idiom as Analytics/Tasks/Wiki.
+  - Persistence: `data/snapotter/` (uploaded files + AI models); processing
+    scratch lives in an ephemeral named volume (`snapotter-workspace`).
+  - No login by default: `AUTH_ENABLED=false` (`SNAPOTTER_AUTH_ENABLED`) —
+    every request is admin on the trusted local network. Set it `true` for
+    `admin` / `admin` login (`SNAPOTTER_DEFAULT_PASSWORD`, no forced
+    password change). Telemetry (PostHog + Sentry, API and browser SDK) is
+    killed by `SNAPOTTER_TELEMETRY=0` — nothing leaves the machine; the
+    published image ships it on, set `1` to opt back in.
+- **ImgCompress** — image-only toolbox: 70+ input formats (HEIC, PSD, RAW,
+  …), bulk compression, per-file cropping, image → PDF and local-AI
+  background removal, all inside one self-contained hardened container
+  (`karimz1/imgcompress`, `IMGCOMPRESS_VERSION`; DHI base, nonroot, no
+  shell). Stateless — files live inside the container, no DB, no volume.
+  - URL: `imgcompress.test` / `localhost:4539`
+
+## Diagramming — draw.io
+
+**Profile:** `drawio` (`LDS_ENABLE_DRAWIO`). **Off by default.**
+
+Self-hosted **draw.io** (`jgraph/drawio`, `DRAWIO_VERSION`) for flowcharts,
+network diagrams, ER models, org charts and more:
+
+- URL: `drawio.test` / `localhost:4535`
+- The control panel links it with `?offline=1&https=0`, which disables the
+  cloud backend — diagrams stay in the browser (LocalStorage / local file
+  system) and never touch `app.diagrams.net`.
+- Complements DrawDB (database schemas) and Penpot (UI design).
+
+## Identity — LLDAP & OpenLDAP
+
+Two LDAP directories for app authentication (bind DN, group lookups) with
+different trade-offs. Both are seeded as DBX connections — **LLDAP (LDS)**
+and **OpenLDAP (LDS)** — so you can browse and query them from `db.test`
+(DBX's LDAP Studio plugin is auto-installed on every `lds up dbx`).
+
+**LLDAP** — **Profile:** `lldap` (`LDS_ENABLE_LLDAP`). **Off by default.**
+
+Lightweight LDAP directory (Rust, SQLite) — a small modern alternative to
+OpenLDAP. Its web UI is deliberately NOT proxied in this stack (no
+`lldap.test`, no host port): manage entries via DBX or any LDAP tool.
+
+- LDAP endpoint: `localhost:4537` → in-network `lldap:3890`, base DN
+  `LLDAP_BASE_DN` (default `dc=lds,dc=test`), bind DN
+  `cn=admin,ou=people,dc=lds,dc=test` — login **`admin`** /
+  `LLDAP_ADMIN_PASSWORD` (default `adminadmin` - LLDAP enforces 8+ chars)
+- Persistence: `data/lldap/` (SQLite)
+- `LLDAP_JWT_SECRET` / `LLDAP_KEY_SEED` ship as dev-only defaults — override
+  them for anything beyond local experiments.
+
+**OpenLDAP** — **Profile:** `openldap` (`LDS_ENABLE_OPENLDAP`). **Off by
+default.**
+
+The reference implementation (`cleanstart/openldap`, OpenLDAP 2.7) for when
+you need standards compliance — schema-heavy directories, older client
+apps, `ldapmodify` scripting. No web UI at all; manage it through DBX or
+the LDAP CLI.
+
+- LDAP endpoint: `localhost:4540` → in-network `openldap:389`, base DN
+  `OPENLDAP_BASE_DN` (default `dc=lds,dc=test`), bind DN
+  `cn=admin,dc=lds,dc=test` / `adminadmin` (`OPENLDAP_ADMIN_PASSWORD`)
+- First boot bootstraps the slapd config + admin from `configs/openldap/`;
+  data persists in `data/openldap/` (wipe with `lds down openldap -v` or
+  by deleting the folder)
+
+## Monitoring — Prometheus & Grafana
+
+**Profile:** `monitoring` (`LDS_ENABLE_MONITORING`) — starts **both** services.
+**Off by default.**
+
+- **Prometheus** (`prom/prometheus`, `PROMETHEUS_VERSION`) — pull-based
+  metrics TSDB at `prometheus.test` / `localhost:4533`. Scrapes itself +
+  Grafana out of the box; add your services' `/metrics` jobs in
+  `configs/prometheus/prometheus.yml` (bind-mounted, restart to apply).
+  15-day retention; TSDB lives in the `prometheus-data` volume (wiped by
+  `down -v`, like the DBs).
+- **Grafana** (`grafana/grafana`, `GRAFANA_VERSION`) — dashboards + alerting
+  at `grafana.test` / `localhost:4532` — no login: anonymous Admin access
+  (`GRAFANA_ANONYMOUS=true`; set `false` to fall back to **`admin`** /
+  `GRAFANA_ADMIN_PASSWORD`, sign-ups disabled; version/usage phone-home
+  checks off). The Prometheus datasource is auto-provisioned from
+  `configs/grafana/provisioning/`, so graphs work immediately; state
+  (SQLite + plugins) is in the `grafana-data` volume.
+
+Both are mem-capped (`PROMETHEUS_MEM_LIMIT`, `GRAFANA_MEM_LIMIT`); versions
+are pinned in `.env`.
+
+## Built-in utilities — LDS Text Diff & LDS Palette Generator
+
+No profile and no containers — two static pages served straight from the
+control panel's own document root (`configs/web/dashboard/tools/`, mounted
+read-only into `lds-php`):
+
+- **LDS Text Diff** — `http://localhost/tools/diff/` — side-by-side rich-text
+  comparison: type or paste HTML in both panes; lines are diffed (LCS) and
+  changed words are highlighted (green insertions, red deletions). One
+  self-contained file, no JS dependencies.
+- **LDS Palette Generator** — `http://localhost/tools/palette/` — Coolors-style
+  color boards: harmony modes (random, analogous, complementary, triadic,
+  tetradic, monochromatic), per-column lock, click-a-column-to-copy HEX,
+  H/S/L fine-tuning with WCAG contrast hints, HEX/RGB/HSL/CSS-var exports,
+  `Space` regenerates, the palette is remembered in `localStorage`.
+
+They show up on the control panel under *Developer utilities* and *Design*
+without a reachability dot — they can't be down while the panel itself
+renders.
 
 ---
 

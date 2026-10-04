@@ -31,7 +31,7 @@ REM "all". Canonical profile order; each maps to LDS_ENABLE_<NAME> (matched
 REM case-insensitively).
 if "%PROFILES%"=="" (
   set "PROFILES="
-  for %%p in (proxy php mysql mariadb mssql oracle postgres mongo redis valkey memcached kafka phpcacheadmin dbx soketi centrifugo mqtt drawdb hop superset semgrep zap trivy crg vaultwarden mail penpot instatic analytics tasks wiki openwa headlessx playwright erpnext rustfs duckdb trino) do (
+  for %%p in (proxy php mysql mariadb mssql oracle postgres mongo redis valkey memcached kafka phpcacheadmin dbx soketi centrifugo mqtt drawdb hop superset semgrep zap trivy crg vaultwarden mail penpot instatic analytics tasks wiki openwa headlessx playwright erpnext rustfs duckdb trino snapotter imgcompress drawio lldap openldap monitoring) do (
     set "VAL="
     if exist .env for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do if /I "%%a"=="LDS_ENABLE_%%p" set "VAL=%%b"
     set "VAL=!VAL: =!"

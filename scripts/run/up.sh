@@ -35,7 +35,7 @@ if [ $# -gt 0 ]; then
 else
   profiles=()
   # Canonical profile order; each maps to LDS_ENABLE_<UPPER>=true in .env.
-  for p in proxy php mysql mariadb mssql oracle postgres mongo redis valkey memcached kafka phpcacheadmin dbx soketi centrifugo mqtt drawdb hop superset semgrep zap trivy crg vaultwarden mail penpot instatic analytics tasks wiki openwa headlessx playwright erpnext rustfs duckdb trino; do
+  for p in proxy php mysql mariadb mssql oracle postgres mongo redis valkey memcached kafka phpcacheadmin dbx soketi centrifugo mqtt drawdb hop superset semgrep zap trivy crg vaultwarden mail penpot instatic analytics tasks wiki openwa headlessx playwright erpnext rustfs duckdb trino snapotter imgcompress drawio lldap openldap monitoring; do
     var="LDS_ENABLE_$(printf '%s' "$p" | tr '[:lower:]' '[:upper:]')"
     val="$(grep -E "^[[:space:]]*${var}=" .env 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/#.*//' | tr -d '[:space:]\r')"
     case "$val" in

@@ -1,0 +1,66 @@
+name: Bug report
+description: Something in the stack does not work as documented
+title: "Bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report! **Security issues go to
+        [private vulnerability reporting](https://github.com/ibent95/local-dev-stack/security/advisories/new) instead.**
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Compose services / profiles
+        - Scripts (`lds` / `scripts/*`)
+        - Dashboard (`http://localhost`)
+        - Docs (`docs.php`)
+        - Templates (`templates/*`)
+        - Base images (`base-images/*`)
+        - Other / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Actual behavior, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduce
+      description: Exact commands (and which profile / `.env` toggles were on).
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: |
+        Output of `docker compose config --quiet` (if it errors), `./lds.sh ps`,
+        and `./lds.sh logs <service>` around the failure.
+      render: shell
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Docker version (`docker version --format '{{.Server.Version}}'`), Compose version.
+      placeholder: Windows 11 · Docker Desktop 4.x · Compose v2.x
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I pulled the latest `master` and the issue still happens
+          required: true
+        - label: I searched existing issues for duplicates
+          required: true
+        - label: This is not a security vulnerability (those go through the Security tab)
+          required: true

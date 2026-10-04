@@ -161,7 +161,7 @@ di mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 </tr>
 <tr>
 <td colspan="4">
-    <b>Alat admin</b> <code>4500–4530</code>
+    <b>Alat admin</b> <code>4500–4540</code>
 </td>
 </tr>
 <tr>
@@ -315,44 +315,86 @@ di mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 <td><code>crg:8080</code></td>
 </tr>
 <tr>
+<td></td>
+<td>Grafana</td>
+<td><code>localhost:4532</code> (<code>grafana.test</code>)</td>
+<td><code>grafana:3000</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Prometheus</td>
+<td><code>localhost:4533</code> (<code>prometheus.test</code>)</td>
+<td><code>prometheus:9090</code></td>
+</tr>
+<tr>
+<td></td>
+<td>draw.io</td>
+<td><code>localhost:4535</code> (<code>drawio.test</code>)</td>
+<td><code>drawio:8080</code></td>
+</tr>
+<tr>
+<td></td>
+<td>LLDAP — LDAP</td>
+<td><code>localhost:4537</code></td>
+<td><code>lldap:3890</code></td>
+</tr>
+<tr>
+<td></td>
+<td>OpenLDAP — LDAP</td>
+<td><code>localhost:4540</code></td>
+<td><code>openldap:389</code></td>
+</tr>
+<tr>
+<td></td>
+<td>SnapOtter</td>
+<td><code>localhost:4538</code> (<code>snapotter.test</code>)</td>
+<td><code>snapotter:1349</code></td>
+</tr>
+<tr>
+<td></td>
+<td>ImgCompress</td>
+<td><code>localhost:4539</code> (<code>imgcompress.test</code>)</td>
+<td><code>imgcompress:5000</code></td>
+</tr>
+<tr>
 <td colspan="4">
     <b>Aplikasi LDS</b> <code>4520–4525</code>
 </td>
 </tr>
 <tr>
 <td></td>
-<td>Analytics API</td>
+<td>LDS Analytics &mdash; API</td>
 <td><code>localhost:4520</code></td>
 <td><code>analytics-api:3001</code></td>
 </tr>
 <tr>
 <td></td>
-<td>Analytics UI</td>
-<td><code>localhost:4521</code> (<code>analytics.test</code>)</td>
+<td>LDS Analytics &mdash; UI</td>
+<td><code>localhost:4521</code> (<code>lds-analytics.test</code>)</td>
 <td><code>analytics-ui:4173</code></td>
 </tr>
 <tr>
 <td></td>
-<td>Tasks API</td>
+<td>LDS Tasks &mdash; API</td>
 <td><code>localhost:4522</code></td>
 <td><code>tasks-api:3002</code></td>
 </tr>
 <tr>
 <td></td>
-<td>Tasks UI</td>
-<td><code>localhost:4523</code> (<code>tasks.test</code>)</td>
+<td>LDS Tasks &mdash; UI</td>
+<td><code>localhost:4523</code> (<code>lds-tasks.test</code>)</td>
 <td><code>tasks-ui:4174</code></td>
 </tr>
 <tr>
 <td></td>
-<td>Wiki API</td>
+<td>LDS Wiki &mdash; API</td>
 <td><code>localhost:4524</code></td>
 <td><code>wiki-api:3003</code></td>
 </tr>
 <tr>
 <td></td>
-<td>Wiki UI</td>
-<td><code>localhost:4525</code> (<code>wiki.test</code>)</td>
+<td>LDS Wiki &mdash; UI</td>
+<td><code>localhost:4525</code> (<code>lds-wiki.test</code>)</td>
 <td><code>wiki-ui:4175</code></td>
 </tr>
 <tr>

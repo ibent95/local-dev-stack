@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rich Text Diff · LDS</title>
+<style>
+  :root{
+    --bg:#0f1419; --card:#1a212b; --card2:#222b38; --line:#2c3743;
+    --fg:#e6edf3; --muted:#8b98a5; --accent:#EF4444;
+    --ins:rgba(63,185,80,.28); --del:rgba(248,81,73,.28);
+    --ins-line:rgba(63,185,80,.55); --del-line:rgba(248,81,73,.55);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    background:var(--bg);color:var(--fg);padding:24px 20px 64px}
+  .wrap{max-width:1200px;margin:0 auto}
+  .top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+  h1{font-size:22px;margin:0;letter-spacing:.3px}
+  h1 span{color:var(--muted);font-weight:400;font-size:15px}
+  .back{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);
+    padding:5px 12px;border-radius:7px}
+  .back:hover{color:var(--accent);border-color:var(--accent)}
+  .actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);
+    color:var(--fg);border-radius:7px;padding:6px 14px;transition:.12s}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button.primary:hover{filter:brightness(1.1)}
+  .sub{color:var(--muted);margin:0 0 14px;font-size:13px}
+  .sub kbd{background:var(--card);border:1px solid var(--line);border-radius:4px;
+    padding:0 5px;font:12px ui-monospace,monospace}
+  .toolbar{display:flex;gap:6px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);
+    border-radius:9px;padding:7px 9px;margin-bottom:12px;position:sticky;top:8px;z-index:5}
+  .toolbar button{padding:4px 11px;font-size:13px;min-width:34px}
+  .toolbar button.b{font-weight:800}
+  .toolbar button.i{font-style:italic}
+  .toolbar button.u{text-decoration:underline}
+  .toolbar button.s{text-decoration:line-through}
+  .toolbar .sep{width:1px;background:var(--line);margin:2px 3px}
+  .editors{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:820px){.editors{grid-template-columns:1fr}}
+  .pane-wrap h2{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);
+    margin:0 0 6px;font-weight:600}
+  .pane{min-height:220px;max-height:340px;overflow:auto;background:var(--card);
+    border:1px solid var(--line);border-radius:10px;padding:12px 14px;outline:none}
+  .pane:focus{border-color:var(--accent)}
+  .pane:empty:before{content:attr(data-ph);color:var(--muted);pointer-events:none}
+  .pane h1{font-size:20px;margin:.35em 0}
+  .pane h2{font-size:17px;margin:.35em 0}
+  .pane h3{font-size:15px;margin:.35em 0}
+  .pane p,.pane ul{margin:.4em 0}
+  .pane ul{padding-left:22px}
+  .pane blockquote{border-left:3px solid var(--line);margin:.4em 0;padding-left:10px;color:var(--muted)}
+  #results{margin-top:22px}
+  .res-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:10px}
+  .res-head h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;margin:0}
+  .legend{display:flex;gap:14px;color:var(--muted);font-size:12.5px;margin-left:auto;align-items:center}
+  .sw{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+  .sw.i{background:var(--ins-line)} .sw.d{background:var(--del-line)}
+  #stats{color:var(--muted);font-size:13px}
+  #stats b{color:var(--fg)}
+  .cols-head{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;margin-bottom:4px}
+  .cols-head div{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);
+    font-weight:600}
+  .rows{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;background:var(--card);
+    border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .line{min-height:24px;padding:2px 6px;border-radius:5px;font-size:14.5px;overflow-wrap:anywhere}
+  .line.empty{color:#4a5561;text-align:center}
+  .line.blank{min-height:24px}
+  .w{border-radius:3px;padding:1px 0}
+  .w.insc{background:var(--ins);box-shadow:0 0 0 2px var(--ins)}
+  .w.delc{background:var(--del);box-shadow:0 0 0 2px var(--del);text-decoration:none}
+  .w.b{font-weight:700}
+  .w.i{font-style:italic}
+  .w.u{text-decoration:underline}
+  .w.s{text-decoration:line-through}
+  .w.code{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;background:#0b0f14;
+    padding:1px 5px;border-radius:4px}
+  .w.h1{font-size:20px;font-weight:800}
+  .w.h2{font-size:17px;font-weight:700}
+  .w.h3{font-size:15.5px;font-weight:700}
+  .w.quote{color:var(--muted)}
+  .w .bullet{color:var(--accent);font-weight:700}
+  .line.li{padding-left:2px}
+  .hint{color:var(--muted);font-size:12.5px;margin-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Rich Text Diff <span>· compare two rich-text documents</span></h1>
+    <a class="back" href="/">&larr; Dashboard</a>
+    <div class="actions">
+      <button id="sample">Load sample</button>
+      <button id="clear">Clear</button>
+      <button class="primary" id="compare">Compare</button>
+    </div>
+  </div>
+  <p class="sub">Edit both sides with the toolbar, then <b>Compare</b> — word-level
+     changes are highlighted in place, style changes included. <kbd>Ctrl</kbd>+<kbd>Enter</kbd> compares.</p>
+
+  <div class="toolbar" id="toolbar">
+    <button class="b" data-cmd="bold" title="Bold">B</button>
+    <button class="i" data-cmd="italic" title="Italic">I</button>
+    <button class="u" data-cmd="underline" title="Underline">U</button>
+    <button class="s" data-cmd="strikeThrough" title="Strikethrough">S</button>
+    <span class="sep"></span>
+    <button data-cmd="formatBlock" data-val="&lt;h1&gt;" title="Heading 1">H1</button>
+    <button data-cmd="formatBlock" data-val="&lt;h2&gt;" title="Heading 2">H2</button>
+    <button data-cmd="formatBlock" data-val="&lt;h3&gt;" title="Heading 3">H3</button>
+    <span class="sep"></span>
+    <button data-cmd="insertUnorderedList" title="Bullet list">&bull; List</button>
+    <button data-cmd="formatBlock" data-val="&lt;blockquote&gt;" title="Quote">&ldquo;Quote&rdquo;</button>
+    <span class="sep"></span>
+    <button data-cmd="clear" title="Remove formatting">Clear format</button>
+  </div>
+
+  <div class="editors">
+    <div class="pane-wrap">
+      <h2>Original</h2>
+      <div class="pane" id="left" contenteditable="true" data-ph="Paste or type the original document&hellip;"></div>
+    </div>
+    <div class="pane-wrap">
+      <h2>Changed</h2>
+      <div class="pane" id="right" contenteditable="true" data-ph="Paste or type the changed document&hellip;"></div>
+    </div>
+  </div>
+
+  <div id="results" hidden>
+    <div class="res-head">
+      <h2>Comparison</h2>
+      <div id="stats"></div>
+      <div class="legend">
+        <span><span class="sw i"></span>added / changed</span>
+        <span><span class="sw d"></span>removed / changed</span>
+      </div>
+    </div>
+    <div class="cols-head">
+      <div>Original</div>
+      <div>Changed</div>
+    </div>
+    <div class="rows" id="rows"></div>
+    <p class="hint">Words highlighted on one side only were added or removed;
+       a word flagged on BOTH sides changed (text or formatting). Empty rows are
+       structural (paragraphs, list items) added or removed.</p>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const left = $('#left'), right = $('#right');
+const results = $('#results'), rowsEl = $('#rows'), statsEl = $('#stats');
+let focused = left;
+
+[left, right].forEach(p => p.addEventListener('focus', () => { focused = p; }));
+
+$('#toolbar').addEventListener('mousedown', e => { if (e.target.closest('button')) e.preventDefault(); });
+$('#toolbar').addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  focused.focus();
+  const cmd = btn.dataset.cmd;
+  if (cmd === 'clear') {
+    document.execCommand('removeFormat');
+    document.execCommand('formatBlock', false, '<p>');
+  } else {
+    document.execCommand(cmd, false, btn.dataset.val || null);
+  }
+});
+
+function esc(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+const BLOCKS = new Set(['p','div','li','ul','ol','h1','h2','h3','h4','h5','h6','blockquote','pre','section','article','header','footer']);
+
+function tokenize(root) {
+  const toks = [];
+  const walkText = (text, st) => {
+    const parts = text.match(/\S+|\s+/g) || [];
+    for (const p of parts) {
+      if (!/^\s+$/.test(p)) toks.push(Object.assign({ t: p }, st));
+    }
+  };
+  const walk = (node, st) => {
+    if (node.nodeType === 3) { walkText(node.nodeValue, st); return; }
+    if (node.nodeType !== 1) return;
+    const tag = node.tagName.toLowerCase();
+    if (tag === 'br') { toks.push({ t: '\n', br: 1 }); return; }
+    const s = Object.assign({}, st);
+    if (tag === 'b' || tag === 'strong') s.b = 1;
+    if (tag === 'i' || tag === 'em') s.i = 1;
+    if (tag === 'u') s.u = 1;
+    if (tag === 's' || tag === 'strike' || tag === 'del') s.s = 1;
+    if (tag === 'code') s.code = 1;
+    if (/^h[1-6]$/.test(tag)) s.h = +tag[1];
+    if (tag === 'li') s.li = 1;
+    if (tag === 'blockquote') s.quote = 1;
+    for (const n of node.childNodes) walk(n, s);
+    if (BLOCKS.has(tag)) {
+      const lastBr = toks.length && toks[toks.length - 1].br;
+      const container = tag === 'ul' || tag === 'ol';
+      if (lastBr) {
+        if (container) toks.push({ t: '\n', br: 1 });
+      } else {
+        toks.push({ t: '\n', br: 1 });
+        if (!container && tag !== 'li') toks.push({ t: '\n', br: 1 });
+      }
+    }
+  };
+  for (const n of root.childNodes) walk(n, {});
+  toks.push({ t: '\n', br: 1 });
+  return toks;
+}
+
+function toLines(toks) {
+  const lines = [[]];
+  for (const tk of toks) {
+    if (tk.br) lines.push([]);
+    else lines[lines.length - 1].push(tk);
+  }
+  while (lines.length > 1 && !lines[0].length) lines.shift();
+  while (lines.length > 1 && !lines[lines.length - 1].length) lines.pop();
+  return lines;
+}
+
+function keyOf(tk) {
+  return tk.t + '|' + (tk.b?1:0) + (tk.i?1:0) + (tk.u?1:0) + (tk.s?1:0) +
+         (tk.code?1:0) + (tk.h||0) + (tk.li?1:0) + (tk.quote?1:0);
+}
+function lineKey(line) {
+  return line.map(keyOf).join(' ');
+}
+
+function diffSeq(A, B, keyFn) {
+  const ops = [];
+  const n = A.length, m = B.length;
+  let s = 0;
+  while (s < n && s < m && keyFn(A[s]) === keyFn(B[s])) s++;
+  let e = 0;
+  while (e < n - s && e < m - s && keyFn(A[n - 1 - e]) === keyFn(B[m - 1 - e])) e++;
+  if (s) ops.push({ op: 'eq', a0: 0, a1: s, b0: 0, b1: s });
+  const na = n - e, nb = m - e;
+  const ma = A.slice(s, na), mb = B.slice(s, nb);
+  const p = ma.length, q = mb.length;
+  if (p && q && p * q <= 40000000) {
+    const w = q + 1;
+    const dp = new Uint32Array((p + 1) * w);
+    for (let i = p - 1; i >= 0; i--) {
+      for (let j = q - 1; j >= 0; j--) {
+        dp[i * w + j] = keyFn(ma[i]) === keyFn(mb[j])
+          ? dp[(i + 1) * w + j + 1] + 1
+          : Math.max(dp[(i + 1) * w + j], dp[i * w + j + 1]);
+      }
+    }
+    let i = 0, j = 0;
+    const push = (op, a0, a1, b0, b1) => {
+      const last = ops[ops.length - 1];
+      if (last && last.op === op && last.a1 === a0 && last.b1 === b0) {
+        last.a1 = a1; last.b1 = b1;
+      } else {
+        ops.push({ op, a0, a1, b0, b1 });
+      }
+    };
+    while (i < p && j < q) {
+      if (keyFn(ma[i]) === keyFn(mb[j])) {
+        push('eq', s + i, s + i + 1, s + j, s + j + 1); i++; j++;
+      } else if (dp[(i + 1) * w + j] >= dp[i * w + j + 1]) {
+        push('del', s + i, s + i + 1, s + j, s + j); i++;
+      } else {
+        push('ins', s + i, s + i, s + j, s + j + 1); j++;
+      }
+    }
+    while (i < p) { push('del', s + i, s + i + 1, s + j, s + j); i++; }
+    while (j < q) { push('ins', s + i, s + i, s + j, s + j + 1); j++; }
+  } else if (p || q) {
+    if (p) ops.push({ op: 'del', a0: s, a1: s + p, b0: s, b1: s });
+    if (q) ops.push({ op: 'ins', a0: s + p, a1: s + p, b0: s, b1: s + q });
+  }
+  if (e) ops.push({ op: 'eq', a0: na, a1: n, b0: nb, b1: m });
+  return ops;
+}
+
+function normalize(ops) {
+  const out = [];
+  for (const o of ops) {
+    const last = out[out.length - 1];
+    if (last) {
+      if (last.op === 'del' && o.op === 'ins') {
+        out[out.length - 1] = { op: 'rep', a0: last.a0, a1: last.a1, b0: o.b0, b1: o.b1 };
+        continue;
+      }
+      if (last.op === 'ins' && o.op === 'del') {
+        out[out.length - 1] = { op: 'rep', a0: o.a0, a1: o.a1, b0: last.b0, b1: last.b1 };
+        continue;
+      }
+    }
+    out.push(o);
+  }
+  return out;
+}
+
+function wordFlags(A, B) {
+  const fa = new Array(A.length).fill(false);
+  const fb = new Array(B.length).fill(false);
+  for (const o of diffSeq(A, B, keyOf)) {
+    if (o.op === 'del' || o.op === 'rep') for (let k = o.a0; k < o.a1; k++) fa[k] = true;
+    if (o.op === 'ins' || o.op === 'rep') for (let k = o.b0; k < o.b1; k++) fb[k] = true;
+  }
+  return { fa, fb };
+}
+
+function tokHtml(tk, flag, side) {
+  const cls = ['w'];
+  if (flag) cls.push(side === 'l' ? 'delc' : 'insc');
+  if (tk.b) cls.push('b');
+  if (tk.i) cls.push('i');
+  if (tk.u) cls.push('u');
+  if (tk.s) cls.push('s');
+  if (tk.code) cls.push('code');
+  if (tk.h && tk.h <= 3) cls.push('h' + tk.h);
+  if (tk.quote) cls.push('quote');
+  const bullet = tk.li ? '<span class="bullet">&bull;</span> ' : '';
+  return '<span class="' + cls.join(' ') + '">' + bullet + esc(tk.t) + '</span>';
+}
+
+function lineHtml(line, flags) {
+  if (!line) return '<div class="line empty">&mdash;</div>';
+  if (!line.length) return '<div class="line blank"></div>';
+  const li = line.some(t => t.li) ? ' li' : '';
+  let html = '';
+  for (let i = 0; i < line.length; i++) {
+    if (i) html += ' ';
+    html += tokHtml(line[i], flags && flags[i], flags && flags.side);
+  }
+  return '<div class="line' + li + '">' + html + '</div>';
+}
+
+function buildRows(A, B) {
+  const ops = normalize(diffSeq(A, B, lineKey));
+  const rows = [];
+  for (const o of ops) {
+    if (o.op === 'eq') {
+      for (let k = 0; k < o.a1 - o.a0; k++) {
+        rows.push({ l: A[o.a0 + k], r: B[o.b0 + k], lf: null, rf: null });
+      }
+    } else if (o.op === 'del') {
+      for (let k = o.a0; k < o.a1; k++) {
+        const f = new Array(A[k].length).fill(true); f.side = 'l';
+        rows.push({ l: A[k], r: null, lf: f, rf: null });
+      }
+    } else if (o.op === 'ins') {
+      for (let k = o.b0; k < o.b1; k++) {
+        const f = new Array(B[k].length).fill(true); f.side = 'r';
+        rows.push({ l: null, r: B[k], lf: null, rf: f });
+      }
+    } else {
+      const al = A.slice(o.a0, o.a1), bl = B.slice(o.b0, o.b1);
+      const pairs = Math.min(al.length, bl.length);
+      for (let x = 0; x < pairs; x++) {
+        const f = wordFlags(al[x], bl[x]);
+        const lf = f.fa; lf.side = 'l';
+        const rf = f.fb; rf.side = 'r';
+        rows.push({ l: al[x], r: bl[x], lf, rf });
+      }
+      for (let x = pairs; x < al.length; x++) rows.push({ l: al[x], r: null, lf: null, rf: null });
+      for (let x = pairs; x < bl.length; x++) rows.push({ l: null, r: bl[x], lf: null, rf: null });
+    }
+  }
+  return rows;
+}
+
+function compare() {
+  const A = toLines(tokenize(left));
+  const B = toLines(tokenize(right));
+  const rows = buildRows(A, B);
+  let html = '';
+  let removed = 0, added = 0, unchanged = 0;
+  for (const row of rows) {
+    if (row.lf) for (let i = 0; i < row.l.length; i++) if (row.lf[i]) removed++;
+    if (row.rf) for (let i = 0; i < row.r.length; i++) if (row.rf[i]) added++;
+    if (row.r) for (let i = 0; i < row.r.length; i++) if (!(row.rf && row.rf[i])) unchanged++;
+    html += lineHtml(row.l, row.lf) + lineHtml(row.r, row.rf);
+  }
+  rowsEl.innerHTML = html || '<div class="line empty">Nothing to compare</div>';
+  const total = added + removed + unchanged;
+  const pct = total ? Math.round((unchanged / total) * 100) : 100;
+  statsEl.innerHTML = '<b>' + added + '</b> added · <b>' + removed +
+    '</b> removed · <b>' + pct + '%</b> unchanged';
+  results.hidden = false;
+  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+const SAMPLE_LEFT =
+  '<h1>Quarterly Report</h1>' +
+  '<p>The <b>revenue</b> grew by 12% this quarter, beating our forecast.</p>' +
+  '<p>Key highlights:</p>' +
+  '<ul><li>Customer churn dropped to 3.1%</li><li>New market: Singapore</li></ul>';
+const SAMPLE_RIGHT =
+  '<h2>Quarterly Report 2026</h2>' +
+  '<p>The <b>revenue</b> grew by <b>15%</b> this quarter, beating our forecast.</p>' +
+  '<p>Key highlights:</p>' +
+  '<ul><li>Customer churn dropped to 2.4%</li><li>New market: Singapore</li>' +
+  '<li>APAC team doubled</li></ul>';
+
+$('#sample').addEventListener('click', () => {
+  left.innerHTML = SAMPLE_LEFT;
+  right.innerHTML = SAMPLE_RIGHT;
+  compare();
+});
+
+$('#clear').addEventListener('click', () => {
+  left.innerHTML = '';
+  right.innerHTML = '';
+  rowsEl.innerHTML = '';
+  statsEl.innerHTML = '';
+  results.hidden = true;
+  left.focus();
+});
+
+$('#compare').addEventListener('click', compare);
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    compare();
+  }
+});
+</script>
+</body>
+</html>

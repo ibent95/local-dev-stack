@@ -11,10 +11,11 @@ gated behind **profiles** and share one external network `lds-network`.
   by `up` only when `LDS_ENABLE_HTTPS=true`; never used alone.
 - `.env.example` — copy to `.env`; all config is env-driven with defaults.
 - `configs/` — per-service config: `php/` (Dockerfile + ini), `nginx/`
-  (mass-vhost), `dns/` (dnsmasq image + conf), `web/dashboard/` (control panel
-  `index.php` + `connectors.php`, a Kafka Connect connector builder that proxies
-  both workers' REST APIs server-side and renders forms from their config
-  schema),
+   (mass-vhost), `dns/` (dnsmasq image + conf), `web/dashboard/` (control panel
+   `index.php` + `connectors.php`, a Kafka Connect connector builder that proxies
+   both workers' REST APIs server-side and renders forms from their config
+   schema, + `docs.php`, the in-browser handbook rendered from `docs/` via
+   `lib/parsedown.php`),
   `redis/`, `mysql/init/`, `postgres/init/` (SQL run on first boot),
   `mongo/init/` (*.js/*.sh — NOT auto-run: DHI mongodb has no
   docker-entrypoint.sh / initdb.d hook; the RS is set up by `mongo-init`),
@@ -23,7 +24,11 @@ gated behind **profiles** and share one external network `lds-network`.
   JSON), `kafka/connect-generic/` (generic Connect: `connect-distributed.properties`
   + `plugins/`),
   `proxy/certs/` (git-ignored dev TLS certs minted by `lds certs`; mounted into
-  nginx-proxy only by the HTTPS overlay).
+  nginx-proxy only by the HTTPS overlay), `prometheus/` (`prometheus.yml`
+  scrape config, bind-mounted), `grafana/provisioning/` (auto-provisioned
+  Prometheus datasource), and `web/dashboard/tools/` (two static utilities
+  served from the control panel: `diff/` rich-text diff + `palette/`
+  Coolors-style palette generator).
 -  `data/` — bind-mounted user data for tools (git-ignored; each developer has
   their own): `hop/{config,audit,projects}` (Hop pipelines, workflows, connections,
   plus folder-per-project under `projects/`),
@@ -35,7 +40,9 @@ gated behind **profiles** and share one external network `lds-network`.
   `playwright/{projects,reports}` (E2E projects + HTML reports),
   `mailpit/` (Mailpit messages), `penpot/assets/` (design assets),
   `instatic/` (SQLite `cms.db` + uploads), `erpnext/{sites,logs}` (Frappe site),
-  `headlessx/` (browser-automation source checkout + state).
+  `snapotter/` (SnapOtter files + AI models), `lldap/` (LLDAP
+  SQLite), `openldap/` (OpenLDAP data), `headlessx/` (browser-automation
+  source checkout + state).
 - `www/` — example PHP project folders (parent dir set by `PHP_PROJECTS_PATH`,
   default `./www`); each `<folder>` is served at
   `<folder>.test`, docroot auto-detected (public/ > htdocs/ > root). Sample in
@@ -115,7 +122,9 @@ gated behind **profiles** and share one external network `lds-network`.
   auto-run by `up` for mongo/all;
   idempotent), `dbx-seed` (POSTs `configs/dbx/connections.seed.json` to DBX's
   Web API so the stack DBs are auto-listed (no `CONNECTIONS` env, no UI lock);
-  skips when connections already exist; idempotent, auto-run by `up` for
+  skips the DB seeds when connections already exist; also installs the JDBC +
+  LDAP Studio plugins (only when missing, retried on the next start) and seeds
+  the LLDAP/OpenLDAP connections per name; idempotent, auto-run by `up` for
   dbx/all),
   `hop-register` (registers all folders under `HOP_PROJECTS_PATH` as Hop projects
   in `hop-config.json` via `hop-conf` inside the running container; idempotent,
@@ -173,7 +182,10 @@ gated behind **profiles** and share one external network `lds-network`.
   hot-reload (rebuild). Each is a
   standalone project with its own compose + `VIRTUAL_HOST`, on external lds-network.
 - `docs/en`, `docs/id` — bilingual docs, modular numbered files
-  (`01-overview.md` … `10-databases.md`) with a `README.md` index in each.
+  (`01-overview.md` … `18-credits.md`) with a `README.md` index in each.
+  Root `CONTRIBUTING.md` / `SECURITY.md` are the GitHub-facing mirrors of
+  chapters 16/17 (issue/PR templates, Dependabot and the private-vulnerability
+  reporting link live under `.github/`).
 
 ## Profiles
 
@@ -181,7 +193,8 @@ gated behind **profiles** and share one external network `lds-network`.
 `valkey` `memcached` `kafka` `phpcacheadmin` `dbx` `drawdb` `hop` `superset`
 `duckdb` `trino` `semgrep` `zap` `trivy` `crg` `vaultwarden` `mail` `penpot`
 `instatic` `analytics` `tasks` `wiki` `openwa` `rustfs` `headlessx` `playwright`
-`erpnext` `soketi` `centrifugo` `mqtt` `all`
+`erpnext` `soketi` `centrifugo` `mqtt` `snapotter` `imgcompress` `drawio` `lldap`
+`openldap` `monitoring` `all`
 
 `phpcacheadmin` and `dbx` are the two web admin UIs, each on its OWN profile
 (no `tools` umbrella — toggle them independently): **phpCacheAdmin** (`cache.test`
@@ -242,6 +255,31 @@ the shared `postgres` by default (`ERPNEXT_DB_TYPE=postgres`) or `mariadb` via
 `ERPNEXT_DB_TYPE=mariadb`, queues on shared `redis` logical DBs 5/6; ~8 services +
 two one-shot bootstraps, **heavy** (~3-6 GB RAM, multi-GB pulls).
 
+Utilities (all **off by default**, own profiles): **SnapOtter** = file-
+processing platform (300+ convert/compress/OCR/AI tools over images, video,
+audio, PDF, docs; `snapotter`, `snapotter.test` / :4538 — shares the stack's
+`postgres` (`lds_snapotter` via `POSTGRES_INIT_SPECS`) + `redis` logical
+DB 7 (BullMQ), files + AI models in `data/snapotter/`, no login by default
+(`AUTH_ENABLED=false`, flip `SNAPOTTER_AUTH_ENABLED` for admin/admin),
+telemetry off (`SNAPOTTER_TELEMETRY=0` kills PostHog + Sentry egress)).
+**ImgCompress** = image toolbox (`imgcompress`, `imgcompress.test` / :4539,
+70+ formats · bulk compress · image-to-PDF · local-AI background removal,
+hardened DHI-based single container, stateless). **draw.io** =
+self-hosted diagramming (`drawio`, `drawio.test` / :4535, dashboard links it
+with `?offline=1&https=0` so diagrams never leave the browser). **LLDAP** =
+lightweight LDAP directory (`lldap`, raw LDAP :4537 — web UI kept internal,
+NOT proxied; login `admin`/`adminadmin` (LLDAP enforces 8+ chars), SQLite in
+`data/lldap/`). **OpenLDAP** = standards-compliant LDAP server (`openldap`,
+LDAP :4540, no UI at all — manage via DBX; first-boot bootstrap from
+`configs/openldap/`, data in `data/openldap/`). **Monitoring** =
+Prometheus + Grafana in ONE profile (`monitoring`: `prometheus.test` / :4533
++ `grafana.test` / :4532, anonymous Admin — no login (`GRAFANA_ANONYMOUS`),
+no phone-home; scrape jobs in
+`configs/prometheus/prometheus.yml`, Grafana datasource auto-provisioned;
+named volumes `prometheus-data` / `grafana-data`). Two static tools need NO
+profile — they're served from the control panel itself at `/tools/diff/`
+(side-by-side rich-text diff) and `/tools/palette/` (Coolors-style palettes).
+
 **HeadlessX** = undetected browser automation platform (web `headlessx.test` /
 :4515, API/MCP :4516, sidecars :4517/:4519) — built from source at
 `data/headlessx`, reuses shared `postgres` + `redis`. **Playwright** = E2E test
@@ -251,8 +289,19 @@ runner (warm container, browsers preinstalled) + report viewer at
 
 Full detail: `docs/en/15-data-tools.md`. The `http://localhost` control panel
 (`configs/web/dashboard/index.php`, served from `/var/lds-dashboard` outside the
-project path) links every tool/project with live status — there is no
-`__dashboard.test`.
+project path) links every tool/project with live status - there is no
+`__dashboard.test`. Its **`/docs.php`** page renders this repo's whole bilingual
+handbook (`docs/{en,id}/*.md`, bind-mounted read-only at `/var/lds-docs`) with a
+chapter sidebar, per-page TOC, prev/next and an EN/ID switch; markdown is turned
+into HTML by the vendored single-file Parsedown
+(`configs/web/dashboard/lib/parsedown.php`, MIT - patched for PHP 8.4's implicit-
+nullable deprecation), raw HTML tables in the docs pass through untouched, and
+rendered pages are cached in `sys_get_temp_dir()` keyed by mtime. nginx needs no
+route (any `*.php` under the dashboard root already reaches php-fpm). Chapter 18
+(`18-credits.md`) is the third-party attribution page (every image, tool and
+pinned version + license); the dashboard header **Credits** button and the
+About page's **Credits** card link straight to `/docs.php?doc=18-credits`, and
+`README.md` indexes in `docs/{en,id}/` list it as entry 18.
 
 ### Default run-set (`LDS_ENABLE_*` toggles)
 

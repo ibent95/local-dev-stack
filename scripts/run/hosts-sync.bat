@@ -22,10 +22,10 @@ if "%TRIVY_HOST%"=="" set "TRIVY_HOST=trivy.test"
 if "%ZAP_HOST%"=="" set "ZAP_HOST=zap.test"
 if "%MAIL_HOST%"=="" set "MAIL_HOST=mail.test"
 if "%PENPOT_HOST%"=="" set "PENPOT_HOST=penpot.test"
-if "%ANALYTICS_HOST%"=="" set "ANALYTICS_HOST=analytics.test"
+if "%ANALYTICS_HOST%"=="" set "ANALYTICS_HOST=lds-analytics.test"
 if "%VAULTWARDEN_HOST%"=="" set "VAULTWARDEN_HOST=vaultwarden.test"
-if "%TASKS_HOST%"=="" set "TASKS_HOST=tasks.test"
-if "%WIKI_HOST%"=="" set "WIKI_HOST=wiki.test"
+if "%TASKS_HOST%"=="" set "TASKS_HOST=lds-tasks.test"
+if "%WIKI_HOST%"=="" set "WIKI_HOST=lds-wiki.test"
 if "%OPENWA_HOST%"=="" set "OPENWA_HOST=openwa.test"
 if "%HEADLESSX_HOST%"=="" set "HEADLESSX_HOST=headlessx.test"
 if "%HEADLESSX_API_HOST%"=="" set "HEADLESSX_API_HOST=headlessx-api.test"
@@ -34,6 +34,11 @@ if "%DUCKDB_HOST%"=="" set "DUCKDB_HOST=duckdb.test"
 if "%CRG_HOST%"=="" set "CRG_HOST=crg.test"
 if "%INSTATIC_HOST%"=="" set "INSTATIC_HOST=instatic.test"
 if "%ERPNEXT_HOST%"=="" set "ERPNEXT_HOST=erpnext.test"
+if "%DRAWIO_HOST%"=="" set "DRAWIO_HOST=drawio.test"
+if "%SNAPOTTER_HOST%"=="" set "SNAPOTTER_HOST=snapotter.test"
+if "%IMGCOMPRESS_HOST%"=="" set "IMGCOMPRESS_HOST=imgcompress.test"
+if "%PROMETHEUS_HOST%"=="" set "PROMETHEUS_HOST=prometheus.test"
+if "%GRAFANA_HOST%"=="" set "GRAFANA_HOST=grafana.test"
 set "PROJDIR=%PHP_PROJECTS_PATH:/=\%"
 
 set "HOSTS=%WINDIR%\System32\drivers\etc\hosts"
@@ -84,6 +89,10 @@ call :add %HEADLESSX_API_HOST% "(MCP + API - headlessx-api.test)"
 call :sec "Designers"
 call :add %PENPOT_HOST%
 call :add %DRAWDB_HOST% "(open via http://localhost:4502 - needs a secure context)"
+call :add %DRAWIO_HOST% "(self-hosted diagrams - use ?offline=1&https=0)"
+call :sec "File conversion"
+call :add %SNAPOTTER_HOST% "(file platform - convert · OCR · AI)"
+call :add %IMGCOMPRESS_HOST% "(image toolbox - 70+ formats)"
 call :sec "Data tools"
 call :add %SUPERSET_HOST%
 call :add %HOP_HOST%
@@ -101,6 +110,9 @@ call :add %TASKS_HOST%
 call :add %WIKI_HOST%
 call :sec "Analytical query engines"
 call :add %DUCKDB_HOST%
+call :sec "Monitoring"
+call :add %PROMETHEUS_HOST% "(metrics TSDB)"
+call :add %GRAFANA_HOST% "(dashboards - admin/admin)"
 call :sec "Realtime dashboards"
 call :add %SOKETI_HOST%
 call :add %CENTRIFUGO_HOST%

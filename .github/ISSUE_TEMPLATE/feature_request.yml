@@ -1,0 +1,43 @@
+name: Feature request
+description: Propose a new service, tool, template or improvement
+title: "Feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For new services/tools, an issue first keeps the shape (profiles, env
+        toggles, docs EN+ID, credits row) agreed before any code — see
+        [CONTRIBUTING.md](https://github.com/ibent95/local-dev-stack/blob/master/CONTRIBUTING.md).
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of change
+      options:
+        - New compose service / profile
+        - New project template
+        - Improvement to an existing tool
+        - Dashboard / docs improvement
+        - Scripts / DX
+        - Other / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What are you trying to do that LDS does not make easy today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should it do? Any services, ports, env toggles or profiles it would need.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you use today, or other tools that do it.

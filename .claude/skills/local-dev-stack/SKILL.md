@@ -3,7 +3,8 @@ name: local-dev-stack
 description: >
   Operate the local-dev-stack shared Docker Compose environment via the `lds`
   CLI — start/stop profiles, manage the bundled tools (DrawDB, Apache Hop,
-  Superset, Semgrep, Vaultwarden, Analytics, Tasks, Wiki, Kafka, the databases),
+  Superset, Semgrep, Vaultwarden, Analytics, Tasks, Wiki, Kafka, the databases,
+  SnapOtter, ImgCompress, draw.io, LLDAP, OpenLDAP, Prometheus/Grafana),
   sync *.test hosts, and apply known
   fixes. Use when working in this repo or when the user asks to run, configure,
   or troubleshoot the stack, its tools, or its `<name>.test` URLs.
@@ -36,7 +37,7 @@ lds stop | down [-v]      stop+keep | remove (-v wipes volumes)
 lds ps | logs [service]   status | tail logs
 lds exec <svc> [cmd…]     shell/command in a container
 lds hosts-sync            write projects + tool hosts into the hosts file (admin)
-lds db init [mysql|postgres|mongo|all] | seed     create default db/users (+ optional `*_INIT_SPECS`) | DBX conns
+lds db init [mysql|postgres|mongo|all] | seed     create default db/users (+ optional `*_INIT_SPECS`) | DBX conns + plugins
 lds kafka topics | connect-plugin [--generic] <name> | register-connectors | init
 lds tools semgrep [path|clear]  run/clear a Semgrep scan → data/semgrep/reports/report.sarif
 lds tools trivy [path|clear] | trivy image <name>  run/clear a Trivy scan → data/trivy/reports/report.html
@@ -53,18 +54,30 @@ Old flat names (`kafka-topics`, `mysql-init`, `mongo-init`, `register-connectors
 `docker-compose.yml` is ordered by importance of usage: **web foundation**
 (proxy, dns, php) → **databases** (mysql, mariadb, mssql, oracle, postgres, mongo, redis, valkey, memcached) →
 **admin UIs** (phpcacheadmin, dbx) → **data tools** (drawdb, hop, superset,
-semgrep, zap, trivy, crg, vaultwarden, mailpit, penpot, instatic, analytics, tasks, wiki) → **realtime brokers** (soketi, centrifugo, mqtt) → **Kafka** (last,
+semgrep, zap, trivy, crg, vaultwarden, mailpit, penpot, instatic, analytics, tasks, wiki) → **web utilities** (snapotter, imgcompress, drawio, lldap, openldap,
+prometheus+grafana) → **realtime brokers** (soketi, centrifugo, mqtt) → **Kafka** (last,
 heaviest, off by default) → **HeadlessX/Playwright** → **ERPNext** (reuses shared
 postgres + redis, heavy — off by default).
 Each group has a `# ===` banner. Host ports live in the `44xx`-`45xx` block (see `docs/en/12-ports.md`).
+Two static tools need no profile: `http://localhost/tools/diff/` (LDS Text
+Diff) and `/tools/palette/` (LDS Palette Generator), served from
+`configs/web/dashboard/tools/`.
 
 ## Dashboard
 
 `http://localhost` is a PHP control panel (`configs/web/dashboard/index.php`,
-mounted at `/var/lds-dashboard` *outside* the project path — so there is no
-`__dashboard.test`). It lists tools (grouped, with live ●/○ probes), projects,
+mounted at `/var/lds-dashboard` *outside* the project path - so there is no
+`__dashboard.test`). It lists tools (grouped, with live ?/	 probes), projects,
 and backing-service status. Edit `index.php` to add/regroup tool cards; it's
 bind-mounted, so changes are live (no restart).
+
+`http://localhost/docs.php` renders the whole bilingual handbook
+(`docs/{en,id}/*.md`, bind-mounted read-only at `/var/lds-docs`): chapter
+sidebar, per-page TOC, prev/next, EN/ID switch. Markdown → HTML by the vendored
+Parsedown (`configs/web/dashboard/lib/parsedown.php`); rendered output is cached
+in `sys_get_temp_dir()` per file mtime, so doc edits show on the next request -
+and after editing the PHP itself, run `docker exec lds-php php -l ...` and
+`docker restart lds-php` (opcache `revalidate_freq=300`).
 
 ## Known gotchas & fixes
 
@@ -105,13 +118,13 @@ bind-mounted, so changes are live (no restart).
   `data/trivy/cache`). Also uses `docker run` for Windows path handling.
 - **Analytics** reuses shared `postgres` (no extra DB container); `analytics-init`
   augments `POSTGRES_INIT_SPECS` and delegates to `postgres-init` so the configured
-  `ANALYTICS_POSTGRES_DB/USER/PASSWORD` exist. UI at `analytics.test` / :4521.
+  `ANALYTICS_POSTGRES_DB/USER/PASSWORD` exist. UI at `lds-analytics.test` / :4521.
 - **Tasks** reuses shared `postgres`; `tasks-init` augments `POSTGRES_INIT_SPECS`
   and delegates to `postgres-init` so `TASKS_POSTGRES_DB/USER/PASSWORD` exist.
-  UI at `tasks.test` / :4523.
+  UI at `lds-tasks.test` / :4523.
 - **Wiki** reuses shared `postgres`; `wiki-init` augments `POSTGRES_INIT_SPECS`
   and delegates to `postgres-init` so `WIKI_POSTGRES_DB/USER/PASSWORD` exist.
-  UI at `wiki.test` / :4525.
+  UI at `lds-wiki.test` / :4525.
 - **DB `app` database missing** (or tool DB/user not created yet)
   → `lds db init mysql|postgres|mongo|all` (auto-run by `lds up` when relevant profiles are selected).
 - **`*.test` won't resolve** without the dns container as your resolver → run
@@ -120,5 +133,8 @@ bind-mounted, so changes are live (no restart).
 ## Docs
 
 Full reference in `docs/en/` (and `docs/id/`): `04-commands`, `12-ports`,
-`13-profiles`, `15-data-tools` (the tools + dashboard), plus `CLAUDE.md` for an
+`13-profiles`, `15-data-tools` (the tools + dashboard), `18-credits` (third-party
+projects, versions and licenses — also linked from the dashboard header
+**Credits** button and the About page), `16-contributing` / `17-security`
+(mirrored as root `CONTRIBUTING.md` / `SECURITY.md`), plus `CLAUDE.md` for an
 architecture summary.

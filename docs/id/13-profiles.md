@@ -256,6 +256,42 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 <td>`erpnext-*` — paket ERP lengkap di atas Frappe, DB di `postgres` bersama (atau `mariadb` via `ERPNEXT_DB_TYPE`); **berat** (~3-6 GB RAM, pull multi-GB)</td>
 </tr>
 <tr>
+<td>`snapotter`</td>
+<td>`LDS_ENABLE_SNAPOTTER`</td>
+<td>❌</td>
+<td>`snapotter` — platform pemrosesan file (konversi · OCR · AI, 300+ tool) di `snapotter.test`; berbagi `postgres` + `redis`</td>
+</tr>
+<tr>
+<td>`imgcompress`</td>
+<td>`LDS_ENABLE_IMGCOMPRESS`</td>
+<td>❌</td>
+<td>`imgcompress` — toolbox gambar (70+ format · kompres massal · hapus latar AI) di `imgcompress.test`</td>
+</tr>
+<tr>
+<td>`drawio`</td>
+<td>`LDS_ENABLE_DRAWIO`</td>
+<td>❌</td>
+<td>`drawio` — draw.io diagram mandiri di `drawio.test`</td>
+</tr>
+<tr>
+<td>`lldap`</td>
+<td>`LDS_ENABLE_LLDAP`</td>
+<td>❌</td>
+<td>`lldap` — direktori LDAP ringan (LDAP `:4537`; web UI tidak diekspos — kelola via DBX atau tool LDAP)</td>
+</tr>
+<tr>
+<td>`openldap`</td>
+<td>`LDS_ENABLE_OPENLDAP`</td>
+<td>❌</td>
+<td>`openldap` — server OpenLDAP standar (LDAP `:4540`, tanpa web UI — kelola via DBX)</td>
+</tr>
+<tr>
+<td>`monitoring`</td>
+<td>`LDS_ENABLE_MONITORING`</td>
+<td>❌</td>
+<td>`prometheus`, `grafana` — TSDB metrik + dashboard (`prometheus.test`, `grafana.test`)</td>
+</tr>
+<tr>
 <td>`all`</td>
 <td>—</td>
 <td>—</td>
@@ -266,8 +302,9 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 
 > **Aplikasi kustom** (`analytics`, `tasks`, `wiki`), **tool data** (`drawdb`,
 > `hop`, `superset`, `semgrep`, `zap`, `trivy`, `crg`, `vaultwarden`, `mail`,
-> `penpot`, `instatic`, `openwa`, `rustfs`) serta **profile automasi/pengujian**
-> (`headlessx`, `playwright`) punya halaman sendiri —
+> `penpot`, `instatic`, `openwa`, `rustfs`), **profile automasi/pengujian**
+> (`headlessx`, `playwright`) serta **utilitas** (`snapotter`, `imgcompress`,
+> `drawio`, `lldap`, `openldap`, `monitoring`) punya halaman sendiri —
 > lihat [15 · Dashboard & data tools](15-data-tools.md). Panel kontrol di
 > `http://localhost` menautkan semuanya lengkap dengan status langsung.
 
@@ -520,7 +557,10 @@ default.**
 - MySQL + MariaDB + Postgres + MongoDB + SQL Server + Oracle stack otomatis
   terdaftar via `scripts/run/dbx-seed.*` (otomatis dijalankan `lds up`
   untuk profile `dbx`/`all`; script ini POST ke Web API DBX **setelah**
-  container naik, dan dilewati bila koneksi sudah ada).
+  container naik, dan dilewati bila koneksi sudah ada). Hook yang sama
+  memasang plugin JDBC dan LDAP Studio (idempoten - dicoba lagi di start
+  berikutnya bila unduhan gagal) dan men-seed koneksi **LLDAP (LDS)** /
+  **OpenLDAP (LDS)** bila belum ada koneksi dengan nama tersebut.
 - Koneksi tersimpan di `dbx.db` di direktori bind-mount `data/dbx/`
   (bersama `.dbx/secret.key` — cadangkan keduanya sebagai pasangan).
 - Image `t8y2/dbx` (Apache-2.0, upstream — bukan image DHI), dipin oleh

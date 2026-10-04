@@ -1,0 +1,32 @@
+# LDS OpenLDAP server config — templated by entrypoint.sh on first boot.
+# Placeholders: @SUFFIX@ (base DN), @ROOTDN@ (admin DN), @ROOTPW@ (SSHA hash).
+# Based on the stock /etc/openldap/slapd.conf shipped by cleanstart/openldap.
+include		/etc/openldap/schema/core.schema
+include		/etc/openldap/schema/cosine.schema
+include		/etc/openldap/schema/inetorgperson.schema
+include		/etc/openldap/schema/nis.schema
+
+modulepath	/usr/lib/openldap
+moduleload	back_mdb.so
+
+#######################################################################
+# config database (read-only cn=config — no rootpw on purpose)
+#######################################################################
+database config
+
+#######################################################################
+# main directory
+#######################################################################
+database	mdb
+maxsize		1073741824
+suffix		"@SUFFIX@"
+rootdn		"@ROOTDN@"
+rootpw		"@ROOTPW@"
+directory	/var/lib/openldap/openldap-data
+index		objectClass eq
+index		cn,uid,mail eq,pres,sub
+
+#######################################################################
+# monitor database (must be last)
+#######################################################################
+database monitor

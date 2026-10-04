@@ -1,7 +1,13 @@
 @echo off
 REM Seed DBX's connection list through its Web API so the stack databases are
-REM auto-listed on a FRESH setup. Runs AFTER compose up (up.bat calls it as a
-REM post-up hook). Idempotent: skips when connections already exist.
+REM auto-listed on a FRESH setup, and make sure the JDBC + LDAP Studio plugins
+REM are installed. Runs AFTER compose up (up.bat calls it as a post-up hook).
+REM Three idempotent stages: 1) plugins (JDBC + LDAP Studio, only when missing,
+REM failures are warnings - the next run retries), 2) DB connections (only when
+REM the list is empty, never clobbers), 3) LDAP connections (LLDAP + OpenLDAP,
+REM skipped per entry when that name already exists).
+REM Note: the API returns single-line JSON that can exceed cmd's 8191-char
+REM set/findstr limits, so the plugin and name checks go through PowerShell.
 setlocal enabledelayedexpansion
 pushd "%~dp0..\.."
 
@@ -36,26 +42,79 @@ if not defined READY (
   popd & endlocal & exit /b 0
 )
 
-REM Idempotent: only seed when there are no saved connections yet.
-set "LIST="
-for /f "usebackq delims=" %%l in (`curl -sf "!URL!/api/connection/list"`) do set "LIST=%%l"
-set "LIST=!LIST: =!"
-if "!LIST!"=="" (
+REM --- Stage 1: plugins (JDBC + LDAP Studio), only when missing -------------
+call :ensure_jdbc_plugin
+
+powershell -NoProfile -Command "try { $p = Invoke-RestMethod -Uri '!URL!/api/plugins' -TimeoutSec 15 } catch { exit 1 }; if (@($p.manifest.id) -contains 'io.dbx.ldap') { exit 0 } else { exit 1 }" >nul 2>&1
+if errorlevel 1 (
+  echo DBX: installing LDAP Studio plugin ^(first run downloads it^)...
+  curl -sf --max-time 300 -X POST -H "Content-Type: application/json" -d "{\"repositoryId\":\"dbx-official\",\"pluginId\":\"io.dbx.ldap\"}" "!URL!/api/plugins/marketplace/install" >nul 2>&1
+  if errorlevel 1 (
+    echo DBX: LDAP Studio install FAILED - will retry on the next 'lds up dbx' or from dbx.test.
+  ) else (
+    echo DBX: LDAP Studio plugin installed.
+  )
+)
+
+REM --- Stage 2: DB connections, only when the list is empty -----------------
+REM exit codes: 0 = has connections, 1 = empty, 2 = list unreadable.
+powershell -NoProfile -Command "try { $l = Invoke-RestMethod -Uri '!URL!/api/connection/list' -TimeoutSec 15 } catch { exit 2 }; if ($null -eq $l -or @($l).Count -eq 0) { exit 1 } else { exit 0 }" >nul 2>&1
+if errorlevel 2 (
   echo Could not read DBX's connection list - skipping seed.
   popd & endlocal & exit /b 0
 )
-if not "!LIST!"=="[]" (
-  echo DBX already has connections - leaving them as-is.
-  popd & endlocal & exit /b 0
+if errorlevel 1 (
+  curl -sf -X POST -H "Content-Type: application/json" --data @"%SEED%" "!URL!/api/connection/save" >nul
+  if errorlevel 1 (
+    echo DBX connection seed FAILED - add them manually at !URL!
+    popd & endlocal & exit /b 1
+  )
+  echo Seeded DBX with MySQL + MariaDB + Postgres + Mongo + SQL Server + Oracle connections.
+) else (
+  echo DBX already has connections - skipping DB seed.
 )
 
-curl -sf -X POST -H "Content-Type: application/json" --data @"%SEED%" "!URL!/api/connection/save" >nul
-if errorlevel 1 (
-  echo DBX connection seed FAILED - add them manually at !URL!
-  popd & endlocal & exit /b 1
-)
-echo Seeded DBX with MySQL + MariaDB + Postgres + Mongo + SQL Server + Oracle connections.
+REM --- Stage 3: LDAP connections, one seed file per directory ---------------
+set "LDAP_FAILED=0"
+call :seed_ldap "LLDAP (LDS)" "configs\dbx\connections.ldap-lldap.seed.json"
+if errorlevel 1 set "LDAP_FAILED=1"
+call :seed_ldap "OpenLDAP (LDS)" "configs\dbx\connections.ldap-openldap.seed.json"
+if errorlevel 1 set "LDAP_FAILED=1"
 
 popd
+if "!LDAP_FAILED!"=="1" ( endlocal & exit /b 1 )
 endlocal
+exit /b 0
+
+:ensure_jdbc_plugin
+set "PST="
+for /f "usebackq delims=" %%p in (`curl -sf --max-time 15 "!URL!/api/jdbc/plugin/status" 2^>nul`) do set "PST=%%p"
+set "PSTF=!PST:"=!"
+set "P2=!PSTF:installed:true=!"
+if "!P2!"=="!PSTF!" (
+  echo DBX: installing JDBC plugin ^(first run downloads it^)...
+  curl -sf --max-time 300 -X POST "!URL!/api/jdbc/plugin/install" >nul 2>&1
+  if errorlevel 1 (
+    echo DBX: JDBC plugin install FAILED - will retry on the next 'lds up dbx' or from dbx.test.
+  ) else (
+    echo DBX: JDBC plugin installed.
+  )
+)
+exit /b 0
+
+:seed_ldap
+set "NAME=%~1"
+set "LF=%~2"
+if not exist "!LF!" exit /b 0
+powershell -NoProfile -Command "try { $l = Invoke-RestMethod -Uri '!URL!/api/connection/list' -TimeoutSec 15 } catch { exit 1 }; if (@($l.name) -contains '%~1') { exit 0 } else { exit 1 }" >nul 2>&1
+if not errorlevel 1 (
+  echo DBX: !NAME! already present - skipping.
+  exit /b 0
+)
+curl -sf -X POST -H "Content-Type: application/json" --data @"!LF!" "!URL!/api/connection/save" >nul 2>&1
+if errorlevel 1 (
+  echo DBX: seed FAILED for !NAME! - add it manually at !URL!
+  exit /b 1
+)
+echo DBX: seeded !NAME! connection.
 exit /b 0

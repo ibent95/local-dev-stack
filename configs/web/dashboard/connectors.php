@@ -162,7 +162,7 @@ if (isset($_GET['api'])) {
 </style>
 </head>
 <body>
-  <h1>🔌 Connector builder <span class="muted">· <a href="/">control panel</a></span></h1>
+  <h1>🔌 Connector builder <span class="muted">· <a href="/">control panel</a> · <a href="/docs.php?lang=en&amp;doc=09-kafka-debezium">Kafka docs</a></span></h1>
 
   <div class="row" style="margin-top:1rem">
     <label>Worker

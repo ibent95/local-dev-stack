@@ -1,0 +1,92 @@
+# Dependabot version updates for local-dev-stack.
+#
+# Note: most image tags in docker-compose.yml are interpolated
+# (${MYSQL_VERSION:-…} etc. from .env.example) - Dependabot can only bump the
+# LITERAL tags here (nginx-proxy, apache/hive, …). Env-driven versions are
+# bumped by hand in .env.example together with the compose default (see
+# CONTRIBUTING.md), and template manifests are updated deliberately rather
+# than automatically.
+version: 2
+updates:
+  # GitHub Actions (.github/workflows/desktop-build.yml)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+
+  # Compose stack images with literal tags
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+
+  # --- Desktop apps (desktop/) ---
+  - package-ecosystem: "maven"
+    directory: "/desktop/javafx"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "composer"
+    directory: "/desktop/nativephp"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "npm"
+    directory: "/desktop/nativephp"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "cargo"
+    directory: "/desktop/tauri/src-tauri"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "cargo"
+    directory: "/desktop/dioxus"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+
+  # --- Stack apps: analytics / tasks / wiki (lockfiles are git-ignored, so
+  # these PRs update the version ranges in package.json) ---
+  - package-ecosystem: "npm"
+    directory: "/configs/analytics/api"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "npm"
+    directory: "/configs/analytics/ui"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "npm"
+    directory: "/configs/tasks/api"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "npm"
+    directory: "/configs/tasks/ui"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "npm"
+    directory: "/configs/wiki/api"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: "npm"
+    directory: "/configs/wiki/ui"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3

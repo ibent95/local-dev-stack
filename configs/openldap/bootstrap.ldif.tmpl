@@ -1,0 +1,17 @@
+# LDS base entries — loaded once by entrypoint.sh on first boot.
+# Placeholders: @SUFFIX@ (base DN), @DC@ (first dc= value of the suffix).
+
+dn: @SUFFIX@
+objectClass: top
+objectClass: domain
+dc: @DC@
+
+dn: ou=people,@SUFFIX@
+objectClass: top
+objectClass: organizationalUnit
+ou: people
+
+dn: ou=groups,@SUFFIX@
+objectClass: top
+objectClass: organizationalUnit
+ou: groups

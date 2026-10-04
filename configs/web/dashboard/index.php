@@ -59,6 +59,12 @@ $serviceGroups = [
         'Centrifugo'         => ['centrifugo', 8000],
         'Mosquitto (MQTT)'   => ['mosquitto', 1883],
     ],
+    // Both LDAP directories — neither has a web UI worth linking (LLDAP's UI is
+    // disabled, OpenLDAP has none); manage them via DBX's LDAP Studio plugin.
+    'Identity (LDAP)' => [
+        'LLDAP'    => ['lldap', 17170],
+        'OpenLDAP' => ['openldap', 389],
+    ],
 ];
 // Web admin UIs (the `tools`-class profiles + Kafka UI + broker dashboards),
 // grouped too. 'url' = browser link, 'alt' = direct host:port, 'health' =
@@ -71,15 +77,19 @@ $uiGroups = [
         ['label' => 'phpCacheAdmin', 'desc' => 'Redis · Memcached',     'url' => '//cache.test',      'alt' => 'localhost:4500', 'health' => ['phpcacheadmin', 80]],
         ['label' => 'DBX',            'desc' => 'MySQL · Postgres · Mongo',  'url' => '//db.test',         'alt' => 'localhost:4501', 'health' => ['dbx', 4224]],
         ['label' => 'Kafka UI',          'desc' => 'topics · connectors',      'url' => 'http://localhost:4424', 'alt' => null, 'health' => ['kafka-ui', 8080]],
-        ['label' => 'Connector builder', 'desc' => 'build Connect connectors', 'url' => '/connectors.php',       'alt' => null, 'health' => null],
+        ['label' => 'LDS Kafka connector builder', 'desc' => 'build Connect connectors', 'url' => '/connectors.php',       'alt' => null, 'health' => null],
     ],
     'File storage' => [
         ['label' => 'RustFS',          'desc' => 'S3 object storage',     'url' => '//rustfs.test', 'alt' => 'localhost:4509', 'health' => ['rustfs', 9001]],
     ],
     'Documents & credentials' => [
-        ['label' => 'LDS Tasks',     'desc' => 'Angular 22 · Kanban boards',  'url' => '//tasks.test',     'alt' => 'localhost:4523', 'health' => ['tasks-ui', 4174]],
-        ['label' => 'LDS Wiki',      'desc' => 'Next.js 16 · documentation hub', 'url' => '//wiki.test',   'alt' => 'localhost:4525', 'health' => ['wiki-ui', 4175]],
+        ['label' => 'LDS Tasks',     'desc' => 'Angular 22 · Kanban boards',  'url' => '//lds-tasks.test',     'alt' => 'localhost:4523', 'health' => ['tasks-ui', 4174]],
+        ['label' => 'LDS Wiki',      'desc' => 'Next.js 16 · documentation hub', 'url' => '//lds-wiki.test',   'alt' => 'localhost:4525', 'health' => ['wiki-ui', 4175]],
         ['label' => 'Vaultwarden',   'desc' => 'password manager',       'url' => '//vaultwarden.test','alt' => 'localhost:4506', 'health' => ['vaultwarden', 80]],
+    ],
+    'File conversion' => [
+        ['label' => 'SnapOtter',      'desc' => '300+ file tools · convert · OCR · AI', 'url' => '//snapotter.test', 'alt' => 'localhost:4538', 'health' => ['snapotter', 1349]],
+        ['label' => 'ImgCompress',    'desc' => '70+ image formats · compress · AI bg removal', 'url' => '//imgcompress.test', 'alt' => 'localhost:4539', 'health' => ['imgcompress', 5000]],
     ],
     'Messaging / Socials' => [
         ['label' => 'Mailpit',       'desc' => 'SMTP sink · web inbox',  'url' => '//mail.test',       'alt' => 'localhost:4513', 'health' => ['mailpit', 8025]],
@@ -93,6 +103,8 @@ $uiGroups = [
         // DrawDB uses crypto.randomUUID(), which only exists in a secure context,
         // so it MUST be opened on localhost (or HTTPS) — NOT drawdb.test over http.
         ['label' => 'DrawDB',        'desc' => 'ER diagrams · open on localhost', 'url' => 'http://localhost:4502', 'alt' => null, 'health' => ['drawdb', 80]],
+        ['label' => 'draw.io',       'desc' => 'diagrams · self-hosted, offline mode', 'url' => '//drawio.test/?offline=1&https=0', 'alt' => 'localhost:4535', 'health' => ['drawio', 8080]],
+        ['label' => 'LDS Palette Generator', 'desc' => 'Coolors-style color palettes', 'url' => '/tools/palette/', 'alt' => null, 'health' => null],
     ],
     'Websites & CMS' => [
         ['label' => 'Instatic',      'desc' => 'visual CMS · admin at /admin', 'url' => '//instatic.test', 'alt' => 'localhost:4528', 'health' => ['instatic', 3001]],
@@ -101,10 +113,14 @@ $uiGroups = [
         ['label' => 'ERPNext',       'desc' => 'accounting · CRM · HR · admin/admin', 'url' => '//erpnext.test', 'alt' => 'localhost:4529', 'health' => ['erpnext-frontend', 8080]],
     ],
     'Analytic & Business intelligence' => [
-        ['label' => 'LDS Analytics', 'desc' => 'Nuxt 4 · reactive dashboard', 'url' => '//analytics.test', 'alt' => 'localhost:4521', 'health' => ['analytics-ui', 4173]],
+        ['label' => 'LDS Analytics', 'desc' => 'Nuxt 4 · reactive dashboard', 'url' => '//lds-analytics.test', 'alt' => 'localhost:4521', 'health' => ['analytics-ui', 4173]],
         ['label' => 'Apache Hop',    'desc' => 'ETL pipeline designer',   'url' => '//hop.test',        'alt' => 'localhost:4503', 'health' => ['hop', 8080]],
         ['label' => 'Trino',         'desc' => 'SQL query engine · web UI at :4451/ui', 'url' => 'http://localhost:4451', 'alt' => 'localhost:4451', 'health' => ['trino', 8080]],
         ['label' => 'Apache Superset','desc' => 'BI dashboards · admin/admin', 'url' => '//superset.test','alt' => 'localhost:4504', 'health' => ['superset', 8088]],
+    ],
+    'Monitoring & observability' => [
+        ['label' => 'Grafana',       'desc' => 'dashboards · no login (anonymous)', 'url' => '//grafana.test',    'alt' => 'localhost:4532', 'health' => ['grafana', 3000]],
+        ['label' => 'Prometheus',    'desc' => 'metrics TSDB · targets & queries', 'url' => '//prometheus.test', 'alt' => 'localhost:4533', 'health' => ['prometheus', 9090]],
     ],
     'Code & security quality scanner' => [
         ['label' => 'Semgrep',       'desc' => 'SAST · SARIF viewer',     'url' => '//semgrep.test',    'alt' => 'localhost:4505', 'health' => ['semgrep', 8080]],
@@ -114,6 +130,9 @@ $uiGroups = [
     ],
     'Testing tools' => [
         ['label' => 'Playwright',    'desc' => 'E2E tests · report viewer', 'url' => '//playwright.test', 'alt' => 'localhost:4526', 'health' => ['playwright-report', 8080]],
+    ],
+    'Developer utilities' => [
+        ['label' => 'LDS Text Diff',  'desc' => 'rich-text side-by-side compare', 'url' => '/tools/diff/',  'alt' => null, 'health' => null],
     ],
     'Websockets monitoring' => [
         ['label' => 'Centrifugo',      'desc' => 'WebSocket · admin UI',      'url' => '//centrifugo.test', 'alt' => 'localhost:4441', 'health' => ['centrifugo', 8000]],
@@ -262,7 +281,9 @@ unset($apps);
     <div>
       <h1 style="margin:0"><span class="dot">●</span> LDS <span style="color:var(--muted);font-weight:400;font-size:16px">Local Dev Stack</span></h1>
     </div>
-    <div style="margin-left:auto">
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <a href="/docs.php" style="color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:5px 12px;border-radius:7px;transition:.15s" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--line)'">Docs</a>
+      <a href="/docs.php?doc=18-credits" style="color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:5px 12px;border-radius:7px;transition:.15s" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--line)'">Credits</a>
       <a href="/about.php" style="color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);padding:5px 12px;border-radius:7px;transition:.15s" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--line)'">About</a>
     </div>
   </div>
@@ -277,7 +298,7 @@ unset($apps);
       <h3><?= htmlspecialchars($group) ?></h3>
       <div class="grid">
         <?php foreach ($apps as $app): ?>
-          <a class="card" href="<?= htmlspecialchars($app['url']) ?>"<?= (strpos($app['url'], 'http') === 0 || strpos($app['url'], '//') === 0) ? ' target="_blank" rel="noopener"' : '' ?>>
+          <a class="card" href="<?= htmlspecialchars($app['url']) ?>" target="_blank" rel="noopener">
             <div class="name">
               <?php if ($app['state'] !== null): ?><span class="stat <?= $app['state'] ?>" title="<?= $app['state'] ?>"></span><?php endif; ?>
               <?= htmlspecialchars($app['label']) ?>

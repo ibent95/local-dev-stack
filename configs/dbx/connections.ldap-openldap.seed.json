@@ -1,0 +1,60 @@
+{
+  "configs": [
+    {
+      "id": "88888888-8888-4888-8888-888888888888",
+      "name": "OpenLDAP (LDS)",
+      "db_type": "plugin",
+      "driver_profile": "plugin",
+      "driver_label": "LDAP server",
+      "host": "openldap",
+      "port": 389,
+      "username": "",
+      "password": "",
+      "color": "",
+      "connect_timeout_secs": 10,
+      "query_timeout_secs": 60,
+      "idle_timeout_secs": 60,
+      "keepalive_interval_secs": 30,
+      "ssl": false,
+      "save_password": true,
+      "external_config": {
+        "tls_mode": "none",
+        "tls_verify": true,
+        "tls_ca_path": "",
+        "tls_server_name": "",
+        "tls_client_cert_path": "",
+        "tls_client_key_path": "",
+        "base_dn": "dc=lds,dc=test",
+        "auth_type": "simple",
+        "bind_dn": "cn=admin,dc=lds,dc=test",
+        "username": "",
+        "domain": "",
+        "sasl_host": "",
+        "krb_username": "",
+        "krb_keytab_path": "",
+        "krb_ccache_path": "",
+        "krb_realm": "",
+        "krb5_conf_path": "",
+        "krb_kdc_host": "",
+        "krb_kdc_port": 88,
+        "sasl_qop": "auth",
+        "sasl_mutual_auth": false,
+        "timeout_secs": 30,
+        "dial_timeout_secs": 0,
+        "read_only": false,
+        "allowed_base_dns": "",
+        "allowed_write_base_dns": "",
+        "blocked_attributes": "userPassword\nunicodePwd\npassword\npwd\nsecret\ntoken\napiKey\nprivateKey\nobjectSid\nmemberOf"
+      },
+      "plugin_id": "io.dbx.ldap",
+      "plugin_connection_provider": "io.dbx.ldap.connection",
+      "plugin_connection_type": "ldap",
+      "connection_secrets": {
+        "bind_password": "adminadmin"
+      },
+      "database_info": {
+        "productName": "LDAP server"
+      }
+    }
+  ]
+}

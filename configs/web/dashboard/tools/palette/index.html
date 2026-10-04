@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palette Generator · LDS</title>
+<style>
+  :root{
+    --bg:#0f1419; --card:#1a212b; --line:#2c3743;
+    --fg:#e6edf3; --muted:#8b98a5; --accent:#EF4444;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    background:var(--bg);color:var(--fg);min-height:100vh;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 20px 12px}
+  h1{font-size:20px;margin:0;letter-spacing:.3px}
+  h1 span{color:var(--muted);font-weight:400;font-size:14px}
+  .back{color:var(--muted);font-size:13px;text-decoration:none;border:1px solid var(--line);
+    padding:5px 12px;border-radius:7px}
+  .back:hover{color:var(--accent);border-color:var(--accent)}
+  .tools{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  select,input[type=number],button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);
+    color:var(--fg);border-radius:7px;padding:6px 12px;transition:.12s}
+  select:hover,button:hover,input[type=number]:hover{border-color:var(--accent)}
+  input[type=number]{width:66px;text-align:center;-moz-appearance:textfield;appearance:textfield}
+  input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button.primary:hover{filter:brightness(1.1)}
+  .seed{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px}
+  .seed input[type=color]{width:34px;height:30px;padding:1px;border:1px solid var(--line);
+    border-radius:6px;background:var(--card);cursor:pointer}
+  .seed.off{opacity:.4}
+  .board{flex:1;display:flex;min-height:60vh;position:relative;padding:0 20px 10px;gap:0}
+  .col{flex:1 1 0;min-width:0;border-radius:0;position:relative;display:flex;
+    flex-direction:column;align-items:center;padding:14px 8px;transition:background .2s}
+  .col:first-child{border-radius:12px 0 0 12px}
+  .col:last-child{border-radius:0 12px 12px 0}
+  .col .top{display:flex;gap:6px;width:100%;justify-content:space-between;align-items:center}
+  .iconbtn{width:34px;height:34px;border-radius:8px;display:inline-flex;align-items:center;
+    justify-content:center;padding:0;background:rgba(0,0,0,.18);border:1px solid rgba(0,0,0,.25);
+    color:inherit;backdrop-filter:blur(2px)}
+  .iconbtn:hover{border-color:currentColor;transform:translateY(-1px)}
+  .iconbtn.active{background:rgba(0,0,0,.55)}
+  .grow{flex:1}
+  .info{text-align:center;width:100%;display:flex;flex-direction:column;gap:3px}
+  .hexbtn{font:700 17px ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(0,0,0,.22);
+    border:1px solid rgba(0,0,0,.28);border-radius:8px;padding:6px 8px;width:100%;color:inherit}
+  .hexbtn:hover{border-color:currentColor}
+  .sub{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;opacity:.85}
+  .cr{font-size:12px;opacity:.85;margin-top:4px}
+  .cr b{font-weight:700}
+  .hint{color:var(--muted);font-size:12.5px;padding:0 20px 16px;text-align:center}
+  .hint kbd{background:var(--card);border:1px solid var(--line);border-radius:4px;
+    padding:0 5px;font:12px ui-monospace,monospace}
+  #popover{position:fixed;z-index:20;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:14px 16px;width:250px;box-shadow:0 12px 34px rgba(0,0,0,.5)}
+  #popover h3{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:1px;
+    color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+  #popover h3 button{padding:2px 8px;font-size:12px}
+  .slider{display:grid;grid-template-columns:22px 1fr 44px;gap:8px;align-items:center;
+    margin:8px 0;font-size:12.5px;color:var(--muted)}
+  .slider input[type=range]{width:100%}
+  .slider output{font:12px ui-monospace,monospace;color:var(--fg);text-align:right}
+  #modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;
+    justify-content:center;z-index:50;padding:20px}
+  #modal[hidden]{display:none}
+  .dialog{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    width:min(560px,100%);max-height:85vh;overflow:auto;padding:20px 22px}
+  .dialog h2{margin:0 0 4px;font-size:17px;display:flex;justify-content:space-between;align-items:center}
+  .dialog h2 button{padding:3px 10px}
+  .dialog h4{margin:16px 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:1px;
+    color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+  .dialog h4 button{padding:2px 9px;font-size:12px}
+  .dialog pre{margin:0;background:#0b0f14;border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;
+    overflow:auto;color:var(--fg);white-space:pre-wrap}
+  @media (max-width:760px){
+    .board{flex-direction:column;min-height:0}
+    .col{border-radius:0!important;min-height:150px;flex-direction:row;gap:12px}
+    .col:first-child{border-radius:12px 12px 0 0!important}
+    .col:last-child{border-radius:0 0 12px 12px!important}
+    .info{width:auto;flex:1}
+    .grow{display:none}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Palette Generator <span>· Coolors-style color palettes</span></h1>
+  <a class="back" href="/">&larr; Dashboard</a>
+  <div class="tools">
+    <label class="seed" id="seedWrap">Seed <input type="color" id="seed" value="#ef4444"></label>
+    <label class="seed">Colors <input type="number" id="count" min="2" max="12" step="1" value="5" title="Palette size (2-12 colors)"></label>
+    <select id="mode" title="Harmony mode">
+      <option value="random">Random</option>
+      <option value="analogous">Analogous</option>
+      <option value="complementary">Complementary</option>
+      <option value="triadic">Triadic</option>
+      <option value="tetradic">Tetradic</option>
+      <option value="monochromatic">Monochromatic</option>
+    </select>
+    <button id="generate">Generate</button>
+    <button class="primary" id="export">Export</button>
+  </div>
+</header>
+
+<div class="board" id="board"></div>
+
+<p class="hint"><kbd>Space</kbd> generate · click a hex to copy · lock colors you want to keep ·
+   set the number of colors (2-12) in the header · use the <b>adjust</b> icon for H/S/L sliders &amp; contrast</p>
+
+<div id="popover" hidden>
+  <h3>Adjust <button id="popClose">Close</button></h3>
+  <div class="slider">H <input type="range" id="sH" min="0" max="360" step="1"><output id="oH"></output></div>
+  <div class="slider">S <input type="range" id="sS" min="0" max="100" step="1"><output id="oS"></output></div>
+  <div class="slider">L <input type="range" id="sL" min="0" max="100" step="1"><output id="oL"></output></div>
+  <div class="cr" id="popContrast" style="text-align:center"></div>
+</div>
+
+<div id="modal" hidden>
+  <div class="dialog">
+    <h2>Export palette <button id="modalClose">Close</button></h2>
+    <div id="exportBody"></div>
+  </div>
+</div>
+
+<script>
+let N = 5;
+const board = document.getElementById('board');
+const modeSel = document.getElementById('mode');
+const seedInput = document.getElementById('seed');
+const seedWrap = document.getElementById('seedWrap');
+const countInput = document.getElementById('count');
+const popover = document.getElementById('popover');
+const modal = document.getElementById('modal');
+let cols = [];
+let locks = new Array(N).fill(false);
+let popIdx = -1;
+
+function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
+function rand(a, b) { return a + Math.random() * (b - a); }
+
+function hsl2hex(h, s, l) {
+  h = ((h % 360) + 360) % 360;
+  s = clamp(s, 0, 100) / 100;
+  l = clamp(l, 0, 100) / 100;
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const to = x => Math.round(255 * f(x)).toString(16).padStart(2, '0');
+  return '#' + to(0) + to(8) + to(4);
+}
+
+function hex2rgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function hex2hsl(hex) {
+  const [r0, g0, b0] = hex2rgb(hex);
+  const r = r0 / 255, g = g0 / 255, b = b0 / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+  }
+  return { h, s: s * 100, l: l * 100 };
+}
+
+function srgb(c) {
+  c /= 255;
+  return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+function lum(rgb) {
+  return 0.2126 * srgb(rgb[0]) + 0.7152 * srgb(rgb[1]) + 0.0722 * srgb(rgb[2]);
+}
+function cratio(a, b) {
+  const l1 = lum(a), l2 = lum(b);
+  const hi = Math.max(l1, l2), lo = Math.min(l1, l2);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+const WHITE = [255, 255, 255], BLACK = [0, 0, 0];
+
+function textColor(hex) {
+  const rgb = hex2rgb(hex);
+  return cratio(rgb, BLACK) >= cratio(rgb, WHITE) ? '#000' : '#fff';
+}
+
+function genColor(baseH, mode, i) {
+  if (mode === 'random') {
+    return { h: rand(0, 360), s: rand(55, 95), l: rand(38, 70) };
+  }
+  if (mode === 'analogous') {
+    return { h: baseH + (i - (N - 1) / 2) * 30 + rand(-8, 8), s: rand(55, 88), l: rand(38, 68) };
+  }
+  if (mode === 'complementary') {
+    const h = baseH + (i % 2) * 180 + rand(-12, 12);
+    return { h, s: rand(55, 90), l: rand(38 + (i % 2) * 8, 68) };
+  }
+  if (mode === 'triadic') {
+    return { h: baseH + (i % 3) * 120 + rand(-10, 10), s: rand(55, 88), l: rand(40, 68) };
+  }
+  if (mode === 'tetradic') {
+    return { h: baseH + (i % 4) * 90 + rand(-8, 8), s: rand(55, 88), l: rand(40, 66) };
+  }
+  const spread = 30 + (N > 1 ? i / (N - 1) : 0) * 50;
+  return { h: baseH + rand(-10, 10), s: clamp(rand(55, 90) - Math.abs(spread - 55) * 0.4, 25, 95), l: spread + rand(-4, 4) };
+}
+
+function save() {
+  try {
+    localStorage.setItem('lds-palette-v1', JSON.stringify({ cols, locks, mode: modeSel.value, seed: seedInput.value, n: N }));
+  } catch (e) {}
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem('lds-palette-v1');
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    const n = parseInt(d.n, 10);
+    if (n >= 2 && n <= 12) { N = n; countInput.value = N; }
+    if (!d.cols || d.cols.length !== N) return false;
+    cols = d.cols;
+    locks = d.locks || locks;
+    if (d.mode) modeSel.value = d.mode;
+    if (d.seed) seedInput.value = d.seed;
+    return true;
+  } catch (e) { return false; }
+}
+
+function generate() {
+  const mode = modeSel.value;
+  const base = hex2hsl(seedInput.value).h;
+  for (let i = 0; i < N; i++) {
+    if (locks[i]) continue;
+    cols[i] = genColor(base, mode, i);
+  }
+  save();
+  render();
+}
+
+function hexOf(i) { return hsl2hex(cols[i].h, cols[i].s, cols[i].l); }
+
+const ICON_LOCK_OPEN =
+  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.4-2"/></svg>';
+const ICON_LOCK_CLOSED =
+  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+const ICON_ADJUST =
+  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>';
+
+function buildBoard() {
+  board.innerHTML = '';
+  for (let i = 0; i < N; i++) {
+    const col = document.createElement('div');
+    col.className = 'col';
+    col.dataset.i = i;
+    col.innerHTML =
+      '<div class="top">' +
+      '<button class="iconbtn lock" title="Lock this color"></button>' +
+      '<button class="iconbtn adj" title="Adjust H/S/L &amp; contrast">' + ICON_ADJUST + '</button>' +
+      '</div><div class="grow"></div><div class="info">' +
+      '<button class="hexbtn"></button>' +
+      '<div class="sub rgbv"></div>' +
+      '<div class="sub hslv"></div>' +
+      '<div class="cr"></div></div>';
+    board.appendChild(col);
+  }
+}
+
+function render() {
+  const colsEls = board.querySelectorAll('.col');
+  colsEls.forEach((el, i) => {
+    const hex = hexOf(i);
+    const fg = textColor(hex);
+    el.style.background = hex;
+    el.style.color = fg;
+    const lockBtn = el.querySelector('.lock');
+    lockBtn.innerHTML = locks[i] ? ICON_LOCK_CLOSED : ICON_LOCK_OPEN;
+    lockBtn.classList.toggle('active', locks[i]);
+    lockBtn.title = locks[i] ? 'Unlock (space keeps this color)' : 'Lock this color';
+    const hexBtn = el.querySelector('.hexbtn');
+    hexBtn.textContent = hex.toUpperCase();
+    hexBtn.title = 'Click to copy ' + hex.toUpperCase();
+    const [r, g, b] = hex2rgb(hex);
+    el.querySelector('.rgbv').textContent = 'rgb(' + r + ', ' + g + ', ' + b + ')';
+    const c = cols[i];
+    el.querySelector('.hslv').textContent =
+      'hsl(' + Math.round(c.h) + ', ' + Math.round(c.s) + '%, ' + Math.round(c.l) + '%)';
+    const rgb = hex2rgb(hex);
+    const rw = cratio(rgb, WHITE), rb = cratio(rgb, BLACK);
+    const pass = rw >= 4.5 ? 'white' : (rb >= 4.5 ? 'black' : rw >= 3 ? 'white lg' : 'none');
+    el.querySelector('.cr').innerHTML =
+      'vs white <b>' + rw.toFixed(1) + '</b> · vs black <b>' + rb.toFixed(1) + '</b>' +
+      '<br>AA text on ' + pass;
+  });
+  if (popIdx >= 0) syncPopover();
+}
+
+function copyText(text, btn, label) {
+  const done = () => {
+    const old = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = label || old; }, 1100);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
+  } else {
+    fallbackCopy(text, done);
+  }
+}
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+  done();
+}
+
+board.addEventListener('click', e => {
+  const col = e.target.closest('.col');
+  if (!col) return;
+  const i = +col.dataset.i;
+  if (e.target.closest('.lock')) {
+    locks[i] = !locks[i];
+    save();
+    render();
+    return;
+  }
+  if (e.target.closest('.adj')) {
+    openPopover(i);
+    return;
+  }
+  if (e.target.closest('.hexbtn')) {
+    copyText(hexOf(i).toUpperCase(), e.target.closest('.hexbtn'));
+  }
+});
+
+function openPopover(i) {
+  popIdx = i;
+  syncPopover();
+  const col = board.querySelectorAll('.col')[i];
+  popover.hidden = false;
+  const r = col.getBoundingClientRect();
+  const w = 250;
+  let left = r.left + r.width / 2 - w / 2;
+  left = clamp(left, 8, window.innerWidth - w - 8);
+  let top = r.top + 50;
+  top = clamp(top, 8, Math.max(8, window.innerHeight - 245));
+  popover.style.left = left + 'px';
+  popover.style.top = top + 'px';
+}
+
+function syncPopover() {
+  const c = cols[popIdx];
+  document.getElementById('sH').value = Math.round(c.h);
+  document.getElementById('sS').value = Math.round(c.s);
+  document.getElementById('sL').value = Math.round(c.l);
+  document.getElementById('oH').textContent = Math.round(c.h) + '°';
+  document.getElementById('oS').textContent = Math.round(c.s) + '%';
+  document.getElementById('oL').textContent = Math.round(c.l) + '%';
+  const hex = hexOf(popIdx);
+  const rgb = hex2rgb(hex);
+  document.getElementById('popContrast').innerHTML =
+    hex.toUpperCase() + ' · vs white <b>' + cratio(rgb, WHITE).toFixed(1) +
+    '</b> · vs black <b>' + cratio(rgb, BLACK).toFixed(1) + '</b>';
+}
+
+['sH', 'sS', 'sL'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    if (popIdx < 0) return;
+    cols[popIdx] = {
+      h: +document.getElementById('sH').value,
+      s: +document.getElementById('sS').value,
+      l: +document.getElementById('sL').value
+    };
+    save();
+    render();
+  });
+});
+
+document.getElementById('popClose').addEventListener('click', () => {
+  popover.hidden = true;
+  popIdx = -1;
+});
+
+function exportSections() {
+  const hexes = cols.map((_, i) => hexOf(i).toUpperCase());
+  const rgbs = cols.map((_, i) => 'rgb(' + hex2rgb(hexOf(i)).join(', ') + ')');
+  const hsls = cols.map((_, i) =>
+    'hsl(' + Math.round(cols[i].h) + ', ' + Math.round(cols[i].s) + '%, ' + Math.round(cols[i].l) + '%)');
+  const css = ':root {\n' + hexes.map((h, i) => '  --color-' + (i + 1) + ': ' + h + ';').join('\n') + '\n}';
+  return [
+    ['HEX', hexes.join('\n')],
+    ['RGB', rgbs.join('\n')],
+    ['HSL', hsls.join('\n')],
+    ['CSS variables', css]
+  ];
+}
+
+document.getElementById('export').addEventListener('click', () => {
+  const body = document.getElementById('exportBody');
+  body.innerHTML = '';
+  exportSections().forEach(([title, content]) => {
+    const h4 = document.createElement('h4');
+    h4.innerHTML = '<span>' + title + '</span>';
+    const btn = document.createElement('button');
+    btn.textContent = 'Copy';
+    h4.appendChild(btn);
+    const pre = document.createElement('pre');
+    pre.textContent = content;
+    btn.addEventListener('click', () => copyText(content, btn, 'Copy'));
+    body.appendChild(h4);
+    body.appendChild(pre);
+  });
+  modal.hidden = false;
+});
+
+document.getElementById('modalClose').addEventListener('click', () => { modal.hidden = true; });
+modal.addEventListener('click', e => { if (e.target === modal) modal.hidden = true; });
+
+document.getElementById('generate').addEventListener('click', generate);
+
+modeSel.addEventListener('change', () => {
+  seedWrap.classList.toggle('off', modeSel.value === 'random');
+  generate();
+});
+
+seedInput.addEventListener('input', () => {
+  if (modeSel.value !== 'random') generate();
+});
+
+countInput.addEventListener('change', () => {
+  const v = clamp(parseInt(countInput.value, 10) || N, 2, 12);
+  countInput.value = v;
+  if (v === N) return;
+  N = v;
+  const base = hex2hsl(seedInput.value).h;
+  const nextCols = [], nextLocks = [];
+  for (let i = 0; i < N; i++) {
+    nextCols[i] = cols[i] || genColor(base, modeSel.value, i);
+    nextLocks[i] = locks[i] || false;
+  }
+  cols = nextCols;
+  locks = nextLocks;
+  if (popIdx >= N) { popover.hidden = true; popIdx = -1; }
+  buildBoard();
+  save();
+  render();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.code !== 'Space' || e.repeat) return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  if (!modal.hidden || !popover.hidden) return;
+  e.preventDefault();
+  generate();
+});
+
+document.addEventListener('click', e => {
+  if (!popover.hidden && !e.target.closest('#popover') && !e.target.closest('.adj')) {
+    popover.hidden = true;
+    popIdx = -1;
+  }
+});
+
+buildBoard();
+if (!load()) generate();
+seedWrap.classList.toggle('off', modeSel.value === 'random');
+render();
+</script>
+</body>
+</html>
