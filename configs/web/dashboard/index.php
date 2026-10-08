@@ -41,6 +41,7 @@ $serviceGroups = [
         'MongoDB'    => ['mongo', 27017],
         'SQL Server' => ['mssql', 1433],
         'Oracle'     => ['oracle', 1521],
+        'RabbitMQ'   => ['rabbitmq', 5672],
         'DuckDB'     => ['duckdb', null], // embedded file engine — no network port
     ],
     'Cache' => [
@@ -77,6 +78,7 @@ $uiGroups = [
         ['label' => 'phpCacheAdmin', 'desc' => 'Redis · Memcached',     'url' => '//cache.test',      'alt' => 'localhost:4500', 'health' => ['phpcacheadmin', 80]],
         ['label' => 'DBX',            'desc' => 'MySQL · Postgres · Mongo',  'url' => '//db.test',         'alt' => 'localhost:4501', 'health' => ['dbx', 4224]],
         ['label' => 'Kafka UI',          'desc' => 'topics · connectors',      'url' => 'http://localhost:4424', 'alt' => null, 'health' => ['kafka-ui', 8080]],
+        ['label' => 'RabbitMQ',          'desc' => 'broker · queues',       'url' => 'http://localhost:4411', 'alt' => null, 'health' => ['rabbitmq', 15672]],
         ['label' => 'LDS Kafka connector builder', 'desc' => 'build Connect connectors', 'url' => '/connectors.php',       'alt' => null, 'health' => null],
     ],
     'File storage' => [
@@ -108,15 +110,18 @@ $uiGroups = [
     ],
     'Websites & CMS' => [
         ['label' => 'Instatic',      'desc' => 'visual CMS · admin at /admin', 'url' => '//instatic.test', 'alt' => 'localhost:4528', 'health' => ['instatic', 3001]],
+    ],    'ERP & business' => [
+        ['label' => 'ERPNext',       'desc' => 'accounting · CRM · HR · admin/admin', 'url' => '//erpnext.test',      'alt' => 'localhost:4529', 'health' => ['erpnext-frontend', 8080]],
     ],
-    'ERP & business' => [
-        ['label' => 'ERPNext',       'desc' => 'accounting · CRM · HR · admin/admin', 'url' => '//erpnext.test', 'alt' => 'localhost:4529', 'health' => ['erpnext-frontend', 8080]],
+    'Project management' => [
+        ['label' => 'Plane',         'desc' => 'issues · cycles · setup wizard on first run', 'url' => '//plane.test', 'alt' => 'localhost:4543', 'health' => ['plane-proxy', 80]],
     ],
     'Analytic & Business intelligence' => [
         ['label' => 'LDS Analytics', 'desc' => 'Nuxt 4 · reactive dashboard', 'url' => '//lds-analytics.test', 'alt' => 'localhost:4521', 'health' => ['analytics-ui', 4173]],
         ['label' => 'Apache Hop',    'desc' => 'ETL pipeline designer',   'url' => '//hop.test',        'alt' => 'localhost:4503', 'health' => ['hop', 8080]],
         ['label' => 'Trino',         'desc' => 'SQL query engine · web UI at :4451/ui', 'url' => 'http://localhost:4451', 'alt' => 'localhost:4451', 'health' => ['trino', 8080]],
         ['label' => 'Apache Superset','desc' => 'BI dashboards · admin/admin', 'url' => '//superset.test','alt' => 'localhost:4504', 'health' => ['superset', 8088]],
+        ['label' => 'Metabase',       'desc' => 'BI dashboards · setup wizard on first run', 'url' => '//metabase.test', 'alt' => 'localhost:4541', 'health' => ['metabase', 3000]],
     ],
     'Monitoring & observability' => [
         ['label' => 'Grafana',       'desc' => 'dashboards · no login (anonymous)', 'url' => '//grafana.test',    'alt' => 'localhost:4532', 'health' => ['grafana', 3000]],
@@ -130,6 +135,7 @@ $uiGroups = [
     ],
     'Testing tools' => [
         ['label' => 'Playwright',    'desc' => 'E2E tests · report viewer', 'url' => '//playwright.test', 'alt' => 'localhost:4526', 'health' => ['playwright-report', 8080]],
+        ['label' => 'Hoppscotch',    'desc' => 'API client · REST/GraphQL/WS · onboarding at /admin', 'url' => '//hoppscotch.test', 'alt' => 'localhost:4542', 'health' => ['hoppscotch', 80]],
     ],
     'Developer utilities' => [
         ['label' => 'LDS Text Diff',  'desc' => 'rich-text side-by-side compare', 'url' => '/tools/diff/',  'alt' => null, 'health' => null],

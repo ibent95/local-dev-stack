@@ -18,7 +18,7 @@ services:
   proxy:
     ports:
       # TLS listener. Visit https://<name>.test (or https://localhost:<port>).
-      - "${WEB_HTTPS_PORT:-443}:443"
+      - "127.0.0.1:${WEB_HTTPS_PORT:-443}:443"
     environment:
       # noredirect = serve BOTH http and https (don't force a redirect), so any
       # existing http://…​.test workflow keeps working. Set HTTPS_METHOD=redirect

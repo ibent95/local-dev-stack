@@ -74,6 +74,18 @@ anything else on your machine. Each one is set by a `*_HOST_PORT` variable in
 <td><code>memcached:11211</code></td>
 </tr>
 <tr>
+<td></td>
+<td>RabbitMQ (AMQP)</td>
+<td><code>localhost:4410</code></td>
+<td><code>rabbitmq:5672</code></td>
+</tr>
+<tr>
+<td></td>
+<td>RabbitMQ (management UI)</td>
+<td><code>localhost:4411</code></td>
+<td><code>rabbitmq:15672</code></td>
+</tr>
+<tr>
 <td colspan="4">
     <b>Kafka</b> <code>4420–4439</code>
 </td>
@@ -162,7 +174,7 @@ anything else on your machine. Each one is set by a `*_HOST_PORT` variable in
 </tr>
 <tr>
 <td colspan="4">
-    <b>Admin tools</b> <code>4500–4540</code>
+    <b>Admin tools</b> <code>4500–4543</code>
 </td>
 </tr>
 <tr>
@@ -195,6 +207,23 @@ anything else on your machine. Each one is set by a `*_HOST_PORT` variable in
 <td><code>localhost:4504</code> (<code>superset.test</code>)</td>
 <td><code>superset:8088</code></td>
 </tr>
+<tr>
+<td></td>
+<td>Metabase</td>
+<td><code>localhost:4541</code> (<code>metabase.test</code>)</td>
+<td><code>metabase:3000</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Hoppscotch</td>
+<td><code>localhost:4542</code> (<code>hoppscotch.test</code>)</td>
+<td><code>hoppscotch:80</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Plane</td>
+<td><code>localhost:4543</code> (<code>plane.test</code>)</td>
+<td><code>plane-proxy:80</code></td>
 <tr>
 <td></td>
 <td>Semgrep viewer</td>

@@ -76,7 +76,12 @@ add "${IMGCOMPRESS_HOST:-imgcompress.test}" "(image toolbox - 70+ formats)"
 
 group "Data tools"
 add "${SUPERSET_HOST:-superset.test}"
+add "${METABASE_HOST:-metabase.test}"
 add "${HOP_HOST:-hop.test}"
+
+group "API & project management"
+add "${HOPPSCOTCH_HOST:-hoppscotch.test}" "(API client - Postman alternative)"
+add "${PLANE_HOST:-plane.test}" "(project management - Jira/Linear alternative)"
 
 group "Code quality"
 add "${SEMGREP_HOST:-semgrep.test}"

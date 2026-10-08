@@ -3,7 +3,7 @@ name: local-dev-stack
 description: >
   Operate the local-dev-stack shared Docker Compose environment via the `lds`
   CLI — start/stop profiles, manage the bundled tools (DrawDB, Apache Hop,
-  Superset, Semgrep, Vaultwarden, Analytics, Tasks, Wiki, Kafka, the databases,
+  Superset, Metabase, Hoppscotch, Plane, Semgrep, Vaultwarden, Analytics, Tasks, Wiki, Kafka, the databases,
   SnapOtter, ImgCompress, draw.io, LLDAP, OpenLDAP, Prometheus/Grafana),
   sync *.test hosts, and apply known
   fixes. Use when working in this repo or when the user asks to run, configure,
@@ -52,9 +52,9 @@ Old flat names (`kafka-topics`, `mysql-init`, `mongo-init`, `register-connectors
 ## Layout / ordering
 
 `docker-compose.yml` is ordered by importance of usage: **web foundation**
-(proxy, dns, php) → **databases** (mysql, mariadb, mssql, oracle, postgres, mongo, redis, valkey, memcached) →
+(proxy, dns, php) → **databases** (mysql, mariadb, mssql, oracle, postgres, mongo, redis, valkey, memcached, rabbitmq) →
 **admin UIs** (phpcacheadmin, dbx) → **data tools** (drawdb, hop, superset,
-semgrep, zap, trivy, crg, vaultwarden, mailpit, penpot, instatic, analytics, tasks, wiki) → **web utilities** (snapotter, imgcompress, drawio, lldap, openldap,
+metabase, hoppscotch, plane, semgrep, zap, trivy, crg, vaultwarden, mailpit, penpot, instatic, analytics, tasks, wiki) → **web utilities** (snapotter, imgcompress, drawio, lldap, openldap,
 prometheus+grafana) → **realtime brokers** (soketi, centrifugo, mqtt) → **Kafka** (last,
 heaviest, off by default) → **HeadlessX/Playwright** → **ERPNext** (reuses shared
 postgres + redis, heavy — off by default).
@@ -93,11 +93,11 @@ and after editing the PHP itself, run `docker exec lds-php php -l ...` and
   `lds new hop <name>` scaffolds under `HOP_PROJECTS_PATH` (default `data/hop/projects/`),
   and `hop-register` (auto-run by `lds up hop`) registers each folder in hop-config.json
   via `hop-conf`.  Edit pipelines/workflows on disk — changes are live in Hop.
-- **Superset 502 / "readonly database"** → the bind-mounted `data/superset/`
-  directory must be writable by UID 65532 (the DHI nonroot user). On Linux, fix
-  with `chown 65532:65532 data/superset` then recreate. On Windows Docker
-  Desktop this is a non-issue. Login `admin`/`admin`. Data lives directly on
-  disk (like Hop's project mechanism) — no export/import needed.
+- **Superset won't start / write errors in `data/superset/`** → metadata lives
+  in the shared Postgres (`lds_superset`), but the `data/superset/` bind mount
+  (config, cache, project exports) must still be writable by UID 65532 (the DHI
+  nonroot user). On Linux, fix with `chown 65532:65532 data/superset` then
+  recreate. On Windows Docker Desktop this is a non-issue. Login `admin`/`admin`.
 - **Semgrep** = two services: `semgrep` (nginx viewer at `semgrep.test`, serving
   `data/semgrep/reports/`) and `semgrep-scan` (pinned `semgrep/semgrep` CLI in
   its own run-only profile — never auto-starts). `lds tools semgrep [path]` runs

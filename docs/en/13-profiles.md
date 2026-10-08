@@ -94,6 +94,12 @@ when you'd turn it on.
 <td>`memcached`</td>
 </tr>
 <tr>
+<td>`rabbitmq`</td>
+<td>`LDS_ENABLE_RABBITMQ`</td>
+<td>❌</td>
+<td>`rabbitmq`</td>
+</tr>
+<tr>
 <td>`kafka`</td>
 <td>`LDS_ENABLE_KAFKA`</td>
 <td>❌</td>
@@ -146,6 +152,24 @@ when you'd turn it on.
 <td>`LDS_ENABLE_SUPERSET`</td>
 <td>❌</td>
 <td>`superset` — Apache Superset (BI)</td>
+</tr>
+<tr>
+<td>`metabase`</td>
+<td>`LDS_ENABLE_METABASE`</td>
+<td>❌</td>
+<td>`metabase` — Metabase (BI, first-run setup wizard)</td>
+</tr>
+<tr>
+<td>`hoppscotch`</td>
+<td>`LDS_ENABLE_HOPPSCOTCH`</td>
+<td>❌</td>
+<td>`hoppscotch` — Hoppscotch API client (Postman alternative, MIT CE)</td>
+</tr>
+<tr>
+<td>`plane`</td>
+<td>`LDS_ENABLE_PLANE`</td>
+<td>❌</td>
+<td>`plane` — Plane project management (Jira/Linear alternative, AGPL-3.0 CE; shared Postgres/Redis/RustFS/RabbitMQ)</td>
 </tr>
 <tr>
 <td>`semgrep`</td>
@@ -301,7 +325,7 @@ when you'd turn it on.
 </table>
 
 > **Custom apps** (`analytics`, `tasks`, `wiki`), **data tools** (`drawdb`, `hop`,
-> `superset`, `semgrep`, `zap`, `trivy`, `crg`, `vaultwarden`, `mail`, `penpot`,
+> `superset`, `metabase`, `hoppscotch`, `plane`, `semgrep`, `zap`, `trivy`, `crg`, `vaultwarden`, `mail`, `penpot`,
 > `instatic`, `openwa`, `rustfs`), the **automation/testing profiles**
 > (`headlessx`, `playwright`) and the **utilities** (`snapotter`, `imgcompress`,
 > `drawio`, `lldap`, `openldap`, `monitoring`) get their own page —
@@ -481,6 +505,25 @@ requires one). `ORACLE_PASSWORD` is **required** and sets `SYS`/`SYSTEM`;
 - **Memory cap:** `${MEMCACHED_MEMORY}` MB (default `64`).
 - **No volume** — purely in-memory; data is gone on restart by design.
 - Inspect it via the `phpcacheadmin` profile.
+
+## `rabbitmq` — RabbitMQ 3.13
+
+**Starts:** `rabbitmq`. **Toggle:** `LDS_ENABLE_RABBITMQ`. **Off by default.**
+(The `plane` profile starts it too — Plane's task queue runs on the shared
+broker.)
+
+- **Image:** `rabbitmq:${RABBITMQ_VERSION}-management-alpine` (default
+  `3.13.6`, management UI included).
+- **Ports:** AMQP host `${RABBITMQ_HOST_PORT}` (default `4410`) → container
+  `5672`; management UI host `${RABBITMQ_MGMT_HOST_PORT}` (default `4411`) →
+  `15672` — open `http://localhost:4411` and log in with
+  `RABBITMQ_USER` / `RABBITMQ_PASSWORD`.
+- **Provisioning:** user, password and vhost (`app` / `app` / `app` by
+  default) are created on the FIRST boot of the `rabbitmq_data` volume;
+  changing `RABBITMQ_*` later needs a volume reset (`lds down -v`).
+- **Clients:** in-network services connect to `rabbitmq:5672` (Plane's
+  `AMQP_URL` is pre-wired to it).
+- **Storage:** volume `rabbitmq_data`.
 
 ## `kafka` — full Kafka stack (KRaft + Debezium CDC)
 

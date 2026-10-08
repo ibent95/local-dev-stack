@@ -32,8 +32,10 @@ gated behind **profiles** and share one external network `lds-network`.
 -  `data/` — bind-mounted user data for tools (git-ignored; each developer has
   their own): `hop/{config,audit,projects}` (Hop pipelines, workflows, connections,
   plus folder-per-project under `projects/`),
-  `superset/` (Superset metadata — SQLite DB, dashboards, connections; data lives
-  directly on disk, read/written by the app),
+  `superset/` (Superset config/cache/projects — metadata lives in the shared
+  Postgres `lds_superset`, no longer in this directory),
+  `metabase/` (legacy Metabase H2 file — app DB moved to the shared Postgres
+  `lds_metabase`; the directory is still mounted as the H2 fallback),
   `dbx/` (DBX connections `dbx.db` + `.dbx/secret.key`; a leftover `dbgate/`
   from the retired DBGate UI may still exist on older checkouts),
   `semgrep/reports/`, `trivy/reports/`, `crg/reports/` (scanner report viewers),
@@ -173,9 +175,9 @@ gated behind **profiles** and share one external network `lds-network`.
   BI role — `web-template-superset` and `web-template-powerbi`: BI dashboard
   project folders. Scaffold via `lds new web-superset <name>` or
   `lds new web-powerbi <name>` (also bare `superset`/`powerbi`); lands in
-  `SUPERSET_PROJECTS_PATH` (default `data/superset/`). Superset data lives
-  directly on disk (SQLite at `data/superset/superset.db`) — the app reads
-  and writes to the bind-mounted directory, so no export/import is needed.
+  `SUPERSET_PROJECTS_PATH` (default `data/superset/`). Superset metadata lives
+  in the shared Postgres (`lds_superset`); `data/superset/` keeps config, cache
+  and the scaffolded project exports.
   PHP-fpm frameworks put
   the fpm `app` on a per-project `internal` network and nginx bridges to
   `lds-network` (avoids `app` alias collisions). Java Servlet templates don't
@@ -190,7 +192,8 @@ gated behind **profiles** and share one external network `lds-network`.
 ## Profiles
 
 `proxy` `php` `mysql` `mariadb` `mssql` `oracle` `postgres` `mongo` `redis`
-`valkey` `memcached` `kafka` `phpcacheadmin` `dbx` `drawdb` `hop` `superset`
+`valkey` `memcached` `rabbitmq` `kafka` `phpcacheadmin` `dbx` `drawdb` `hop` `superset`
+`metabase` `hoppscotch` `plane`
 `duckdb` `trino` `semgrep` `zap` `trivy` `crg` `vaultwarden` `mail` `penpot`
 `instatic` `analytics` `tasks` `wiki` `openwa` `rustfs` `headlessx` `playwright`
 `erpnext` `soketi` `centrifugo` `mqtt` `snapotter` `imgcompress` `drawio` `lldap`
@@ -223,9 +226,26 @@ project data bind-mounted to `data/hop/` so pipelines/workflows are
 accessible on disk; folder-per-project via `HOP_PROJECTS_PATH` — each subfolder
 is a Hop project registered automatically via `hop-conf` on `lds up hop`).
 **Apache Superset** = BI (`superset`, `superset.test` / :4504, DHI image, nonroot,
-self-init via venv python, admin/admin, SQLite metadata in `data/superset/`).
-Data lives directly on disk via bind mount — no export/import needed; Superset
-reads and writes to `data/superset/` directly (like Hop's project mechanism).
+self-init via venv python, admin/admin, metadata in shared Postgres
+`lds_superset` via `POSTGRES_INIT_SPECS`; `data/superset/` keeps config/cache/
+projects).
+**Metabase** = simpler BI alternative (`metabase`, `metabase.test` / :4541,
+official upstream image, AGPL-3.0, first-run setup wizard — no default login,
+app DB in shared Postgres `lds_metabase`; `data/metabase/` holds the legacy H2
+file only).
+**Hoppscotch** = self-hosted API client / Postman alternative (`hoppscotch`,
+`hoppscotch.test` / :4542, MIT Community Edition, ONE AIO container in subpath
+mode — app `/`, admin `/admin`, backend `/backend`; app DB `lds_hoppscotch` in
+the shared postgres via POSTGRES_INIT_SPECS, Prisma migrations by the
+`hoppscotch-migrate` one-shot on every `up`; email magic links land in Mailpit
+(`mail` profile), OAuth client IDs go in the `/admin` onboarding).
+**Plane** = open-source project management, Jira/Linear alternative (`plane`,
+`plane.test` / :4543, AGPL-3.0 Community Edition — vendor CE stack of 13
+services: frontend/space/admin/live + api + celery worker/beat + one-shot
+migrator + a caddy edge named
+`plane-proxy` — NOT `proxy`, that alias belongs to the LDS edge router; DB/
+.cache/broker/object-storage are shared (Postgres `lds_plane`, Redis DB 0,
+RabbitMQ, RustFS `uploads` bucket); first visit runs the setup wizard).
 **Semgrep** = SAST, two services: `semgrep` (nginx SARIF viewer, `semgrep.test` /
 :4505) + `semgrep-scan` (pinned `semgrep/semgrep` CLI, its own run-only profile so
 it never auto-starts). `lds tools semgrep [path]` scans via `docker run` and

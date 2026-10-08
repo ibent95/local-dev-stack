@@ -3,7 +3,7 @@
 - Docker Desktop (or Docker Engine + Compose v2).
 - Free host ports: 4400–4409 (databases & caches), 80, 53 (web proxy + DNS),
   4420–4424 (Kafka stack), 4440–4444 (realtime brokers), 4451 (Trino),
-  4500–4540 (web UIs & tools).
+  4500–4543 (web UIs & tools).
   Change any of them in `.env`.
 - For `*.test` hostnames to resolve on the host, point your Windows network
   adapter's DNS at `127.0.0.1` (the `dns` container answers `*.test` and

@@ -14,7 +14,8 @@
 # admin UIs → data tools → web utilities → LDS apps → … → realtime brokers →
 # Kafka (heaviest, off by default).
 # Profiles: proxy | php | mysql | mariadb | mssql | oracle | postgres | mongo | redis | valkey | memcached |
-#           phpcacheadmin | dbx | drawdb | hop | superset | semgrep | zap | trivy | crg |
+#           phpcacheadmin | dbx | drawdb | hop | superset | metabase | hoppscotch | plane |
+#           semgrep | zap | trivy | crg |
 #           vaultwarden | mail | penpot | instatic | analytics | tasks | wiki |
 #           soketi | centrifugo | mqtt | kafka | openwa | rustfs | headlessx |
 #           playwright | erpnext | duckdb | trino | hive-metastore |
@@ -25,10 +26,11 @@
 #   4420-4439  Kafka          (Broker, Schema Registry, Connect, UI)
 #   4440-4449  Realtime       (Soketi, Centrifugo, Mosquitto, MQTTX)
 #   4450-4459  Query engines  (DuckDB, Trino)
-#   4500-4540  Web UIs & apps (phpCacheAdmin, DBX, DrawDB, Hop, Superset, Semgrep, ZAP, Trivy,
-#                             CRG, Vaultwarden, Mailpit, Penpot, Instatic, HeadlessX, Playwright,
-#                             ERPNext, OpenWA, RustFS, Analytics, Tasks, Wiki, SnapOtter,
-#                             Grafana, Prometheus, ImgCompress, draw.io, LLDAP, OpenLDAP)
+#   4500-4543  Web UIs & apps (phpCacheAdmin, DBX, DrawDB, Hop, Superset, Metabase, Hoppscotch,
+#                             Plane, Semgrep, ZAP, Trivy, CRG, Vaultwarden, Mailpit, Penpot,
+#                             Instatic, HeadlessX, Playwright, ERPNext, OpenWA, RustFS, Analytics,
+#                             Tasks, Wiki, SnapOtter, Grafana, Prometheus, ImgCompress, draw.io,
+#                             LLDAP, OpenLDAP)
 #   Data tools (drawdb/hop/superset/semgrep/zap/trivy/vaultwarden) + the http://localhost control panel:
 #   see docs/en/15-data-tools.md.
 # =============================================================================
@@ -46,6 +48,64 @@ x-dns-opts: &dns
   dns_opt:
     - timeout:1
     - attempts:1
+
+# Plane CE env anchors — adapted from the vendor file
+# (deployments/cli/community/docker-compose.yml). DB + cache point at the
+# SHARED stack services: dedicated lds_plane database on the shared postgres
+# (created by POSTGRES_INIT_SPECS) and the shared redis (logical DB 0 —
+# HeadlessX/ERPNext/SnapOtter use 4/5+6/7). RabbitMQ is the shared broker
+# (service rabbitmq). Object storage is the shared
+# RustFS (S3-compatible) instead of a private MinIO. Every var that shipped
+# without a default got one (LDS convention).
+x-plane-db-env: &db-env
+  PGHOST: ${PGHOST:-postgres}
+  PGDATABASE: ${PGDATABASE:-lds_plane}
+  POSTGRES_USER: ${PLANE_PGUSER:-${POSTGRES_USER:-app}}
+  POSTGRES_PASSWORD: ${PLANE_PGPASSWORD:-${POSTGRES_PASSWORD:-app}}
+  POSTGRES_DB: ${PLANE_PGDB:-lds_plane}
+  POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+
+x-plane-redis-env: &redis-env
+  REDIS_HOST: ${REDIS_HOST:-redis}
+  REDIS_PORT: ${REDIS_PORT:-6379}
+  REDIS_URL: ${PLANE_REDIS_URL:-redis://redis:6379/}
+
+x-plane-aws-s3-env: &aws-s3-env
+  AWS_REGION: ${AWS_REGION:-}
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-${RUSTFS_ACCESS_KEY:-lds-rustfs-admin}}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-${RUSTFS_SECRET_KEY:-lds-rustfs-secret-change-me}}
+  AWS_S3_ENDPOINT_URL: ${AWS_S3_ENDPOINT_URL:-http://rustfs:9000}
+  AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-uploads}
+
+x-plane-proxy-env: &proxy-env
+  APP_DOMAIN: ${PLANE_APP_DOMAIN:-plane.test}
+  FILE_SIZE_LIMIT: ${FILE_SIZE_LIMIT:-5242880}
+  CERT_EMAIL: ${CERT_EMAIL:-}
+  CERT_ACME_CA: ${CERT_ACME_CA:-https://acme-v02.api.letsencrypt.org/directory}
+  CERT_ACME_DNS: ${CERT_ACME_DNS:-}
+  LISTEN_HTTP_PORT: ${LISTEN_HTTP_PORT:-80}
+  LISTEN_HTTPS_PORT: ${LISTEN_HTTPS_PORT:-443}
+  BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-uploads}
+  SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+
+x-plane-live-env: &live-env
+  API_BASE_URL: ${API_BASE_URL:-http://api:8000}
+  LIVE_SERVER_SECRET_KEY: ${PLANE_LIVE_SECRET_KEY:-plane-live-dev-secret-change-me}
+
+x-plane-app-env: &app-env
+  WEB_URL: ${PLANE_WEB_URL:-http://plane.test}
+  DEBUG: ${DEBUG:-0}
+  CORS_ALLOWED_ORIGINS: ${PLANE_CORS_ORIGINS:-http://plane.test,http://localhost:4543}
+  GUNICORN_WORKERS: 1
+  USE_MINIO: ${USE_MINIO:-1}
+  DATABASE_URL: ${PLANE_DATABASE_URL:-postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@postgres:5432/lds_plane}
+  SECRET_KEY: ${PLANE_SECRET_KEY:-plane-dev-secret-key-change-me}
+  AMQP_URL: ${AMQP_URL:-amqp://${RABBITMQ_USER:-app}:${RABBITMQ_PASSWORD:-app}@rabbitmq:5672/${RABBITMQ_VHOST:-app}}
+  API_KEY_RATE_LIMIT: ${API_KEY_RATE_LIMIT:-60/minute}
+  MINIO_ENDPOINT_SSL: ${MINIO_ENDPOINT_SSL:-0}
+  LIVE_SERVER_SECRET_KEY: ${PLANE_LIVE_SECRET_KEY:-plane-live-dev-secret-change-me}
+  WEBHOOK_ALLOWED_IPS: ${WEBHOOK_ALLOWED_IPS:-}
+  WEBHOOK_ALLOWED_HOSTS: ${WEBHOOK_ALLOWED_HOSTS:-}
 
 services:
   # ===========================================================================
@@ -123,7 +183,7 @@ services:
     profiles: [proxy, php, all]
     restart: *restart
     ports:
-      - "${WEB_HOST_PORT:-80}:80"
+      - "127.0.0.1:${WEB_HOST_PORT:-80}:80"
     environment:
       DEFAULT_HOST: localhost
       # Use Docker's embedded DNS as the resolver (127.0.0.11 inside the container)
@@ -157,8 +217,8 @@ services:
     profiles: [proxy, php, all]
     restart: *restart
     ports:
-      - "${DNS_HOST_PORT:-53}:53/udp"
-      - "${DNS_HOST_PORT:-53}:53/tcp"
+      - "127.0.0.1:${DNS_HOST_PORT:-53}:53/udp"
+      - "127.0.0.1:${DNS_HOST_PORT:-53}:53/tcp"
     # Two DNS views in one container (see configs/dns/entrypoint.sh):
     #   A — eth0 (host-facing, published :53): resolves *.test -> 127.0.0.1
     #       for the HOST (adapter DNS / hosts file). Unchanged behaviour.
@@ -202,7 +262,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-app}
       TZ: ${TZ:-Asia/Jakarta}
     ports:
-      - "${MYSQL_HOST_PORT:-4400}:3306"
+      - "127.0.0.1:${MYSQL_HOST_PORT:-4400}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       - ./configs/mysql/init:/docker-entrypoint-initdb.d:ro
@@ -241,7 +301,7 @@ services:
       MARIADB_PASSWORD: ${MARIADB_PASSWORD:-app}
       TZ: ${TZ:-Asia/Jakarta}
     ports:
-      - "${MARIADB_HOST_PORT:-4406}:3306"
+      - "127.0.0.1:${MARIADB_HOST_PORT:-4406}:3306"
     volumes:
       - mariadb-data:/var/lib/mysql
     healthcheck:
@@ -275,7 +335,7 @@ services:
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Lds-dev-2024!}
       TZ: ${TZ:-Asia/Jakarta}
     ports:
-      - "${MSSQL_HOST_PORT:-4407}:1433"
+      - "127.0.0.1:${MSSQL_HOST_PORT:-4407}:1433"
     volumes:
       - mssql-data:/var/opt/mssql
     healthcheck:
@@ -307,8 +367,8 @@ services:
       ORACLE_USER: ${ORACLE_USER:-app}
       TZ: ${TZ:-Asia/Jakarta}
     ports:
-      - "${ORACLE_HOST_PORT:-4408}:1521"
-      - "${ORACLE_EM_HOST_PORT:-4409}:5500"
+      - "127.0.0.1:${ORACLE_HOST_PORT:-4408}:1521"
+      - "127.0.0.1:${ORACLE_EM_HOST_PORT:-4409}:5500"
     volumes:
       - oracle-data:/opt/oracle/oradata
     healthcheck:
@@ -330,7 +390,7 @@ services:
   postgres:
     image: ${DHI_REGISTRY:-dhi.io}/postgres:${POSTGRES_VERSION:-18.4-alpine3.24}
     container_name: lds-postgres
-    profiles: [postgres, analytics, tasks, wiki, openwa, trino, penpot, headlessx, erpnext, snapotter, all]
+    profiles: [postgres, analytics, tasks, wiki, openwa, trino, penpot, headlessx, erpnext, snapotter, hoppscotch, superset, metabase, plane, all]
     restart: *restart
     <<: *dns
     # Override entrypoint so we can init databases AFTER postgres starts.
@@ -402,7 +462,7 @@ services:
       POSTGRES_INIT_SPECS: ${POSTGRES_INIT_SPECS:-}
       TZ: ${TZ:-Asia/Jakarta}
     ports:
-      - "${POSTGRES_HOST_PORT:-4401}:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-4401}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/18/data
       - ./configs/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -448,7 +508,7 @@ services:
         chmod 400 "$$KF"
         exec mongod --replSet rs0 --keyFile "$$KF" --bind_ip_all
     ports:
-      - "${MONGO_HOST_PORT:-4402}:27017"
+      - "127.0.0.1:${MONGO_HOST_PORT:-4402}:27017"
     volumes:
       - mongo-data:/data/db
       - mongo-config:/etc/mongo
@@ -467,14 +527,14 @@ services:
   redis:
     image: ${DHI_REGISTRY:-dhi.io}/redis:${REDIS_VERSION:-8.8-alpine3.24}
     container_name: lds-redis
-    profiles: [redis, headlessx, erpnext, snapotter, all]
+    profiles: [redis, headlessx, erpnext, snapotter, plane, all]
     restart: *restart
     <<: *dns
     command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
     environment:
       TZ: ${TZ:-Asia/Jakarta}
     ports:
-      - "${REDIS_HOST_PORT:-4403}:6379"
+      - "127.0.0.1:${REDIS_HOST_PORT:-4403}:6379"
     volumes:
       - redis-data:/data
       - ./configs/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -499,7 +559,7 @@ services:
     environment:
       TZ: ${TZ:-Asia/Jakarta}
     ports:
-      - "${VALKEY_HOST_PORT:-4405}:6379"
+      - "127.0.0.1:${VALKEY_HOST_PORT:-4405}:6379"
     volumes:
       - valkey-data:/data
     healthcheck:
@@ -520,7 +580,7 @@ services:
     <<: *dns
     command: ["memcached", "-m", "${MEMCACHED_MEMORY:-64}", "-p", "11211"]
     ports:
-      - "${MEMCACHED_HOST_PORT:-4404}:11211"
+      - "127.0.0.1:${MEMCACHED_HOST_PORT:-4404}:11211"
     healthcheck:
       test:
         [
@@ -530,6 +590,37 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    networks: [lds-network]
+
+  # ===========================================================================
+  # RabbitMQ — shared AMQP/message broker  (profile: rabbitmq, plane, all)
+  #   One broker for the whole stack (Plane is the first consumer). Provisioned
+  #   on first boot from RABBITMQ_USER/PASSWORD/VHOST. AMQP on the loopback
+  #   host port (default 4410), management UI on 4411.
+  # ===========================================================================
+  rabbitmq:
+    image: rabbitmq:${RABBITMQ_VERSION:-3.13.6}-management-alpine
+    container_name: lds-rabbitmq
+    profiles: [rabbitmq, plane, all]
+    restart: *restart
+    <<: *dns
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-app}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-app}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-app}
+    ports:
+      - "127.0.0.1:${RABBITMQ_HOST_PORT:-4410}:5672"
+      - "127.0.0.1:${RABBITMQ_MGMT_HOST_PORT:-4411}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 45s
+    mem_limit: ${RABBITMQ_MEM_LIMIT:-512m}
     networks: [lds-network]
 
   # ===========================================================================
@@ -562,7 +653,7 @@ services:
     expose:
       - "80"
     ports:
-      - "${CACHE_ADMIN_HOST_PORT:-4500}:80"
+      - "127.0.0.1:${CACHE_ADMIN_HOST_PORT:-4500}:80"
     networks: [lds-network]
 
   # DBX — web DB client (100+ engines: MySQL, Postgres, Mongo, SQL Server,
@@ -592,7 +683,7 @@ services:
     expose:
       - "4224"
     ports:
-      - "${DB_ADMIN_HOST_PORT:-4501}:4224"
+      - "127.0.0.1:${DB_ADMIN_HOST_PORT:-4501}:4224"
     volumes:
       # dbx.db + .dbx/secret.key — persist them together, they are a pair.
       - ./data/dbx:/app/data
@@ -632,16 +723,18 @@ services:
     expose:
       - "80"
     ports:
-      - "${DRAWDB_HOST_PORT:-4502}:80"
+      - "127.0.0.1:${DRAWDB_HOST_PORT:-4502}:80"
     mem_limit: ${DRAWDB_MEM_LIMIT:-128m}
     networks: [lds-network]
 
   # ===========================================================================
-  # Data warehouse & BI — ETL + reporting.  (profiles: hop | superset, all)
+  # Data warehouse & BI — ETL + reporting.  (profiles: hop | superset | metabase, all)
   #   hop      : Apache Hop Web — design/run data-integration pipelines (ETL).
   #   superset : Apache Superset — BI dashboards & reporting over your DBs.
-  # Hop is an upstream image; Superset is a Docker Hardened Image. Both off by
-  # default. They connect to the stack DBs (postgres/mysql) as data sources —
+#   metabase : Metabase — simpler self-hosted BI dashboards (first-run setup wizard).
+# Hop is an upstream image; Superset is a Docker Hardened Image; Metabase is
+# the official upstream image (AGPL-3.0). All three are off by default. They
+# connect to the stack DBs (postgres/mysql) as data sources —
   # add those connections in-app.
   # ===========================================================================
   # Apache Hop — Hop Web, the browser-based ETL/DW pipeline designer.  (profile: hop, all)
@@ -678,7 +771,7 @@ services:
     expose:
       - "8080"
     ports:
-      - "${HOP_HOST_PORT:-4503}:8080"
+      - "127.0.0.1:${HOP_HOST_PORT:-4503}:8080"
     volumes:
       # Shared JDBC JARs are in assets/jdbc/ — download them from Maven Central
       # (see the comprehensive README at assets/jdbc/README.md). Each JAR is
@@ -734,20 +827,32 @@ services:
       VIRTUAL_PORT: "8088"
       CERT_NAME: _.test
       SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-lds-dev-secret-change-me}
-      SQLALCHEMY_DATABASE_URI: sqlite:////app/superset_home/superset.db
+      # Metadata DB = shared postgres (lds_superset, created by
+      # POSTGRES_INIT_SPECS). MUST use the SUPERSET__-prefixed var — plain
+      # SQLALCHEMY_DATABASE_URI is ignored by config.py's env processing.
+      SUPERSET__SQLALCHEMY_DATABASE_URI: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@postgres:5432/${SUPERSET_POSTGRES_DB:-lds_superset}
       SUPERSET_LOAD_EXAMPLES: "no"
       SUPERSET_ADMIN: ${SUPERSET_ADMIN:-admin}
       SUPERSET_PASSWORD: ${SUPERSET_PASSWORD:-admin}
+    depends_on:
+      postgres:
+        condition: service_healthy
     entrypoint:
       - /app/.venv/bin/python
       - -c
       - |
-        import os, subprocess
+        import importlib.util, os, subprocess
         bin = "/app/.venv/bin"
-        # Install optional DB drivers (idempotent — pip skips if already installed).
-        # trino: SQLAlchemy dialect for Trino queries.
-        for pkg in ["trino"]:
-            subprocess.run([bin + "/pip", "install", "--quiet", pkg], check=False)
+        # DB drivers (trino = Trino dialect, psycopg2 = shared-postgres metadata
+        # DB). The venv's site-packages is root-owned and NOT writable by this
+        # nonroot image, so install into the writable, PYTHONPATH-listed
+        # /app/pythonpath instead — and only when the import is missing.
+        def ensure(pkg, mod):
+            if importlib.util.find_spec(mod) is None:
+                subprocess.run([bin + "/pip", "install", "--quiet",
+                                "--target", "/app/pythonpath", pkg], check=False)
+        ensure("trino", "trino")
+        ensure("psycopg2-binary", "psycopg2")
         subprocess.run([bin + "/superset", "db", "upgrade"], check=True)
         subprocess.run([bin + "/superset", "fab", "create-admin",
             "--username", os.environ.get("SUPERSET_ADMIN", "admin"),
@@ -760,28 +865,80 @@ services:
     expose:
       - "8088"
     ports:
-      - "${SUPERSET_HOST_PORT:-4504}:8088"
+      - "127.0.0.1:${SUPERSET_HOST_PORT:-4504}:8088"
     volumes:
-      # Persist Superset metadata (SQLite DB, dashboards, connections) on disk.
-      # Bind-mounted (SUPERSET_HOME) so you can inspect/backup the SQLite file
-      # directly. The host dir must be writable by UID 65532 (the DHI nonroot
-      # user). Superset reads/writes to this folder directly.
+      # SUPERSET_HOME: config, cache and the folder-per-project exports below.
+      # Metadata (dashboards, connections, users) lives in the shared postgres
+      # (lds_superset); the legacy SQLite file may still sit on this bind mount
+      # but is no longer read. Host dir must be writable by UID 65532 (DHI
+      # nonroot) — `chown 65532:65532 data/superset` on Linux if writes fail.
       - ${SUPERSET_HOME:-./data/superset}:/app/superset_home
       # Folder-per-project: each subfolder in SUPERSET_PROJECTS_PATH is a dashboard
       # project (YAML exports of dashboards, charts, datasets, databases). Registered
       # automatically via superset-register on lds up (see scripts/run/superset-register.*).
       - ${SUPERSET_PROJECTS_PATH:-./data/superset/projects}:${SUPERSET_PROJECTS_CONTAINER_PATH:-/app/superset_projects}
     healthcheck:
+      # Hardened image ships NEITHER wget NOR curl — use the venv python.
       test:
         [
           "CMD-SHELL",
-          "wget -qO- http://localhost:8088/health >/dev/null || exit 1",
+          "/app/.venv/bin/python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8088/health', timeout=4).status==200 else 1)\" || exit 1",
         ]
       interval: 15s
-      timeout: 5s
+      timeout: 8s
       retries: 20
       start_period: 90s
     mem_limit: ${SUPERSET_MEM_LIMIT:-2g}
+    networks: [lds-network]
+
+  # Metabase — self-hosted BI dashboards, the simpler alternative to Superset.
+  # (profile: metabase, all)
+  # Official upstream image (AGPL-3.0) — no DHI variant exists. No default
+  # login: the first visit opens Metabase's setup wizard, which creates your
+  # admin account. App metadata (questions/dashboards/users/settings) lives in
+  # Metabase's embedded H2 file DB at MB_DB_FILE — under the bind-mounted
+  # METABASE_DATA dir, so it survives down/up. After setup, add the stack DBs
+  # as data sources (e.g. postgresql://app:app@postgres:5432/app).
+  metabase:
+    image: metabase/metabase:${METABASE_VERSION:-v0.63.19.x}
+    container_name: lds-metabase
+    profiles: [metabase, all]
+    restart: *restart
+    <<: *dns
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      VIRTUAL_HOST: ${METABASE_HOST:-metabase.test}
+      VIRTUAL_PORT: "3000"
+      CERT_NAME: _.test
+      # App DB = shared postgres (lds_metabase, created by POSTGRES_INIT_SPECS);
+      # Metabase runs its own schema migrations against it on first boot.
+      # (H2 fallback: set MB_DB_TYPE=h2 + MB_DB_FILE for a file DB instead.)
+      MB_DB_TYPE: postgres
+      MB_DB_CONNECTION_URI: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@postgres:5432/${METABASE_POSTGRES_DB:-lds_metabase}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "3000"
+    ports:
+      - "127.0.0.1:${METABASE_HOST_PORT:-4541}:3000"
+    volumes:
+      # App DB is the shared postgres now — this mount only holds the legacy
+      # H2 file (and backs the MB_DB_TYPE=h2 fallback mentioned above).
+      - ${METABASE_DATA:-./data/metabase}:/metabase-data
+    healthcheck:
+      # Alpine image ships curl; /api/health answers 200 once ready. Metabase
+      # boots slowly (JVM + migrations), hence the long start period.
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sf http://localhost:3000/api/health >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 24
+      start_period: 120s
+    mem_limit: ${METABASE_MEM_LIMIT:-2g}
     networks: [lds-network]
 
   # ===========================================================================
@@ -834,7 +991,7 @@ services:
     expose:
       - "8080"
     ports:
-      - "${TRINO_HOST_PORT:-4451}:8080"
+      - "127.0.0.1:${TRINO_HOST_PORT:-4451}:8080"
     volumes:
       - ./configs/trino/config.properties:/etc/trino/config.properties:ro
       - ./configs/trino/jvm.config:/etc/trino/jvm.config:ro
@@ -921,7 +1078,7 @@ services:
     expose:
       - "8080"
     ports:
-      - "${SEMGREP_HOST_PORT:-4505}:8080"
+      - "127.0.0.1:${SEMGREP_HOST_PORT:-4505}:8080"
     volumes:
       - ./data/semgrep/reports:/usr/share/nginx/html
       - ./configs/semgrep/reports/index.html:/usr/share/nginx/html/index.html:ro
@@ -985,8 +1142,8 @@ services:
       - "8080"
       - "8090"
     ports:
-      - "${ZAP_HOST_PORT:-4510}:8080"       # WebSwing UI
-      - "${ZAP_PROXY_HOST_PORT:-4512}:8090" # ZAP proxy / API
+      - "127.0.0.1:${ZAP_HOST_PORT:-4510}:8080"       # WebSwing UI
+      - "127.0.0.1:${ZAP_PROXY_HOST_PORT:-4512}:8090" # ZAP proxy / API
     volumes:
       - ./data/zap/wrk:/zap/wrk
       - ./data/zap/home:/home/zap
@@ -1022,7 +1179,7 @@ services:
     expose:
       - "8080"
     ports:
-      - "${TRIVY_HOST_PORT:-4511}:8080"
+      - "127.0.0.1:${TRIVY_HOST_PORT:-4511}:8080"
     volumes:
       - ./data/trivy/reports:/usr/share/nginx/html
       - ./configs/trivy/reports/index.html:/usr/share/nginx/html/index.html:ro
@@ -1067,12 +1224,322 @@ services:
     expose:
       - "8080"
     ports:
-      - "${CRG_HOST_PORT:-4530}:8080"
+      - "127.0.0.1:${CRG_HOST_PORT:-4530}:8080"
     volumes:
       - ./data/crg/reports:/usr/share/nginx/html
       - ./configs/crg/reports/index.html:/usr/share/nginx/html/index.html:ro
       - ./configs/crg/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     mem_limit: ${CRG_MEM_LIMIT:-64m}
+    networks: [lds-network]
+
+  # ===========================================================================
+  # API tooling & project management  (profiles: hoppscotch | plane, all)
+  #   hoppscotch : self-hosted API client / Postman alternative (REST, GraphQL,
+  #                WebSocket, SSE, MQTT) — Community Edition, MIT. ONE AIO
+  #                container (app + admin + backend behind Caddy, subpath
+  #                mode); app DB = shared postgres (lds_hoppscotch).
+  #   plane      : open-source project management, Jira/Linear alternative —
+  #                AGPL-3.0 Community Edition, vendor CE stack (frontend,
+  #                instance admin, API, celery worker/beat, one-shot migrator,
+  #                caddy edge; DB/cache/broker/object-storage = SHARED
+  #                postgres lds_plane + redis DB 0 + rabbitmq + RustFS
+  #                `uploads` bucket).
+  #   Both OFF by default (LDS_ENABLE_HOPPSCOTCH / LDS_ENABLE_PLANE).
+  # ===========================================================================
+
+  # Hoppscotch — self-hosted API client (Postman alternative).  (profile: hoppscotch, all)
+  # AIO image: / = the client, /admin = onboarding & users, /backend =
+  # GraphQL/REST — one vhost (ENABLE_SUBPATH_BASED_ACCESS). Data lives in the
+  # shared postgres (lds_hoppscotch, created by POSTGRES_INIT_SPECS); the
+  # hoppscotch-migrate one-shot runs `prisma migrate deploy` idempotently on
+  # every up and the app waits for it (erpnext-configurator pattern).
+  # Email magic links go to the stack's Mailpit (profile: mail) — click them in
+  # mail.test; OAuth (GitHub/Google/Microsoft) is configured in /admin.
+  # HTTPS URLs in VITE_* are intentional: https/wss work from BOTH the http and
+  # https origins (mixed-content only blocks http FROM https), and the edge
+  # proxy terminates TLS. Flip HOPPSCOTCH_BASE_URL to http:// if you run the
+  # stack without LDS_ENABLE_HTTPS.
+  hoppscotch:
+    image: hoppscotch/hoppscotch:${HOPPSCOTCH_VERSION:-2026.9.0}
+    container_name: lds-hoppscotch
+    profiles: [hoppscotch, all]
+    restart: *restart
+    <<: *dns
+    depends_on:
+      postgres:
+        condition: service_healthy
+      hoppscotch-migrate:
+        condition: service_completed_successfully
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      VIRTUAL_HOST: ${HOPPSCOTCH_HOST:-hoppscotch.test}
+      VIRTUAL_PORT: "80"
+      CERT_NAME: _.test
+      ENABLE_SUBPATH_BASED_ACCESS: "true"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@postgres:5432/${HOPPSCOTCH_POSTGRES_DB:-lds_hoppscotch}
+      # 32-char key: encrypts credentials/tokens stored in the app DB.
+      DATA_ENCRYPTION_KEY: ${HOPPSCOTCH_DATA_ENCRYPTION_KEY:-lds-hopp-dev-encryption-key-32ch}
+      WHITELISTED_ORIGINS: ${HOPPSCOTCH_BASE_URL:-https://hoppscotch.test},http://${HOPPSCOTCH_HOST:-hoppscotch.test},http://localhost:${HOPPSCOTCH_HOST_PORT:-4542}
+      VITE_BASE_URL: ${HOPPSCOTCH_BASE_URL:-https://hoppscotch.test}
+      VITE_SHORTCODE_BASE_URL: ${HOPPSCOTCH_BASE_URL:-https://hoppscotch.test}
+      VITE_ADMIN_URL: ${HOPPSCOTCH_BASE_URL:-https://hoppscotch.test}/admin
+      VITE_BACKEND_GQL_URL: ${HOPPSCOTCH_BASE_URL:-https://hoppscotch.test}/backend/graphql
+      VITE_BACKEND_WS_URL: ${HOPPSCOTCH_WS_URL:-wss://hoppscotch.test}/backend/graphql
+      VITE_BACKEND_API_URL: ${HOPPSCOTCH_BASE_URL:-https://hoppscotch.test}/backend/v1
+      # Providers selectable in the /admin onboarding; EMAIL = magic link via
+      # Mailpit (SMTP below, needs the `mail` profile). Add OAuth client IDs in
+      # /admin to enable GitHub/Google/Microsoft.
+      VITE_ALLOWED_AUTH_PROVIDERS: ${HOPPSCOTCH_AUTH_PROVIDERS:-EMAIL}
+      MAILER_USE_CUSTOM_CONFIGS: "true"
+      SMTP_HOST: ${HOPPSCOTCH_SMTP_HOST:-mail}
+      SMTP_PORT: ${HOPPSCOTCH_SMTP_PORT:-1025}
+      SMTP_FROM_ADDRESS: ${HOPPSCOTCH_SMTP_FROM:-hoppscotch@lds.test}
+    expose:
+      - "80"
+    ports:
+      - "127.0.0.1:${HOPPSCOTCH_HOST_PORT:-4542}:80"
+    healthcheck:
+      # AIO ships busybox-style wget (Caddy base); / answers 200 once up.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    mem_limit: ${HOPPSCOTCH_MEM_LIMIT:-1g}
+    networks: [lds-network]
+
+  # One-shot: Prisma migrations for the Hoppscotch app DB. Idempotent, re-runs
+  # on every `up` and exits 0; `hoppscotch` waits on it via
+  # service_completed_successfully (same pattern as erpnext-configurator).
+  hoppscotch-migrate:
+    image: hoppscotch/hoppscotch:${HOPPSCOTCH_VERSION:-2026.9.0}
+    container_name: lds-hoppscotch-migrate
+    profiles: [hoppscotch, all]
+    restart: "no"
+    <<: *dns
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - pnpm exec prisma migrate deploy
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@postgres:5432/${HOPPSCOTCH_POSTGRES_DB:-lds_hoppscotch}
+      DATA_ENCRYPTION_KEY: ${HOPPSCOTCH_DATA_ENCRYPTION_KEY:-lds-hopp-dev-encryption-key-32ch}
+    networks: [lds-network]
+
+  # --- Plane Community Edition (profile: plane, all) — vendor CE stack -------
+  # Adapted from deployments/cli/community/docker-compose.yml:
+  #   - `deploy:` blocks (Swarm-only, inert under plain compose) replaced by
+  #     LDS restart/mem conventions; one-shot migrator gets restart: "no".
+  #   - service key `proxy` renamed `plane-proxy` — the bare alias `proxy` on
+  #     lds-network belongs to the LDS edge router (nginx-proxy).
+  #   - DB/cache/broker/object-storage moved to the SHARED stack services:
+  #     dedicated lds_plane database on the shared postgres
+  #     (POSTGRES_INIT_SPECS), shared redis (logical DB 0), shared RabbitMQ
+  #     (rabbitmq), RustFS S3 API (`uploads` bucket).
+  #   - only the HTTP listener is published (127.0.0.1:4543); TLS terminates at
+  #     the LDS edge proxy, which routes plane.test -> plane-proxy:80.
+  web:
+    image: makeplane/plane-frontend:${APP_RELEASE:-stable}
+    container_name: lds-plane-web
+    profiles: [plane, all]
+    restart: *restart
+    <<: *dns
+    depends_on:
+      - api
+      - worker
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+    mem_limit: ${PLANE_WEB_MEM_LIMIT:-512m}
+    networks: [lds-network]
+
+  space:
+    image: makeplane/plane-space:${APP_RELEASE:-stable}
+    container_name: lds-plane-space
+    profiles: [plane, all]
+    restart: *restart
+    <<: *dns
+    depends_on:
+      - api
+      - worker
+      - web
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+    mem_limit: ${PLANE_SPACE_MEM_LIMIT:-512m}
+    networks: [lds-network]
+
+  admin:
+    image: makeplane/plane-admin:${APP_RELEASE:-stable}
+    container_name: lds-plane-admin
+    profiles: [plane, all]
+    restart: *restart
+    <<: *dns
+    depends_on:
+      - api
+      - web
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+    mem_limit: ${PLANE_ADMIN_MEM_LIMIT:-512m}
+    networks: [lds-network]
+
+  live:
+    image: makeplane/plane-live:${APP_RELEASE:-stable}
+    container_name: lds-plane-live
+    profiles: [plane, all]
+    restart: *restart
+    <<: *dns
+    depends_on:
+      - api
+      - web
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      <<: [*live-env, *redis-env]
+    mem_limit: ${PLANE_LIVE_MEM_LIMIT:-512m}
+    networks: [lds-network]
+
+  api:
+    image: makeplane/plane-backend:${APP_RELEASE:-stable}
+    container_name: lds-plane-api
+    profiles: [plane, all]
+    restart: *restart
+    <<: *dns
+    command: ./bin/docker-entrypoint-api.sh
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      rustfs:
+        condition: service_started
+      # Django must only boot AFTER the schema exists (erpnext-style ordering).
+      migrator:
+        condition: service_completed_successfully
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      <<: [*app-env, *db-env, *redis-env, *aws-s3-env, *proxy-env]
+    volumes:
+      - logs_api:/code/plane/logs
+    healthcheck:
+      # Django image ships python3 — gunicorn listens on :8000 (API_BASE_URL).
+      test: ["CMD-SHELL", "python3 -c \"import socket;socket.create_connection(('127.0.0.1',8000),5)\""]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+    mem_limit: ${PLANE_API_MEM_LIMIT:-1g}
+    networks: [lds-network]
+
+  worker:
+    image: makeplane/plane-backend:${APP_RELEASE:-stable}
+    container_name: lds-plane-worker
+    profiles: [plane, all]
+    restart: *restart
+    <<: *dns
+    command: ./bin/docker-entrypoint-worker.sh
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      <<: [*app-env, *db-env, *redis-env, *aws-s3-env, *proxy-env]
+    volumes:
+      - logs_worker:/code/plane/logs
+    # Celery worker listens on no TCP port — health = process alive (restart policy).
+    mem_limit: ${PLANE_WORKER_MEM_LIMIT:-1g}
+    networks: [lds-network]
+
+  beat-worker:
+    image: makeplane/plane-backend:${APP_RELEASE:-stable}
+    container_name: lds-plane-beat-worker
+    profiles: [plane, all]
+    restart: *restart
+    <<: *dns
+    command: ./bin/docker-entrypoint-beat.sh
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      <<: [*app-env, *db-env, *redis-env, *aws-s3-env, *proxy-env]
+    volumes:
+      - logs_beat-worker:/code/plane/logs
+    # Celery beat — scheduler, no TCP port (same note as worker).
+    mem_limit: ${PLANE_BEAT_MEM_LIMIT:-512m}
+    networks: [lds-network]
+
+  # One-shot Django migrations — idempotent, re-runs on every `up` (exit 0);
+  # api/worker/beat wait for it (service_completed_successfully).
+  migrator:
+    image: makeplane/plane-backend:${APP_RELEASE:-stable}
+    container_name: lds-plane-migrator
+    profiles: [plane, all]
+    restart: "no"
+    <<: *dns
+    command: ./bin/docker-entrypoint-migrator.sh
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      <<: [*app-env, *db-env, *redis-env, *aws-s3-env, *proxy-env]
+    volumes:
+      - logs_migrator:/code/plane/logs
+    mem_limit: ${PLANE_MIGRATOR_MEM_LIMIT:-512m}
+    networks: [lds-network]
+
+  # NOTE: plane-db (Postgres 15.7), plane-redis (Valkey), plane-minio and
+  # the dedicated plane-mq broker were dropped — Plane now runs on the SHARED
+  # stack services: postgres (lds_plane DB via POSTGRES_INIT_SPECS), redis
+  # (logical DB 0), RustFS (S3 API, `uploads` bucket) and the RabbitMQ broker
+  # (service rabbitmq, profiles rabbitmq/plane/all — see the RabbitMQ block
+  # above the Admin tools section).
+
+  # Plane's own caddy edge (service key renamed from vendor `proxy` — see the
+  # section header). Holds VIRTUAL_HOST so the LDS edge proxy routes
+  # plane.test here; also published loopback-only for direct localhost:4543.
+  plane-proxy:
+    image: makeplane/plane-proxy:${APP_RELEASE:-stable}
+    container_name: lds-plane-proxy
+    profiles: [plane, all]
+    restart: *restart
+    <<: *dns
+    depends_on:
+      - web
+      - api
+      - space
+      - admin
+      - live
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      VIRTUAL_HOST: ${PLANE_HOST:-plane.test}
+      VIRTUAL_PORT: "80"
+      CERT_NAME: _.test
+      <<: *proxy-env
+    expose:
+      - "80"
+    ports:
+      - "127.0.0.1:${PLANE_HOST_PORT:-4543}:80"
+    volumes:
+      - proxy_config:/config
+      - proxy_data:/data
+    mem_limit: ${PLANE_PROXY_MEM_LIMIT:-128m}
     networks: [lds-network]
 
   # ===========================================================================
@@ -1129,7 +1596,7 @@ services:
     expose:
       - "1349"
     ports:
-      - "${SNAPOTTER_HOST_PORT:-4538}:1349"
+      - "127.0.0.1:${SNAPOTTER_HOST_PORT:-4538}:1349"
     depends_on:
       postgres:
         condition: service_healthy
@@ -1173,7 +1640,7 @@ services:
     expose:
       - "5000"
     ports:
-      - "${IMGCOMPRESS_HOST_PORT:-4539}:5000"
+      - "127.0.0.1:${IMGCOMPRESS_HOST_PORT:-4539}:5000"
     healthcheck:
       test: ["CMD", "python", "/container/healthcheck.py"]
       interval: 30s
@@ -1200,7 +1667,7 @@ services:
     expose:
       - "8080"
     ports:
-      - "${DRAWIO_HOST_PORT:-4535}:8080"
+      - "127.0.0.1:${DRAWIO_HOST_PORT:-4535}:8080"
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://127.0.0.1:8080/"]
       interval: 30s
@@ -1232,7 +1699,7 @@ services:
       - "17170"
       - "3890"
     ports:
-      - "${LLDAP_LDAP_HOST_PORT:-4537}:3890"
+      - "127.0.0.1:${LLDAP_LDAP_HOST_PORT:-4537}:3890"
     volumes:
       - ./data/lldap:/data
     healthcheck:
@@ -1269,7 +1736,7 @@ services:
     expose:
       - "389"
     ports:
-      - "${OPENLDAP_HOST_PORT:-4540}:389"
+      - "127.0.0.1:${OPENLDAP_HOST_PORT:-4540}:389"
     volumes:
       - ./configs/openldap/entrypoint.sh:/lds/entrypoint.sh:ro
       - ./configs/openldap/slapd.conf.tmpl:/lds/slapd.conf.tmpl:ro
@@ -1305,7 +1772,7 @@ services:
     expose:
       - "9090"
     ports:
-      - "${PROMETHEUS_HOST_PORT:-4533}:9090"
+      - "127.0.0.1:${PROMETHEUS_HOST_PORT:-4533}:9090"
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
@@ -1354,7 +1821,7 @@ services:
     expose:
       - "3000"
     ports:
-      - "${GRAFANA_HOST_PORT:-4532}:3000"
+      - "127.0.0.1:${GRAFANA_HOST_PORT:-4532}:3000"
     volumes:
       - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana-data:/var/lib/grafana
@@ -1395,7 +1862,7 @@ services:
     expose:
       - "3001"
     ports:
-      - "${ANALYTICS_API_HOST_PORT:-4520}:3001"
+      - "127.0.0.1:${ANALYTICS_API_HOST_PORT:-4520}:3001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -1425,7 +1892,7 @@ services:
     expose:
       - "4173"
     ports:
-      - "${ANALYTICS_HOST_PORT:-4521}:4173"
+      - "127.0.0.1:${ANALYTICS_HOST_PORT:-4521}:4173"
     depends_on:
       analytics-api:
         condition: service_healthy
@@ -1456,7 +1923,7 @@ services:
     expose:
       - "3002"
     ports:
-      - "${TASKS_API_HOST_PORT:-4522}:3002"
+      - "127.0.0.1:${TASKS_API_HOST_PORT:-4522}:3002"
     depends_on:
       postgres:
         condition: service_healthy
@@ -1486,7 +1953,7 @@ services:
     expose:
       - "4174"
     ports:
-      - "${TASKS_HOST_PORT:-4523}:4174"
+      - "127.0.0.1:${TASKS_HOST_PORT:-4523}:4174"
     depends_on:
       tasks-api:
         condition: service_healthy
@@ -1512,7 +1979,7 @@ services:
     expose:
       - "3003"
     ports:
-      - "${WIKI_API_HOST_PORT:-4524}:3003"
+      - "127.0.0.1:${WIKI_API_HOST_PORT:-4524}:3003"
     depends_on:
       postgres:
         condition: service_healthy
@@ -1542,7 +2009,7 @@ services:
     expose:
       - "4175"
     ports:
-      - "${WIKI_HOST_PORT:-4525}:4175"
+      - "127.0.0.1:${WIKI_HOST_PORT:-4525}:4175"
     depends_on:
       wiki-api:
         condition: service_healthy
@@ -1579,8 +2046,8 @@ services:
       - "8025"
       - "1025"
     ports:
-      - "${MAIL_HOST_PORT:-4513}:8025"
-      - "${MAIL_SMTP_HOST_PORT:-4514}:1025"
+      - "127.0.0.1:${MAIL_HOST_PORT:-4513}:8025"
+      - "127.0.0.1:${MAIL_SMTP_HOST_PORT:-4514}:1025"
     volumes:
       - ./data/mailpit:/data
     mem_limit: ${MAIL_MEM_LIMIT:-256m}
@@ -1615,7 +2082,7 @@ services:
     expose:
       - "8080"
     ports:
-      - "${PENPOT_HOST_PORT:-4518}:8080"
+      - "127.0.0.1:${PENPOT_HOST_PORT:-4518}:8080"
     volumes:
       - ./data/penpot/assets:/opt/data/assets
     mem_limit: ${PENPOT_FRONTEND_MEM_LIMIT:-512m}
@@ -1699,7 +2166,7 @@ services:
     expose:
       - "80"
     ports:
-      - "${VAULTWARDEN_HOST_PORT:-4506}:80"
+      - "127.0.0.1:${VAULTWARDEN_HOST_PORT:-4506}:80"
     volumes:
       - vaultwarden-data:/data
     healthcheck:
@@ -1751,7 +2218,7 @@ services:
     expose:
       - "3001"
     ports:
-      - "${INSTATIC_HOST_PORT:-4528}:3001"
+      - "127.0.0.1:${INSTATIC_HOST_PORT:-4528}:3001"
     volumes:
       - ./data/instatic/data:/app/data
       - ./data/instatic/uploads:/app/uploads
@@ -1802,7 +2269,7 @@ services:
     expose:
       - "6001"
     ports:
-      - "${SOKETI_HOST_PORT:-4440}:6001"
+      - "127.0.0.1:${SOKETI_HOST_PORT:-4440}:6001"
     healthcheck:
       # curl-less image — use the bundled node to confirm the port accepts TCP.
       test:
@@ -1842,7 +2309,7 @@ services:
     expose:
       - "8000"
     ports:
-      - "${CENTRIFUGO_HOST_PORT:-4441}:8000"
+      - "127.0.0.1:${CENTRIFUGO_HOST_PORT:-4441}:8000"
     ulimits:
       nofile:
         soft: 65536
@@ -1876,8 +2343,8 @@ services:
     <<: *dns
     command: ["mosquitto", "-c", "/mosquitto/config/mosquitto.conf"]
     ports:
-      - "${MQTT_HOST_PORT:-4442}:1883" # native MQTT (backends/devices, in-net: mosquitto:1883)
-      - "${MQTT_WS_HOST_PORT:-4443}:9001" # MQTT over WebSocket (browser clients)
+      - "127.0.0.1:${MQTT_HOST_PORT:-4442}:1883" # native MQTT (backends/devices, in-net: mosquitto:1883)
+      - "127.0.0.1:${MQTT_WS_HOST_PORT:-4443}:9001" # MQTT over WebSocket (browser clients)
     volumes:
       - ./configs/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto-data:/mosquitto/data
@@ -1912,7 +2379,7 @@ services:
     expose:
       - "80"
     ports:
-      - "${MQTTX_HOST_PORT:-4444}:80"
+      - "127.0.0.1:${MQTTX_HOST_PORT:-4444}:80"
     mem_limit: ${MQTTX_MEM_LIMIT:-128m}
     networks: [lds-network]
 
@@ -1955,7 +2422,7 @@ services:
     environment:
       KAFKA_CLUSTER_ID: ${KAFKA_CLUSTER_ID:-MkU3OEVBNTcwNTJENDM2Qk}
     ports:
-      - "${KAFKA_HOST_PORT:-4420}:29092"
+      - "127.0.0.1:${KAFKA_HOST_PORT:-4420}:29092"
     volumes:
       - ./configs/kafka/broker.properties:/opt/kafka/config/server.properties:ro
       - kafka-broker-data:/var/lib/kafka/data
@@ -1985,7 +2452,7 @@ services:
       kafka-broker:
         condition: service_healthy
     ports:
-      - "${SCHEMA_REGISTRY_HOST_PORT:-4421}:8080"
+      - "127.0.0.1:${SCHEMA_REGISTRY_HOST_PORT:-4421}:8080"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/q/health >/dev/null 2>&1 || exit 1"]
       interval: 15s
@@ -2031,7 +2498,7 @@ services:
       # plugin.path.) Install with `lds kafka connect-plugin --debezium <name>`.
       CONNECT_PLUGIN_PATH: /kafka/connect,/kafka/connect-extra
     ports:
-      - "${CONNECT_HOST_PORT:-4423}:8083"
+      - "127.0.0.1:${CONNECT_HOST_PORT:-4423}:8083"
     volumes:
       - ./configs/kafka/connect-debezium:/debezium/connectors-config:ro
       - ./configs/kafka/connect-debezium/plugins:/kafka/connect-extra
@@ -2067,7 +2534,7 @@ services:
       - ./configs/kafka/connect-generic/connect-distributed.properties:/etc/kafka-connect/connect-distributed.properties:ro
       - ./configs/kafka/connect-generic/plugins:/opt/kafka/connectors
     ports:
-      - "${CONNECT_GENERIC_HOST_PORT:-4422}:8083"
+      - "127.0.0.1:${CONNECT_GENERIC_HOST_PORT:-4422}:8083"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8083/connectors >/dev/null 2>&1 || exit 1"]
       interval: 15s
@@ -2095,7 +2562,7 @@ services:
       KAFKA_CLUSTERS_0_KAFKACONNECT_1_ADDRESS: http://connect-generic:8083
       DYNAMIC_CONFIG_ENABLED: "true"
     ports:
-      - "${KAFKA_UI_HOST_PORT:-4424}:8080"
+      - "127.0.0.1:${KAFKA_UI_HOST_PORT:-4424}:8080"
     networks: [lds-network]
 
   # NOTE: topic provisioning used to be a one-shot `kafka-init` service (it
@@ -2155,7 +2622,7 @@ services:
     expose:
       - "2785"
     ports:
-      - "${OPENWA_HOST_PORT:-4507}:2785"
+      - "127.0.0.1:${OPENWA_HOST_PORT:-4507}:2785"
     volumes:
       - openwa-data:/app/data
     healthcheck:
@@ -2183,7 +2650,7 @@ services:
   rustfs:
     image: ${RUSTFS_IMAGE:-rustfs/rustfs}:${RUSTFS_VERSION:-latest}
     container_name: lds-rustfs
-    profiles: [rustfs, duckdb, trino, all]
+    profiles: [rustfs, duckdb, trino, plane, all]
     restart: *restart
     <<: *dns
     entrypoint: ["/bin/sh", "-c"]
@@ -2202,15 +2669,19 @@ services:
           wget -q -O /dev/null http://127.0.0.1:9000/ 2>/dev/null && break
           sleep 2
         done
-        echo "RustFS S3 API ready — initializing bucket..."
+        echo "RustFS S3 API ready — initializing buckets..."
 
-        # Create the S3 bucket (idempotent — 409 AlreadyExists is harmless)
-        echo "  Creating bucket '$${RUSTFS_BUCKET:-lds-data}'..."
-        curl -s -X PUT "http://127.0.0.1:9000/$${RUSTFS_BUCKET:-lds-data}" \
-          --aws-sigv4 "aws:amz:us-east-1:s3" \
-          --user "$$RUSTFS_ACCESS_KEY:$$RUSTFS_SECRET_KEY" \
-          -o /dev/null || true
-        echo "  Bucket ready"
+        # Create the S3 buckets (idempotent — 409 AlreadyExists is harmless):
+        #   $RUSTFS_BUCKET  — shared bucket (duckdb/trino seed data, …)
+        #   uploads         — Plane's object-storage bucket (AWS_S3_BUCKET_NAME)
+        for b in "$${RUSTFS_BUCKET:-lds-data}" "$${AWS_S3_BUCKET_NAME:-uploads}"; do
+          echo "  Creating bucket '$$b'..."
+          curl -s -X PUT "http://127.0.0.1:9000/$$b" \
+            --aws-sigv4 "aws:amz:us-east-1:s3" \
+            --user "$$RUSTFS_ACCESS_KEY:$$RUSTFS_SECRET_KEY" \
+            -o /dev/null || true
+        done
+        echo "  Buckets ready"
 
         # Upload seed data files from /data/duckdb/ (if any)
         if [ -d /data/duckdb ]; then
@@ -2243,11 +2714,13 @@ services:
       RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-lds-rustfs-secret-change-me}
       RUSTFS_CONSOLE_ENABLE: "true"
       RUSTFS_BUCKET: ${RUSTFS_BUCKET:-lds-data}
+      # Plane's bucket — created alongside RUSTFS_BUCKET on rustfs startup.
+      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-uploads}
     expose:
       - "9001"
     ports:
-      - "${RUSTFS_API_PORT:-4508}:9000"   # S3-compatible API
-      - "${RUSTFS_CONSOLE_PORT:-4509}:9001" # Web admin console
+      - "127.0.0.1:${RUSTFS_API_PORT:-4508}:9000"   # S3-compatible API
+      - "127.0.0.1:${RUSTFS_CONSOLE_PORT:-4509}:9001" # Web admin console
     volumes:
       - rustfs-data:/data
       - ./data/duckdb:/data/duckdb:ro
@@ -2328,7 +2801,7 @@ services:
     expose:
       - "8000"
     ports:
-      - "${HEADLESSX_API_HOST_PORT:-4516}:8000"
+      - "127.0.0.1:${HEADLESSX_API_HOST_PORT:-4516}:8000"
     volumes:
       - headlessx-browser-profile:/app/apps/api/data/browser-profile
       - headlessx-models:/app/apps/api/models
@@ -2416,7 +2889,7 @@ services:
     expose:
       - "3000"
     ports:
-      - "${HEADLESSX_WEB_HOST_PORT:-4515}:3000"
+      - "127.0.0.1:${HEADLESSX_WEB_HOST_PORT:-4515}:3000"
     healthcheck:
       test:
         [
@@ -2447,7 +2920,7 @@ services:
     expose:
       - "8080"
     ports:
-      - "${HEADLESSX_HTML_TO_MD_HOST_PORT:-4517}:8080"
+      - "127.0.0.1:${HEADLESSX_HTML_TO_MD_HOST_PORT:-4517}:8080"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 15s
@@ -2474,7 +2947,7 @@ services:
     expose:
       - "8090"
     ports:
-      - "${HEADLESSX_YT_ENGINE_HOST_PORT:-4519}:8090"
+      - "127.0.0.1:${HEADLESSX_YT_ENGINE_HOST_PORT:-4519}:8090"
     volumes:
       - headlessx-yt-engine-tmp:/app/tmp/yt-engine
     healthcheck:
@@ -2517,7 +2990,7 @@ services:
       - ./data/playwright/reports:/e2e/reports
     ports:
       # UI mode server (served on 0.0.0.0 inside the container) — open the host port in your browser
-      - "${PLAYWRIGHT_UI_HOST_PORT:-4527}:8787"
+      - "127.0.0.1:${PLAYWRIGHT_UI_HOST_PORT:-4527}:8787"
     mem_limit: ${PLAYWRIGHT_MEM_LIMIT:-1g}
     networks:
       - lds-network
@@ -2539,7 +3012,7 @@ services:
     expose:
       - "8080"
     ports:
-      - "${PLAYWRIGHT_REPORT_HOST_PORT:-4526}:8080"
+      - "127.0.0.1:${PLAYWRIGHT_REPORT_HOST_PORT:-4526}:8080"
     volumes:
       - ./data/playwright/reports:/usr/share/nginx/html
       - ./configs/playwright/reports/index.html:/usr/share/nginx/html/index.html:ro
@@ -2712,7 +3185,7 @@ services:
     expose:
       - "8080"
     ports:
-      - "${ERPNEXT_HOST_PORT:-4529}:8080"
+      - "127.0.0.1:${ERPNEXT_HOST_PORT:-4529}:8080"
     volumes:
       - ./data/erpnext/sites:/home/frappe/frappe-bench/sites
       - ./data/erpnext/logs:/home/frappe/frappe-bench/logs
@@ -2850,3 +3323,14 @@ volumes:
   headlessx-models:
   headlessx-yt-engine-tmp:
   snapotter-workspace:
+  # Plane CE (profile: plane) — vendor volume set, project-scoped:
+  # local-dev-stack_{logs_*,proxy_*}. rabbitmq_data is now the SHARED broker
+  # volume (service rabbitmq); pgdata/redisdata/uploads are gone: Plane uses
+  # the shared postgres/redis and the rustfs-data volume (uploads bucket).
+  logs_api:
+  logs_worker:
+  logs_beat-worker:
+  logs_migrator:
+  rabbitmq_data:
+  proxy_config:
+  proxy_data:

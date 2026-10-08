@@ -2,7 +2,8 @@
 
 This page covers the **control panel** at `http://localhost` and the standalone
 tool profiles added on top of the core stack: **DrawDB** (schema design),
-**Apache Hop** + **Apache Superset** (data warehouse & BI), **DuckDB** + **Trino**
+**Apache Hop** + **Apache Superset** + **Metabase** (data warehouse & BI), **Hoppscotch**
+(API client / Postman alternative) + **Plane** (project management), **DuckDB** + **Trino**
 (analytical query engines), **Semgrep** + **OWASP ZAP** + **Trivy** (code &
 vulnerability scanning), **code-review-graph** (AI code intelligence),
 **Vaultwarden** (password manager), **Mailpit** (SMTP + inbox), **Penpot**
@@ -32,11 +33,12 @@ The PHP container serves a control panel as its default site, reachable at
   OpenWA), *Browser
   automation & scraping* (HeadlessX), *Design* (Penpot, DrawDB, draw.io,
   LDS Palette Generator), *Websites &
-  CMS* (Instatic), *ERP & business* (ERPNext), *Analytic & Business
-  intelligence* (Analytics, Hop, Trino, Superset), *Monitoring &
+  CMS* (Instatic), *ERP & business* (ERPNext), *Project management*
+  (Plane), *Analytic & Business
+  intelligence* (Analytics, Hop, Trino, Superset, Metabase), *Monitoring &
   observability* (Grafana, Prometheus), *Code & security quality
   scanner* (Semgrep, Trivy, ZAP, code-review-graph), *Testing tools*
-  (Playwright), *Developer utilities* (LDS Text Diff), and *Websockets monitoring*
+  (Playwright, Hoppscotch), *Developer utilities* (LDS Text Diff), and *Websockets monitoring*
   (Centrifugo, MQTTX) — each with a
   ●/○ reachability dot.
 - **Projects** — every folder under `${PHP_PROJECTS_PATH}`, linked at its
@@ -69,11 +71,12 @@ persist in your browser (no server DB). Upstream image `ghcr.io/drawdb-io/drawdb
   `localhost` port, or serve the stack over HTTPS (`LDS_ENABLE_HTTPS=true`) to
   use `https://drawdb.test`.
 
-## Data warehouse & BI — Apache Hop & Apache Superset
+## Data warehouse & BI — Apache Hop, Apache Superset & Metabase
 
-**Profiles:** `hop` (`LDS_ENABLE_HOP`), `superset` (`LDS_ENABLE_SUPERSET`). **Off
-by default.** Both connect to the stack DBs as data sources — from inside the
-network use the container names (`lds-postgres:5432`, `lds-mysql:3306`).
+**Profiles:** `hop` (`LDS_ENABLE_HOP`), `superset` (`LDS_ENABLE_SUPERSET`),
+`metabase` (`LDS_ENABLE_METABASE`). **Off by default.** All three connect to the
+stack DBs as data sources — from inside the network use the container names
+(`lds-postgres:5432`, `lds-mysql:3306`).
 
 ### Apache Hop — `hop.test`
 
@@ -118,13 +121,86 @@ Browser-based **ETL / data-integration pipeline designer** (Hop Web).
   nonroot (UID 65532) runtime variant.
 - **Self-initialises on start** (db upgrade → create-admin → init → gunicorn),
   driven from the image's venv Python since the hardened image has no shell.
-- **Metadata** is SQLite in a bind-mounted host directory (`data/superset/`)
-  — fine for dev. On Linux, the host dir must be writable by UID 65532 (the DHI
-  nonroot user); if you hit *"attempt to write a readonly database"*, fix with
-  `chown 65532:65532 data/superset` (on Windows Docker Desktop this is a
-  non-issue). Login **`admin` / `admin`**. Data lives directly on disk via
-  bind mount — like Hop's project mechanism, no export/import needed. Superset
-  reads and writes to `data/superset/` directly.
+- **Metadata** lives in the **shared Postgres** — the `lds_superset` DB is
+  created by `POSTGRES_INIT_SPECS`, and `superset db upgrade` builds the schema
+  on first start. The `data/superset/` bind mount holds config, cache and the
+  folder-per-project YAML exports (Login **`admin` / `admin`**).
+
+### Metabase — `metabase.test`
+
+**Self-hosted BI dashboards** — the simpler, question-first alternative to
+Superset.
+
+- **Image:** official upstream `metabase/metabase` (AGPL-3.0), pinned via
+  `METABASE_VERSION`. There is no DHI variant.
+- **No default login.** The first visit to `metabase.test` opens Metabase's
+  setup wizard — create your own admin account and workspace there.
+- **Metadata** lives in the **shared Postgres** — the `lds_metabase` DB is
+  created by `POSTGRES_INIT_SPECS` (`MB_DB_TYPE=postgres`); Metabase runs its
+  own application-DB migrations against it on first boot, so questions,
+  dashboards, collections and users survive `down`/`up`. The legacy H2 file
+  may still sit under `data/metabase/` but is no longer read.
+- **Data sources:** after the setup wizard, add the stack DBs — e.g. Postgres
+  `postgresql://app:app@postgres:5432/app` (`postgres`/`mysql` resolve on
+  `lds-network` from inside the network).
+- Open at **`http://metabase.test`** (or `localhost:4541`). The first boot
+  takes ~1–2 minutes (JVM + application-DB migrations); the compose
+  healthcheck waits it out before reporting healthy.
+
+## API tooling & project management — Hoppscotch & Plane
+
+**Profiles:** `hoppscotch` + `plane` (`LDS_ENABLE_HOPPSCOTCH` /
+`LDS_ENABLE_PLANE`). **Both off by default.**
+
+### Hoppscotch — `hoppscotch.test`
+
+**Self-hosted API client** — the Postman alternative: REST, GraphQL,
+WebSocket, SSE and MQTT in the browser.
+
+- **Image:** official `hoppscotch/hoppscotch` AIO (MIT Community Edition),
+  pinned via `HOPPSCOTCH_VERSION`. One container in **subpath mode**:
+  `/` = the client, `/admin` = onboarding & users, `/backend` = GraphQL/REST —
+  all under the single `hoppscotch.test` vhost.
+- **Data:** shared Postgres — the `lds_hoppscotch` DB is created by
+  `POSTGRES_INIT_SPECS`, and the `hoppscotch-migrate` one-shot runs
+  `prisma migrate deploy` idempotently on every `up` (the app waits for it via
+  `service_completed_successfully`, the ERPNext-configurator pattern).
+  Collections, environments and history survive `down`/`up`.
+- **Login:** the `/admin` onboarding picks the auth providers. `EMAIL`
+  (magic link, the default) sends through the stack's **Mailpit** — start the
+  `mail` profile and click the link in `mail.test`. OAuth
+  (GitHub/Google/Microsoft) needs client IDs entered in `/admin`.
+- Open at **`http://hoppscotch.test`** (or `localhost:4542`). Point requests
+  at your local services by their `.test` host — they resolve through the edge
+  proxy like everything else.
+- `HOPPSCOTCH_BASE_URL` defaults to `https://` (the edge proxy terminates
+  TLS); switch it — and `HOPPSCOTCH_WS_URL` — to `http://`/`ws://` if you run
+  the stack without `LDS_ENABLE_HTTPS`.
+
+### Plane — `plane.test`
+
+**Open-source project management** — the Jira/Linear alternative: work items,
+cycles, modules, pages, analytics.
+
+- **Images:** official `makeplane/plane-*` (AGPL-3.0 Community Edition),
+  channel tag `APP_RELEASE` (default `stable`). This is the **full vendor CE
+  stack** (~13 containers): frontend, space, instance admin, live server, API,
+  celery worker + beat, a one-shot `migrator`, plus its own caddy edge.
+  Its **DB, cache, broker and object storage are shared**: dedicated
+  `lds_plane` database on the shared Postgres (`POSTGRES_INIT_SPECS`), the
+  shared Redis (logical DB 0), the shared RabbitMQ broker (`rabbitmq`
+  profile), and the RustFS `uploads` bucket.
+- **Edge:** the vendor caddy `proxy` service is renamed **`plane-proxy`** (the
+  bare `proxy` alias on `lds-network` belongs to the LDS edge router). It
+  carries `VIRTUAL_HOST=plane.test`, so the LDS edge proxy routes straight to
+  it; it is also published loopback-only at `localhost:4543`.
+- **First run:** open `plane.test` and the setup wizard creates the instance
+  admin. Change `PLANE_SECRET_KEY` / `PLANE_LIVE_SECRET_KEY` in `.env` before
+  sharing the instance.
+- **Storage:** Plane-scoped named volumes (`local-dev-stack_{logs_*,proxy_*}`)
+  — `lds down -v` wipes them, exactly like the databases. DB data lives in the
+  shared Postgres volume, cache in the shared Redis volume, broker data in the
+  shared `rabbitmq_data` volume, uploads in the `rustfs-data` volume.
 
 ## Code quality — Semgrep
 
@@ -384,8 +460,9 @@ Postgres, Kafka, and more. ANSI SQL, parallel execution, connector ecosystem.
    (from the host, use `trino://localhost:4451/hive/default`)
 6. Click **Test Connection** → **Save**
 
-> The `trino` Python driver is auto-installed at Superset startup via the
-> entrypoint (`pip install trino`). No manual steps needed.
+> The `trino` Python driver is auto-installed at Superset startup (installed
+> into the writable `/app/pythonpath` since the venv is root-owned). No manual
+> steps needed.
 
 #### Connecting Apache Hop to Trino
 

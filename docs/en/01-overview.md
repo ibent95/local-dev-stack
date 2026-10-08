@@ -10,8 +10,9 @@ project a `<name>.test` hostname, and a library of **templates** scaffolds new
 projects across many languages and frameworks.
 
 - Services are gated by profiles: `proxy`, `php`, `mysql`, `mariadb`, `mssql`,
-  `oracle`, `postgres`, `mongo`, `redis`, `valkey`, `memcached`, `kafka`,
-  `phpcacheadmin`, `dbx`, `drawdb`, `hop`, `superset`, `duckdb`, `trino`,
+  `oracle`, `postgres`, `mongo`, `redis`, `valkey`, `memcached`, `rabbitmq`,
+  `kafka`,
+  `phpcacheadmin`, `dbx`, `drawdb`, `hop`, `superset`, `metabase`, `hoppscotch`, `plane`, `duckdb`, `trino`,
   `semgrep`, `zap`, `trivy`, `crg`, `vaultwarden`, `mail`, `penpot`, `instatic`,
   `analytics`, `tasks`, `wiki`, `openwa`, `rustfs`, `headlessx`, `playwright`,
   `erpnext`, `soketi`, `centrifugo`, `mqtt`, `snapotter`, `imgcompress`,

@@ -72,6 +72,12 @@ talk to them.
 <td>4404</td>
 </tr>
 <tr>
+<td>RabbitMQ</td>
+<td>`rabbitmq`</td>
+<td>`rabbitmq` (3.13, AMQP broker)</td>
+<td>4410</td>
+</tr>
+<tr>
 <td>Proxy/DNS</td>
 <td>`proxy`</td>
 <td>`proxy` (nginx-proxy edge router), `dns` (dnsmasq)</td>
@@ -115,9 +121,15 @@ talk to them.
 </tr>
 <tr>
 <td>Warehouse/BI</td>
-<td>`hop` / `superset`</td>
-<td>Apache Hop (ETL designer) / Apache Superset (BI)</td>
-<td>4503 / 4504</td>
+<td>`hop` / `superset` / `metabase`</td>
+<td>Apache Hop (ETL designer) / Apache Superset (BI) / Metabase (BI)</td>
+<td>4503 / 4504 / 4541</td>
+</tr>
+<tr>
+<td>API &amp; PM</td>
+<td>`hoppscotch` / `plane`</td>
+<td>Hoppscotch (API client, Postman alternative) / Plane (project management, Jira/Linear alternative)</td>
+<td>4542 / 4543</td>
 </tr>
 <tr>
 <td>Query engines</td>
@@ -370,6 +382,18 @@ From other containers on `lds-network`, use the service name + its internal port
 <td>`memcached:11211`</td>
 </tr>
 <tr>
+<td></td>
+<td>RabbitMQ (AMQP)</td>
+<td>`localhost:4410`</td>
+<td>`rabbitmq:5672`</td>
+</tr>
+<tr>
+<td></td>
+<td>RabbitMQ (management UI)</td>
+<td>`localhost:4411`</td>
+<td>`rabbitmq:15672`</td>
+</tr>
+<tr>
 <td>**Kafka** `442x`</td>
 <td>--------------------------------------------------------------------------------</td>
 <td></td>
@@ -495,6 +519,23 @@ From other containers on `lds-network`, use the service name + its internal port
 <td>`localhost:4504` (`superset.test`)</td>
 <td>`superset:8088`</td>
 </tr>
+<tr>
+<td></td>
+<td>Metabase</td>
+<td>`localhost:4541` (`metabase.test`)</td>
+<td>`metabase:3000`</td>
+</tr>
+<tr>
+<td></td>
+<td>Hoppscotch</td>
+<td>`localhost:4542` (`hoppscotch.test`)</td>
+<td>`hoppscotch:80`</td>
+</tr>
+<tr>
+<td></td>
+<td>Plane</td>
+<td>`localhost:4543` (`plane.test`)</td>
+<td>`plane-proxy:80`</td>
 <tr>
 <td></td>
 <td>Semgrep viewer</td>
@@ -792,7 +833,7 @@ networks:
 ```
 
 Then your app reaches services by name (in-network ports): `mysql`, `postgres`,
-`redis`, `memcached`, `kafka-broker:9092`, `schema-registry:8080`,
+`redis`, `memcached`, `rabbitmq`, `kafka-broker:9092`, `schema-registry:8080`,
 `connect-debezium:8083`, `connect-generic:8083`. From the host, Connect is on
 :4423 (Debezium) and :4422 (generic), and the registry on :4421.
 

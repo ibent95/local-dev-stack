@@ -27,4 +27,4 @@ Untuk menjalankannya ulang, hapus volume dulu: `./lds.sh down -v` lalu
 
 Dari container mana pun di `lds-network`, akses database lewat hostname:
 `mysql:3306`, `mariadb:3306`, `postgres:5432`, `mssql:1433`, `oracle:1521`,
-`mongo:27017`, `redis:6379`, `valkey:6379`, `memcached:11211`.
+`mongo:27017`, `redis:6379`, `valkey:6379`, `memcached:11211`, `rabbitmq:5672`.

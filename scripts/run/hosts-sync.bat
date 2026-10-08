@@ -16,6 +16,9 @@ if "%SOKETI_HOST%"=="" set "SOKETI_HOST=ws.test"
 if "%DRAWDB_HOST%"=="" set "DRAWDB_HOST=drawdb.test"
 if "%HOP_HOST%"=="" set "HOP_HOST=hop.test"
 if "%SUPERSET_HOST%"=="" set "SUPERSET_HOST=superset.test"
+if "%METABASE_HOST%"=="" set "METABASE_HOST=metabase.test"
+if "%HOPPSCOTCH_HOST%"=="" set "HOPPSCOTCH_HOST=hoppscotch.test"
+if "%PLANE_HOST%"=="" set "PLANE_HOST=plane.test"
 if "%SEMGREP_HOST%"=="" set "SEMGREP_HOST=semgrep.test"
 if "%PLAYWRIGHT_REPORT_HOST%"=="" set "PLAYWRIGHT_REPORT_HOST=playwright.test"
 if "%TRIVY_HOST%"=="" set "TRIVY_HOST=trivy.test"
@@ -95,7 +98,11 @@ call :add %SNAPOTTER_HOST% "(file platform - convert · OCR · AI)"
 call :add %IMGCOMPRESS_HOST% "(image toolbox - 70+ formats)"
 call :sec "Data tools"
 call :add %SUPERSET_HOST%
+call :add %METABASE_HOST%
 call :add %HOP_HOST%
+call :sec "API & project management"
+call :add %HOPPSCOTCH_HOST% "(API client - Postman alternative)"
+call :add %PLANE_HOST% "(project management - Jira/Linear alternative)"
 call :sec "Code quality"
 call :add %SEMGREP_HOST%
 call :add %CRG_HOST% "(code-review-graph - AI code graph · blast-radius)"

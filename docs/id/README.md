@@ -16,7 +16,7 @@ Baca berurutan:
 12. [Port](12-ports.md)
 13. [Profile (setiap profile secara rinci)](13-profiles.md)
 14. [Meresolusi `*.test` (DNS)](14-dns.md)
-15. [Dashboard & tool data (DrawDB, Hop, Superset, Semgrep, ZAP, Trivy, CRG, Playwright, HeadlessX, …)](15-data-tools.md)
+15. [Dashboard & tool data (DrawDB, Hop, Superset, Metabase, Hoppscotch, Plane, Semgrep, ZAP, Trivy, CRG, Playwright, HeadlessX, …)](15-data-tools.md)
 16. [Berkontribusi](16-contributing.md)
 17. [Keamanan](17-security.md)
 18. [Kredit & perangkat lunak pihak ketiga](18-credits.md)

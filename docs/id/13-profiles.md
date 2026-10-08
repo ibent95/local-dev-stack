@@ -94,6 +94,12 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 <td>`memcached`</td>
 </tr>
 <tr>
+<td>`rabbitmq`</td>
+<td>`LDS_ENABLE_RABBITMQ`</td>
+<td>❌</td>
+<td>`rabbitmq`</td>
+</tr>
+<tr>
 <td>`kafka`</td>
 <td>`LDS_ENABLE_KAFKA`</td>
 <td>❌</td>
@@ -146,6 +152,24 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 <td>`LDS_ENABLE_SUPERSET`</td>
 <td>❌</td>
 <td>`superset` — Apache Superset (BI)</td>
+</tr>
+<tr>
+<td>`metabase`</td>
+<td>`LDS_ENABLE_METABASE`</td>
+<td>❌</td>
+<td>`metabase` — Metabase (BI, setup wizard saat pertama kali)</td>
+</tr>
+<tr>
+<td>`hoppscotch`</td>
+<td>`LDS_ENABLE_HOPPSCOTCH`</td>
+<td>❌</td>
+<td>`hoppscotch` — Hoppscotch API client (alternatif Postman, CE MIT)</td>
+</tr>
+<tr>
+<td>`plane`</td>
+<td>`LDS_ENABLE_PLANE`</td>
+<td>❌</td>
+<td>`plane` — Plane manajemen proyek (alternatif Jira/Linear, CE AGPL-3.0; Postgres/Redis/RustFS/RabbitMQ bersama)</td>
 </tr>
 <tr>
 <td>`semgrep`</td>
@@ -301,7 +325,7 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 </table>
 
 > **Aplikasi kustom** (`analytics`, `tasks`, `wiki`), **tool data** (`drawdb`,
-> `hop`, `superset`, `semgrep`, `zap`, `trivy`, `crg`, `vaultwarden`, `mail`,
+> `hop`, `superset`, `metabase`, `hoppscotch`, `plane`, `semgrep`, `zap`, `trivy`, `crg`, `vaultwarden`, `mail`,
 > `penpot`, `instatic`, `openwa`, `rustfs`), **profile automasi/pengujian**
 > (`headlessx`, `playwright`) serta **utilitas** (`snapotter`, `imgcompress`,
 > `drawio`, `lldap`, `openldap`, `monitoring`) punya halaman sendiri —
@@ -490,6 +514,25 @@ default.**
 - **Batas memori:** `${MEMCACHED_MEMORY}` MB (default `64`).
 - **Tanpa volume** — murni in-memory; data hilang saat restart, memang disengaja.
 - Inspeksi via profile `phpcacheadmin`.
+
+## `rabbitmq` — RabbitMQ 3.13
+
+**Menjalankan:** `rabbitmq`. **Toggle:** `LDS_ENABLE_RABBITMQ`. **Mati
+secara default.** (Profile `plane` juga menjalankannya — antrean tugas Plane
+ada di broker bersama ini.)
+
+- **Image:** `rabbitmq:${RABBITMQ_VERSION}-management-alpine` (bawaan
+  `3.13.6`, UI manajemen ikut tersedia).
+- **Port:** AMQP host `${RABBITMQ_HOST_PORT}` (bawaan `4410`) → container
+  `5672`; UI manajemen host `${RABBITMQ_MGMT_HOST_PORT}` (bawaan `4411`) →
+  `15672` — buka `http://localhost:4411` lalu login dengan
+  `RABBITMQ_USER` / `RABBITMQ_PASSWORD`.
+- **Provisioning:** user, password dan vhost (bawaan `app` / `app` / `app`)
+  dibuat pada **boot pertama** volume `rabbitmq_data`; mengubah `RABBITMQ_*`
+  kemudian butuh reset volume (`lds down -v`).
+- **Klien:** service dalam jaringan terhubung ke `rabbitmq:5672` (`AMQP_URL`
+  Plane sudah ter-wire ke sana).
+- **Storage:** volume `rabbitmq_data`.
 
 ## `kafka` — stack Kafka penuh (KRaft + Debezium CDC)
 

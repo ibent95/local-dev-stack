@@ -26,4 +26,4 @@ To re-run them, wipe the volume first: `./lds.sh down -v` then `./lds.sh up`.
 
 From any container on `lds-network`, reach the databases by hostname:
 `mysql:3306`, `mariadb:3306`, `postgres:5432`, `mssql:1433`, `oracle:1521`,
-`mongo:27017`, `redis:6379`, `valkey:6379`, `memcached:11211`.
+`mongo:27017`, `redis:6379`, `valkey:6379`, `memcached:11211`, `rabbitmq:5672`.

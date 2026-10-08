@@ -2,7 +2,8 @@
 
 Halaman ini membahas **panel kontrol** di `http://localhost` serta profile tool
 mandiri yang ditambahkan di atas stack inti: **DrawDB** (perancangan skema),
-**Apache Hop** + **Apache Superset** (data warehouse & BI), **DuckDB** + **Trino**
+**Apache Hop** + **Apache Superset** + **Metabase** (data warehouse & BI), **Hoppscotch**
+(API client / alternatif Postman) + **Plane** (manajemen proyek), **DuckDB** + **Trino**
 (mesin query analitis), **Semgrep** + **OWASP ZAP** + **Trivy** (pemindaian kode
 & kerentanan), **code-review-graph** (kecerdasan kode AI),
 **Vaultwarden** (password manager), **Mailpit** (SMTP + inbox), **Penpot**
@@ -29,11 +30,12 @@ Container PHP melayani panel kontrol sebagai situs default-nya, dapat diakses di
   ImgCompress), *Identity (LDAP)* (LLDAP, OpenLDAP), *Messaging / Socials* (Mailpit,
   OpenWA), *Browser automation & scraping* (HeadlessX), *Design* (Penpot,
   DrawDB, draw.io, LDS Palette Generator), *Websites & CMS* (Instatic), *ERP &
-  business* (ERPNext), *Analytic &
-  Business intelligence* (Analytics, Hop, Trino, Superset), *Monitoring &
+  business* (ERPNext), *Manajemen proyek*
+  (Plane), *Analytic &
+  Business intelligence* (Analytics, Hop, Trino, Superset, Metabase), *Monitoring &
   observability* (Grafana, Prometheus), *Code & security
   quality scanner* (Semgrep, Trivy, ZAP, code-review-graph), *Testing tools*
-  (Playwright), *Developer utilities* (LDS Text Diff), dan *Websockets monitoring*
+  (Playwright, Hoppscotch), *Developer utilities* (LDS Text Diff), dan *Websockets monitoring*
   (Centrifugo, MQTTX) —
   masing-masing dengan titik ●/○ status keterjangkauan.
 - **Proyek** — setiap folder di `${PHP_PROJECTS_PATH}`, ditautkan ke host
@@ -66,11 +68,12 @@ disimpan di browser Anda (tanpa DB server). Image upstream
   Pakai port `localhost`, atau sajikan stack via HTTPS (`LDS_ENABLE_HTTPS=true`)
   untuk memakai `https://drawdb.test`.
 
-## Data warehouse & BI — Apache Hop & Apache Superset
+## Data warehouse & BI — Apache Hop, Apache Superset & Metabase
 
-**Profile:** `hop` (`LDS_ENABLE_HOP`), `superset` (`LDS_ENABLE_SUPERSET`). **Mati
-secara default.** Keduanya terhubung ke DB stack sebagai sumber data — dari dalam
-jaringan pakai nama container (`lds-postgres:5432`, `lds-mysql:3306`).
+**Profile:** `hop` (`LDS_ENABLE_HOP`), `superset` (`LDS_ENABLE_SUPERSET`),
+`metabase` (`LDS_ENABLE_METABASE`). **Mati secara default.** Ketiganya terhubung
+ke DB stack sebagai sumber data — dari dalam jaringan pakai nama container
+(`lds-postgres:5432`, `lds-mysql:3306`).
 
 ### Apache Hop — `hop.test`
 
@@ -115,13 +118,86 @@ jaringan pakai nama container (`lds-postgres:5432`, `lds-mysql:3306`).
   non-dev, nonroot (UID 65532).
 - **Inisialisasi sendiri saat start** (db upgrade → buat admin → init → gunicorn),
   dijalankan dari Python venv image karena image hardened tak punya shell.
-- **Metadata** berupa SQLite di direktori host yang di-mount (`data/superset/`)
-  — cukup untuk dev. Di Linux, direktori host harus dapat ditulis oleh UID 65532
-  (user nonroot DHI); jika Anda kena *"attempt to write a readonly database"*,
-  perbaiki dengan `chown 65532:65532 data/superset` (di Windows Docker
-  Desktop ini bukan masalah). Login **`admin` / `admin`**. Data hidup langsung
-  di disk via bind mount — seperti mekanisme proyek Hop, tanpa perlu
-  export/import. Superset membaca dan menulis ke `data/superset/` langsung.
+- **Metadata** berada di **Postgres bersama** — DB `lds_superset` dibuat oleh
+  `POSTGRES_INIT_SPECS`, dan `superset db upgrade` membangun skema saat start
+  pertama. Bind mount `data/superset/` menyimpan config, cache, dan ekspor
+  YAML folder-per-project (Login **`admin` / `admin`**).
+
+### Metabase — `metabase.test`
+
+**Dashboard BI self-hosted** — alternatif Superset yang lebih sederhana dan
+berpusat pada pertanyaan (question).
+
+- **Image:** `metabase/metabase` resmi upstream (AGPL-3.0), di-pin lewat
+  `METABASE_VERSION`. Tidak ada varian DHI.
+- **Tanpa login default.** Kunjungan pertama ke `metabase.test` membuka setup
+  wizard Metabase — buat akun admin dan workspace Anda sendiri di sana.
+- **Metadata** berada di **Postgres bersama** — DB `lds_metabase` dibuat oleh
+  `POSTGRES_INIT_SPECS` (`MB_DB_TYPE=postgres`); Metabase menjalankan migrasi
+  aplikasi-nya sendiri terhadap DB itu saat boot pertama, jadi pertanyaan,
+  dashboard, koleksi, dan pengguna bertahan melewati `down`/`up`. File H2 lama
+  mungkin masih ada di `data/metabase/` tetapi tidak lagi dibaca.
+- **Sumber data:** setelah setup wizard, tambahkan DB stack — mis. Postgres
+  `postgresql://app:app@postgres:5432/app` (`postgres`/`mysql` dapat
+  diakses di `lds-network` dari dalam jaringan).
+- Buka di **`http://metabase.test`** (atau `localhost:4541`). Boot pertama
+  butuh ~1–2 menit (JVM + migrasi DB aplikasi); healthcheck compose
+  menunggunya hingga sehat.
+
+## API tooling & manajemen proyek — Hoppscotch & Plane
+
+**Profile:** `hoppscotch` + `plane` (`LDS_ENABLE_HOPPSCOTCH` /
+`LDS_ENABLE_PLANE`). **Keduanya nonaktif secara bawaan.**
+
+### Hoppscotch — `hoppscotch.test`
+
+**API client self-hosted** — alternatif Postman: REST, GraphQL, WebSocket,
+SSE, dan MQTT di browser.
+
+- **Image:** resmi `hoppscotch/hoppscotch` AIO (Community Edition, MIT),
+  dipin via `HOPPSCOTCH_VERSION`. Satu kontainer dalam **mode subpath**:
+  `/` = klien, `/admin` = onboarding & pengguna, `/backend` = GraphQL/REST —
+  semuanya di bawah satu vhost `hoppscotch.test`.
+- **Data:** Postgres bersama — DB `lds_hoppscotch` dibuat oleh
+  `POSTGRES_INIT_SPECS`, dan one-shot `hoppscotch-migrate` menjalankan
+  `prisma migrate deploy` idempoten setiap `up` (aplikasi menunggunya via
+  `service_completed_successfully`, pola ERPNext-configurator).
+  Koleksi, environment, dan riwayat bertahan setelah `down`/`up`.
+- **Login:** onboarding `/admin` memilih penyedia autentikasi. `EMAIL`
+  (magic link, bawaan) dikirim lewat **Mailpit** stack — jalankan profile
+  `mail` lalu klik tautannya di `mail.test`. OAuth (GitHub/Google/Microsoft)
+  membutuhkan client ID yang diisi di `/admin`.
+- Buka di **`http://hoppscotch.test`** (atau `localhost:4542`). Arahkan request
+  ke layanan lokal lewat host `.test` — semuanya resolve via edge proxy.
+- `HOPPSCOTCH_BASE_URL` bawaannya `https://` (edge proxy mengakhiri TLS);
+  ganti ke `http://` (dan `HOPPSCOTCH_WS_URL` ke `ws://`) jika stack
+  dijalankan tanpa `LDS_ENABLE_HTTPS`.
+
+### Plane — `plane.test`
+
+**Manajemen proyek open-source** — alternatif Jira/Linear: work item, cycle,
+module, halaman, analitik.
+
+- **Image:** resmi `makeplane/plane-*` (Community Edition, AGPL-3.0), tag
+  kanal `APP_RELEASE` (bawaan `stable`). Ini **stack CE vendor lengkap**
+  (~13 kontainer): frontend, space, instance admin, live server, API, celery
+  worker + beat, one-shot `migrator`, plus caddy edge miliknya sendiri.
+  **DB, cache, broker, dan object storage-nya memakai layanan bersama**:
+  database khusus `lds_plane` di Postgres bersama (`POSTGRES_INIT_SPECS`),
+  Redis bersama (logical DB 0), RabbitMQ bersama (profile `rabbitmq`), dan
+  bucket `uploads` di RustFS.
+- **Edge:** service caddy `proxy` vendor diganti nama menjadi
+  **`plane-proxy`** (alias `proxy` polos di `lds-network` milik edge router
+  LDS). Service ini membawa `VIRTUAL_HOST=plane.test`, jadi edge proxy LDS
+  langsung mengarah ke sana; juga dipublikasikan loopback-only di
+  `localhost:4543`.
+- **Jalankan pertama:** buka `plane.test`, setup wizard membuat admin
+  instance. Ubah `PLANE_SECRET_KEY` / `PLANE_LIVE_SECRET_KEY` di `.env`
+  sebelum instance dibagikan.
+- **Penyimpanan:** volume bernama Plane (`local-dev-stack_{logs_*,proxy_*}`)
+  — `lds down -v` menghapusnya, persis seperti database. Data DB hidup di
+  volume Postgres bersama, cache di volume Redis bersama, data broker di
+  volume `rabbitmq_data` bersama, upload di volume `rustfs-data`.
 
 ## Code quality — Semgrep
 
@@ -383,8 +459,9 @@ Postgres, Kafka, dan lainnya. ANSI SQL, eksekusi paralel, ekosistem konektor.
    (dari host, gunakan `trino://localhost:4451/hive/default`)
 6. Klik **Test Connection** → **Save**
 
-> Driver Python `trino` diinstal otomatis saat startup Superset melalui
-> entrypoint (`pip install trino`). Tidak perlu langkah manual.
+> Driver Python `trino` diinstal otomatis saat startup Superset (ke direktori
+> `/app/pythonpath` yang writable, karena venv dimiliki root). Tidak perlu
+> langkah manual.
 
 #### Menghubungkan Apache Hop ke Trino
 
