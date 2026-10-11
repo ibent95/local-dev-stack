@@ -185,7 +185,10 @@ cycles, modules, pages, analytics.
 - **Images:** official `makeplane/plane-*` (AGPL-3.0 Community Edition),
   channel tag `APP_RELEASE` (default `stable`). This is the **full vendor CE
   stack** (~13 containers): frontend, space, instance admin, live server, API,
-  celery worker + beat, a one-shot `migrator`, plus its own caddy edge.
+  celery worker + beat, a one-shot `migrator`, plus its own caddy edge. The
+  migrator re-runs on every `lds up plane` and its exited container is
+  auto-removed right after a successful `up` (kept only when migrations
+  fail, for `docker logs lds-plane-migrator`).
   Its **DB, cache, broker and object storage are shared**: dedicated
   `lds_plane` database on the shared Postgres (`POSTGRES_INIT_SPECS`), the
   shared Redis (logical DB 0), the shared RabbitMQ broker (`rabbitmq`

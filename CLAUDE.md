@@ -125,9 +125,9 @@ gated behind **profiles** and share one external network `lds-network`.
   idempotent), `dbx-seed` (POSTs `configs/dbx/connections.seed.json` to DBX's
   Web API so the stack DBs are auto-listed (no `CONNECTIONS` env, no UI lock);
   skips the DB seeds when connections already exist; also installs the JDBC +
-  LDAP Studio plugins (only when missing, retried on the next start) and seeds
-  the LLDAP/OpenLDAP connections per name; idempotent, auto-run by `up` for
-  dbx/all),
+  LDAP Studio + Kafka Studio plugins and the RabbitMQ agent driver (only when
+  missing, retried on the next start) and seeds the LLDAP/OpenLDAP/Kafka/
+  RabbitMQ connections per name; idempotent, auto-run by `up` for dbx/all),
   `hop-register` (registers all folders under `HOP_PROJECTS_PATH` as Hop projects
   in `hop-config.json` via `hop-conf` inside the running container; idempotent,
   auto-run by `up` for hop/all),
@@ -242,7 +242,8 @@ the shared postgres via POSTGRES_INIT_SPECS, Prisma migrations by the
 **Plane** = open-source project management, Jira/Linear alternative (`plane`,
 `plane.test` / :4543, AGPL-3.0 Community Edition — vendor CE stack of 13
 services: frontend/space/admin/live + api + celery worker/beat + one-shot
-migrator + a caddy edge named
+migrator (its exited container is auto-removed by the `up` hooks after each
+successful run) + a caddy edge named
 `plane-proxy` — NOT `proxy`, that alias belongs to the LDS edge router; DB/
 .cache/broker/object-storage are shared (Postgres `lds_plane`, Redis DB 0,
 RabbitMQ, RustFS `uploads` bucket); first visit runs the setup wizard).

@@ -85,8 +85,6 @@ $uiGroups = [
         ['label' => 'RustFS',          'desc' => 'S3 object storage',     'url' => '//rustfs.test', 'alt' => 'localhost:4509', 'health' => ['rustfs', 9001]],
     ],
     'Documents & credentials' => [
-        ['label' => 'LDS Tasks',     'desc' => 'Angular 22 · Kanban boards',  'url' => '//lds-tasks.test',     'alt' => 'localhost:4523', 'health' => ['tasks-ui', 4174]],
-        ['label' => 'LDS Wiki',      'desc' => 'Next.js 16 · documentation hub', 'url' => '//lds-wiki.test',   'alt' => 'localhost:4525', 'health' => ['wiki-ui', 4175]],
         ['label' => 'Vaultwarden',   'desc' => 'password manager',       'url' => '//vaultwarden.test','alt' => 'localhost:4506', 'health' => ['vaultwarden', 80]],
     ],
     'File conversion' => [
@@ -115,6 +113,8 @@ $uiGroups = [
     ],
     'Project management' => [
         ['label' => 'Plane',         'desc' => 'issues · cycles · setup wizard on first run', 'url' => '//plane.test', 'alt' => 'localhost:4543', 'health' => ['plane-proxy', 80]],
+        ['label' => 'LDS Tasks',     'desc' => 'Angular 22 · Kanban boards',  'url' => '//lds-tasks.test',     'alt' => 'localhost:4523', 'health' => ['tasks-ui', 4174]],
+        ['label' => 'LDS Wiki',      'desc' => 'Next.js 16 · documentation hub', 'url' => '//lds-wiki.test',   'alt' => 'localhost:4525', 'health' => ['wiki-ui', 4175]],
     ],
     'Analytic & Business intelligence' => [
         ['label' => 'LDS Analytics', 'desc' => 'Nuxt 4 · reactive dashboard', 'url' => '//lds-analytics.test', 'alt' => 'localhost:4521', 'health' => ['analytics-ui', 4173]],

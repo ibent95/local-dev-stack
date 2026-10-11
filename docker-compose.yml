@@ -1483,7 +1483,10 @@ services:
     networks: [lds-network]
 
   # One-shot Django migrations — idempotent, re-runs on every `up` (exit 0);
-  # api/worker/beat wait for it (service_completed_successfully).
+  # api/worker/beat wait for it (service_completed_successfully). LDS deletes
+  # the exited container right after a successful `up` (up.sh/up.bat cleanup
+  # hook) so it never lingers in `ps`; the next `up plane` re-runs it.
+  # On failure it is kept for `docker logs lds-plane-migrator`.
   migrator:
     image: makeplane/plane-backend:${APP_RELEASE:-stable}
     container_name: lds-plane-migrator
@@ -3128,6 +3131,7 @@ services:
         fi
     environment:
       ERPNEXT_DB_TYPE: ${ERPNEXT_DB_TYPE:-postgres}
+      ERPNEXT_DB_NAME: ${ERPNEXT_DB_NAME:-lds_erpnext}
       ERPNEXT_SITE: ${ERPNEXT_SITE:-frontend}
       ERPNEXT_ADMIN_PASSWORD: ${ERPNEXT_ADMIN_PASSWORD:-admin}
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-root}

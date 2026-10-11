@@ -601,9 +601,14 @@ default.**
   terdaftar via `scripts/run/dbx-seed.*` (otomatis dijalankan `lds up`
   untuk profile `dbx`/`all`; script ini POST ke Web API DBX **setelah**
   container naik, dan dilewati bila koneksi sudah ada). Hook yang sama
-  memasang plugin JDBC dan LDAP Studio (idempoten - dicoba lagi di start
-  berikutnya bila unduhan gagal) dan men-seed koneksi **LLDAP (LDS)** /
-  **OpenLDAP (LDS)** bila belum ada koneksi dengan nama tersebut.
+  memasang plugin JDBC, LDAP Studio dan Kafka Studio plus agent driver
+  RabbitMQ (idempoten - dicoba lagi di start berikutnya bila unduhan
+  gagal) dan men-seed koneksi **LLDAP (LDS)** / **OpenLDAP (LDS)** /
+  **Kafka (LDS)** / **RabbitMQ (LDS)** bila belum ada koneksi dengan nama
+  tersebut. Kafka ditelusuri lewat plugin Kafka Studio (`kafka-broker:9092`;
+  jalankan profile `kafka` untuk tersambung), dan RabbitMQ lewat konsol
+  admin message-queue bawaan DBX (driver `mq` + agent yang diunduh; API
+  manajemen di `rabbitmq:15672`).
 - Koneksi tersimpan di `dbx.db` di direktori bind-mount `data/dbx/`
   (bersama `.dbx/secret.key` — cadangkan keduanya sebagai pasangan).
 - Image `t8y2/dbx` (Apache-2.0, upstream — bukan image DHI), dipin oleh

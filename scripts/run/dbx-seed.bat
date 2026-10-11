@@ -1,10 +1,12 @@
 @echo off
 REM Seed DBX's connection list through its Web API so the stack databases are
-REM auto-listed on a FRESH setup, and make sure the JDBC + LDAP Studio plugins
-REM are installed. Runs AFTER compose up (up.bat calls it as a post-up hook).
-REM Three idempotent stages: 1) plugins (JDBC + LDAP Studio, only when missing,
-REM failures are warnings - the next run retries), 2) DB connections (only when
-REM the list is empty, never clobbers), 3) LDAP connections (LLDAP + OpenLDAP,
+REM auto-listed on a FRESH setup, and make sure the JDBC + LDAP Studio + Kafka
+REM Studio plugins and the RabbitMQ agent driver are installed. Runs AFTER
+REM compose up (up.bat calls it as a post-up hook).
+REM Three idempotent stages: 1) plugins/agents (JDBC + LDAP Studio + Kafka
+REM Studio + RabbitMQ agent, only when missing, failures are warnings - the
+REM next run retries), 2) DB connections (only when the list is empty, never
+REM clobbers), 3) per-connection seeds (LLDAP + OpenLDAP + Kafka + RabbitMQ,
 REM skipped per entry when that name already exists).
 REM Note: the API returns single-line JSON that can exceed cmd's 8191-char
 REM set/findstr limits, so the plugin and name checks go through PowerShell.
@@ -42,19 +44,11 @@ if not defined READY (
   popd & endlocal & exit /b 0
 )
 
-REM --- Stage 1: plugins (JDBC + LDAP Studio), only when missing -------------
+REM --- Stage 1: plugins + agent drivers, only when missing --------------------
 call :ensure_jdbc_plugin
-
-powershell -NoProfile -Command "try { $p = Invoke-RestMethod -Uri '!URL!/api/plugins' -TimeoutSec 15 } catch { exit 1 }; if (@($p.manifest.id) -contains 'io.dbx.ldap') { exit 0 } else { exit 1 }" >nul 2>&1
-if errorlevel 1 (
-  echo DBX: installing LDAP Studio plugin ^(first run downloads it^)...
-  curl -sf --max-time 300 -X POST -H "Content-Type: application/json" -d "{\"repositoryId\":\"dbx-official\",\"pluginId\":\"io.dbx.ldap\"}" "!URL!/api/plugins/marketplace/install" >nul 2>&1
-  if errorlevel 1 (
-    echo DBX: LDAP Studio install FAILED - will retry on the next 'lds up dbx' or from dbx.test.
-  ) else (
-    echo DBX: LDAP Studio plugin installed.
-  )
-)
+call :ensure_marketplace_plugin "io.dbx.ldap"
+call :ensure_marketplace_plugin "io.dbx.kafka"
+call :ensure_rabbitmq_agent
 
 REM --- Stage 2: DB connections, only when the list is empty -----------------
 REM exit codes: 0 = has connections, 1 = empty, 2 = list unreadable.
@@ -74,15 +68,19 @@ if errorlevel 1 (
   echo DBX already has connections - skipping DB seed.
 )
 
-REM --- Stage 3: LDAP connections, one seed file per directory ---------------
-set "LDAP_FAILED=0"
-call :seed_ldap "LLDAP (LDS)" "configs\dbx\connections.ldap-lldap.seed.json"
-if errorlevel 1 set "LDAP_FAILED=1"
-call :seed_ldap "OpenLDAP (LDS)" "configs\dbx\connections.ldap-openldap.seed.json"
-if errorlevel 1 set "LDAP_FAILED=1"
+REM --- Stage 3: per-connection seeds, one file each --------------------------
+set "SEED_FAILED=0"
+call :seed_conn "LLDAP (LDS)" "configs\dbx\connections.ldap-lldap.seed.json"
+if errorlevel 1 set "SEED_FAILED=1"
+call :seed_conn "OpenLDAP (LDS)" "configs\dbx\connections.ldap-openldap.seed.json"
+if errorlevel 1 set "SEED_FAILED=1"
+call :seed_conn "Kafka (LDS)" "configs\dbx\connections.kafka.seed.json"
+if errorlevel 1 set "SEED_FAILED=1"
+call :seed_conn "RabbitMQ (LDS)" "configs\dbx\connections.rabbitmq.seed.json"
+if errorlevel 1 set "SEED_FAILED=1"
 
 popd
-if "!LDAP_FAILED!"=="1" ( endlocal & exit /b 1 )
+if "!SEED_FAILED!"=="1" ( endlocal & exit /b 1 )
 endlocal
 exit /b 0
 
@@ -102,7 +100,32 @@ if "!P2!"=="!PSTF!" (
 )
 exit /b 0
 
-:seed_ldap
+:ensure_marketplace_plugin
+set "PLUG=%~1"
+powershell -NoProfile -Command "try { $p = Invoke-RestMethod -Uri '!URL!/api/plugins' -TimeoutSec 15 } catch { exit 1 }; if (@($p.manifest.id) -contains '%~1') { exit 0 } else { exit 1 }" >nul 2>&1
+if not errorlevel 1 exit /b 0
+echo DBX: installing %PLUG% ^(first run downloads it^)...
+curl -sf --max-time 300 -X POST -H "Content-Type: application/json" -d "{\"repositoryId\":\"dbx-official\",\"pluginId\":\"%PLUG%\"}" "!URL!/api/plugins/marketplace/install" >nul 2>&1
+if errorlevel 1 (
+  echo DBX: %PLUG% install FAILED - will retry on the next 'lds up dbx' or from dbx.test.
+) else (
+  echo DBX: %PLUG% installed.
+)
+exit /b 0
+
+:ensure_rabbitmq_agent
+powershell -NoProfile -Command "try { $r = Invoke-RestMethod -Uri '!URL!/api/agents/installed/rabbitmq' -TimeoutSec 15; if ($r -eq $true) { exit 0 } else { exit 1 } } catch { exit 1 }" >nul 2>&1
+if not errorlevel 1 exit /b 0
+echo DBX: installing RabbitMQ agent driver ^(first run downloads it^)...
+curl -sf --max-time 300 -X POST -H "Content-Type: application/json" -d "{\"dbType\":\"rabbitmq\",\"operationId\":\"seed-!RANDOM!\"}" "!URL!/api/agents/install" >nul 2>&1
+if errorlevel 1 (
+  echo DBX: RabbitMQ agent driver install FAILED - will retry on the next 'lds up dbx' or from dbx.test Driver Store.
+) else (
+  echo DBX: RabbitMQ agent driver install started.
+)
+exit /b 0
+
+:seed_conn
 set "NAME=%~1"
 set "LF=%~2"
 if not exist "!LF!" exit /b 0

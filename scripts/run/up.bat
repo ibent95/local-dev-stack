@@ -174,6 +174,23 @@ if errorlevel 1 (
 docker compose !CFILES! !ARGS! ps
 call :subdone
 
+REM Plane's migrator is one-shot: once it exits 0 its stopped container has no
+REM further value (Compose has no remove-after-exit), so delete it here to keep
+REM `ps` clean. This only runs after a SUCCESSFUL `up` — api/worker/beat gate
+REM on `service_completed_successfully`, so a failed migrator aborts above and
+REM the container is kept for `docker logs lds-plane-migrator`. The next
+REM `lds up plane` recreates + re-runs it from the compose file.
+echo %PROFILES% | findstr /I /C:"plane" /C:"all" >nul
+if not errorlevel 1 (
+  set "MSTATE="
+  for /f "delims=" %%s in ('docker inspect -f "{{.State.Status}}:{{.State.ExitCode}}" lds-plane-migrator 2^>nul') do set "MSTATE=%%s"
+  if "!MSTATE!"=="exited:0" (
+    call :sub "remove one-shot lds-plane-migrator (migrations already applied)"
+    docker rm lds-plane-migrator >nul 2>&1
+    call :subdone
+  )
+)
+
 REM Seed DBX connections AFTER it is up (the seed goes through DBX's Web API, so
 REM the container must be answering; fresh setups only - skips if you already
 REM added connections). Keeps the stack DBs auto-listed.

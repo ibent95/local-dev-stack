@@ -588,10 +588,15 @@ default** (turn it on when you run `redis`/`memcached`).
 - The stack's MySQL + MariaDB + Postgres + MongoDB + SQL Server + Oracle are
   auto-listed via `scripts/run/dbx-seed.*` (auto-run by `lds up` for the
   `dbx`/`all` profile; it POSTs to DBX's Web API **after** the container is up,
-  and skips when connections already exist). The same hook installs the JDBC
-  and LDAP Studio plugins (idempotent - retried on the next start if the
-  download fails) and seeds the **LLDAP (LDS)** / **OpenLDAP (LDS)**
-  connections when a connection with that name is missing.
+  and skips when connections already exist). The same hook installs the JDBC,
+  LDAP Studio and Kafka Studio plugins plus the RabbitMQ agent driver
+  (idempotent - retried on the next start if the download fails) and seeds the
+  **LLDAP (LDS)** / **OpenLDAP (LDS)** / **Kafka (LDS)** / **RabbitMQ (LDS)**
+  connections when a connection with that name is missing. Kafka browses
+  through the Kafka Studio plugin (`kafka-broker:9092`; start the `kafka`
+  profile to connect), and RabbitMQ through DBX's built-in message-queue
+  admin console (`mq` driver + the downloaded agent; management API on
+  `rabbitmq:15672`).
 - Connections live in `dbx.db` inside the bind-mounted `data/dbx/` directory
   (together with `.dbx/secret.key` — back them up as a pair).
 - Image `t8y2/dbx` (Apache-2.0, upstream — not a DHI image), pinned by

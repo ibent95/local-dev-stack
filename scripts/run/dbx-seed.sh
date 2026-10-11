@@ -1,18 +1,23 @@
 #!/usr/bin/env bash
 # Seed DBX's connection list through its Web API so the stack databases are
-# auto-listed on a FRESH setup, and make sure the JDBC + LDAP Studio plugins
-# are installed. The API only answers once the container is up, so this runs
-# as a post-up hook from the `up` scripts. Three idempotent stages:
+# auto-listed on a FRESH setup, and make sure the JDBC + LDAP Studio + Kafka
+# Studio plugins and the RabbitMQ agent driver are installed. The API only
+# answers once the container is up, so this runs as a post-up hook from the
+# `up` scripts. Three idempotent stages:
 #
-#   1. plugins  - JDBC plugin + LDAP Studio (io.dbx.ldap), each only when
-#                 missing. First run downloads them from the official source
-#                 (cached in data/dbx afterwards); failures are warnings so
-#                 an offline start never blocks, the next `lds up dbx` retries.
+#   1. plugins  - JDBC plugin + LDAP Studio (io.dbx.ldap) + Kafka Studio
+#                 (io.dbx.kafka) marketplace plugins, plus the RabbitMQ agent
+#                 driver (DBX's built-in `mq` admin console needs it), each
+#                 only when missing. First run downloads them from the official
+#                 source (cached in data/dbx afterwards); failures are warnings
+#                 so an offline start never blocks, the next `lds up dbx`
+#                 retries.
 #   2. DB seed  - MySQL + MariaDB + Postgres + Mongo + SQL Server + Oracle,
 #                 ONLY when there are no saved connections at all, so it never
 #                 clobbers ones you added.
-#   3. LDAP seed - LLDAP + OpenLDAP connections (one file each), skipped per
-#                 entry when a connection with that name already exists.
+#   3. per-name seed - LLDAP + OpenLDAP + Kafka + RabbitMQ connections (one
+#                 file each), skipped per entry when a connection with that
+#                 name already exists.
 #
 # Passwords below are the .env DEFAULTS (MSSQL_SA_PASSWORD / ORACLE_PASSWORD
 # etc.). If you changed DB creds, edit them in the UI afterwards — add/edit is
@@ -48,7 +53,7 @@ if [ "$ready" != "1" ]; then
   exit 0
 fi
 
-# --- Stage 1: plugins (JDBC + LDAP Studio), only when missing ---------------
+# --- Stage 1: plugins + agent drivers, only when missing ---------------------
 # Matching is done on captured JSON (no `curl | grep`): with pipefail a
 # grep -q that exits early can fail the pipeline and look like "not installed".
 jdbc_status="$(curl -sf --max-time 15 "$URL/api/jdbc/plugin/status" 2>/dev/null || true)"
@@ -64,20 +69,39 @@ case "$jdbc_status" in
     ;;
 esac
 
-plugins="$(curl -sf --max-time 15 "$URL/api/plugins" 2>/dev/null || true)"
-case "$plugins" in
-  *'"id":"io.dbx.ldap"'*) ;;
-  *)
-    echo "DBX: installing LDAP Studio plugin (first run downloads it)..."
-    if curl -sf --max-time 300 -X POST -H 'Content-Type: application/json' \
-         -d '{"repositoryId":"dbx-official","pluginId":"io.dbx.ldap"}' \
-         "$URL/api/plugins/marketplace/install" >/dev/null 2>&1; then
-      echo "DBX: LDAP Studio plugin installed."
-    else
-      echo "DBX: LDAP Studio install FAILED — will retry on the next 'lds up dbx' (or install from dbx.test)."
-    fi
-    ;;
-esac
+# Marketplace plugin helper: install $1 only when its id is absent from the list.
+install_plugin() {
+  local plugin_id="$1" plugins
+  plugins="$(curl -sf --max-time 15 "$URL/api/plugins" 2>/dev/null || true)"
+  case "$plugins" in
+    *"\"id\":\"$plugin_id\""*) return 0 ;;
+  esac
+  echo "DBX: installing $plugin_id (first run downloads it)..."
+  if curl -sf --max-time 300 -X POST -H 'Content-Type: application/json' \
+       -d "{\"repositoryId\":\"dbx-official\",\"pluginId\":\"$plugin_id\"}" \
+       "$URL/api/plugins/marketplace/install" >/dev/null 2>&1; then
+    echo "DBX: $plugin_id installed."
+  else
+    echo "DBX: $plugin_id install FAILED — will retry on the next 'lds up dbx' (or install from dbx.test)."
+  fi
+}
+install_plugin "io.dbx.ldap"
+install_plugin "io.dbx.kafka"
+
+# RabbitMQ agent driver: DBX's built-in `mq` admin console runs broker-specific
+# logic in a small downloaded agent (no Java needed, ~2 MB, cached in data/dbx).
+# The `installed/<type>` probe answers true/false, so this is one clean check.
+if [ "$(curl -sf --max-time 15 "$URL/api/agents/installed/rabbitmq" 2>/dev/null || true)" != "true" ]; then
+  echo "DBX: installing RabbitMQ agent driver (first run downloads it)..."
+  op_id="$(date +%s)-$$"
+  if curl -sf --max-time 300 -X POST -H 'Content-Type: application/json' \
+       -d "{\"dbType\":\"rabbitmq\",\"operationId\":\"$op_id\"}" \
+       "$URL/api/agents/install" >/dev/null 2>&1; then
+    echo "DBX: RabbitMQ agent driver install started."
+  else
+    echo "DBX: RabbitMQ agent driver install FAILED — will retry on the next 'lds up dbx' (or install from dbx.test Driver Store)."
+  fi
+fi
 
 # --- Stage 2: DB connections, only when the list is empty -------------------
 list="$(curl -sf --max-time 15 "$URL/api/connection/list" 2>/dev/null | tr -d '\r' || true)"
@@ -98,10 +122,10 @@ else
   echo "DBX already has connections — skipping DB seed."
 fi
 
-# --- Stage 3: LDAP connections, one seed file per directory -----------------
+# --- Stage 3: per-connection seeds, one file each ----------------------------
 # Names are compared space-insensitively so the check is immune to JSON
 # spacing; the seed file itself is the single source of the payload.
-seed_ldap() {
+seed_conn() {
   local name="$1" f="$2" name_flat list_flat
   [ -f "$f" ] || return 0
   name_flat="$(printf '%s' "$name" | tr -d ' ')"
@@ -121,7 +145,9 @@ seed_ldap() {
   fi
 }
 
-ldap_failed=0
-seed_ldap "LLDAP (LDS)" "configs/dbx/connections.ldap-lldap.seed.json" || ldap_failed=1
-seed_ldap "OpenLDAP (LDS)" "configs/dbx/connections.ldap-openldap.seed.json" || ldap_failed=1
-[ "$ldap_failed" = "0" ] || exit 1
+seed_failed=0
+seed_conn "LLDAP (LDS)" "configs/dbx/connections.ldap-lldap.seed.json" || seed_failed=1
+seed_conn "OpenLDAP (LDS)" "configs/dbx/connections.ldap-openldap.seed.json" || seed_failed=1
+seed_conn "Kafka (LDS)" "configs/dbx/connections.kafka.seed.json" || seed_failed=1
+seed_conn "RabbitMQ (LDS)" "configs/dbx/connections.rabbitmq.seed.json" || seed_failed=1
+[ "$seed_failed" = "0" ] || exit 1
