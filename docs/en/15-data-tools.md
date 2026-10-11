@@ -515,7 +515,7 @@ the shared `assets/jdbc/` directory.
   ```
 
 - **Image:** Official `trinodb/trino:${TRINO_VERSION}`.
-- **Metastore:** `hive-metastore` (official `apache/hive:4.0.0` image),
+- **Metastore:** `hive-metastore` (official `apache/hive:4.2.1` image),
   auto-started with the `trino` profile. Backed by the shared LDS Postgres
   (`lds_hive_metastore` database).
 

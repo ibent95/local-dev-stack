@@ -178,7 +178,7 @@ services:
   #   Go / Rust / Java / Node apps get a hostname. PHP projects fall through to
   #   the mass-vhost php container above (its regex VIRTUAL_HOST is the catch-all).
   proxy:
-    image: nginxproxy/nginx-proxy:1.6
+    image: nginxproxy/nginx-proxy:1.11
     container_name: lds-proxy
     profiles: [proxy, php, all]
     restart: *restart
@@ -948,7 +948,7 @@ services:
   #   trino  : full distributed SQL query engine. Federated queries across MySQL,
   #            Postgres, Kafka, and Parquet (via Hive Metastore). Built-in web UI
   #            at :4451/ui. TPCH/TPCDS sample data included for testing.
-  #   hive-metastore : Hive Metastore (apache/hive:4.0.0 official image) backing
+  #   hive-metastore : Hive Metastore (apache/hive:4.2.1 official image) backing
   #                    Trino's Hive connector. Stores schemas in LDS Postgres.
   # All OFF by default. Trino requires postgres for the Hive Metastore.
   # ===========================================================================
@@ -1012,7 +1012,7 @@ services:
   # The DB is created by hive-metastore-init (auto-run after compose up for the
   # trino profile). Retries schematool to bridge the race until that DB exists.
   hive-metastore:
-    image: apache/hive:4.0.0
+    image: apache/hive:4.2.1
     container_name: lds-hive-metastore
     profiles: [trino, all]
     restart: *restart

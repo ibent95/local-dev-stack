@@ -515,7 +515,7 @@ direktori bersama `assets/jdbc/`.
   ```
 
 - **Image:** Official `trinodb/trino:${TRINO_VERSION}`.
-- **Metastore:** `hive-metastore` (official `apache/hive:4.0.0` image),
+- **Metastore:** `hive-metastore` (official `apache/hive:4.2.1` image),
   otomatis berjalan dengan profile `trino`. Menggunakan Postgres LDS bersama
   (database `lds_hive_metastore`).
 
