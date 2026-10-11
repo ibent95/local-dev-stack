@@ -49,9 +49,9 @@ updates:
     ignore:
       # RUSTSEC-2024-0429: glib <0.20 unsoundness. Blocked upstream — gtk 0.18
       # (via wry) pins glib ^0.18; the fix needs Tauri's GTK3 -> GTK4 migration
-      # (tauri-apps/tauri#12561-12563, wry#1474). Tracked for manual dismissal.
+      # (tauri-apps/tauri#12561-12563, wry#1474). Dismissed manually as
+      # tolerable risk; ignore stops dependabot from re-raising it.
       - dependency-name: "glib*"
-        applies-to: security-updates
 
   - package-ecosystem: "cargo"
     directory: "/desktop/dioxus"
@@ -61,7 +61,6 @@ updates:
     ignore:
       # Same glib advisory as above — blocked on the same gtk-rs stack.
       - dependency-name: "glib*"
-        applies-to: security-updates
 
   # --- Stack apps: analytics / tasks / wiki (lockfiles are git-ignored, so
   # these PRs update the version ranges in package.json) ---
