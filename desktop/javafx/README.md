@@ -1,6 +1,6 @@
 # LDS Desktop — JavaFX variant
 
-The **Java 21 + JavaFX** implementation of the LDS desktop companion — the
+The **Java 25 + JavaFX 27** implementation of the LDS desktop companion — the
 learning sibling of the [Tauri variant](../tauri/README.md). Same features,
 same "thin shell over the `lds` CLI" design — different toolkit
 (see [`../README.md`](../README.md) for the shared feature list).
@@ -9,7 +9,7 @@ same "thin shell over the `lds` CLI" design — different toolkit
 
 ```
 javafx/
-├── pom.xml                  # JavaFX 21 + Jackson (Maven Central)
+├── pom.xml                  # JavaFX 27 + Jackson (Maven Central)
 └── src/main/
     ├── java/com/localdevstack/lds/
     │   ├── LdsCli.java      # ProcessBuilder bridge to lds.bat/lds.sh
@@ -45,7 +45,7 @@ jpackage builds a runnable `target/dist/LdsDesktop/` app-image (bundled JRE,
 
 ## Build (host) / per-OS installers
 
-Prereqs: JDK 21+, Maven 3.9+. jpackage must run on each target OS — it cannot
+Prereqs: JDK 25+, Maven 3.9+. jpackage must run on each target OS — it cannot
 cross-package.
 
 ```bash

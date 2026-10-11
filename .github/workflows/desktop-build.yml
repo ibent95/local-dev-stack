@@ -80,7 +80,7 @@ jobs:
         uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: '27'
+          java-version: '25'
 
       - name: Package app (jar + jpackage app-image)
         run: bash desktop/javafx/package.sh

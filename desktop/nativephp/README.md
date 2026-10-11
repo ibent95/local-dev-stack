@@ -8,7 +8,7 @@ Java.
 
 > **Status: scaffolded, not yet implemented.** This folder is a stock
 > Laravel 13 + NativePHP v2 app (`composer create-project laravel/laravel` +
-> `nativephp/desktop ^2.2`, `php artisan native:install`). It boots and every
+> `nativephp/desktop ^2.3`, `php artisan native:install`). It boots and every
 > artisan command works, but there is **no LDS logic yet** — no `LdsCli`
 > bridge, no panel UI, no tray. `routes/web.php` is still the stock welcome
 > page. See `docs/developments/003/planning.md` §6 for the planned shape.
@@ -19,45 +19,28 @@ Standard Laravel app + NativePHP v2 (`config/nativephp.php`,
 `app/Providers/NativeAppServiceProvider.php`). Requires PHP 8.3+ (8.4 works),
 Composer, and Node 20+.
 
-## Composer patch — why it exists
+## Laravel-13 command-name bug — fixed upstream (2.3.1)
 
-`php artisan list` crashed on Laravel 13 with:
+With nativephp/desktop 2.2.x, `php artisan list` crashed on Laravel 13:
 
 ```
 The "native:migrate:fresh" command cannot be found because it is registered
 under multiple names.
 ```
 
-Root cause: nativephp/desktop 2.2.1's `FreshCommand` declares an
-`#[AsCommand(name: 'native:migrate:fresh')]` attribute but inherits the
-`migrate:fresh …` `$signature` from Laravel's command. Laravel registers the
-command lazily under the attribute name, but the instantiated command's actual
-name comes from the signature — so the loader key never matches the real name
-and Symfony's console refuses to resolve it. `WipeDatabaseCommand` has the same
-class of bug in reverse: its `$name` is ignored and it silently shadowed
-Laravel's own `db:wipe`.
-
-Fix: `patches/nativephp-desktop-laravel13-commands.patch` gives both commands
-the constructor pattern `MigrateCommand` already uses
-(`$this->signature = 'native:'.$this->signature;`), so their real names match
-their loader keys. The patch is applied automatically by
-[cweagans/composer-patches](https://github.com/cweagans/composer-patches)
-(see `extra.patches` in `composer.json`).
-
-**The patch re-applies on every `composer install` / `composer update`.**
-To force it on an existing checkout:
-
-```bash
-composer reinstall nativephp/desktop
-```
-
-`patches.lock.json` records the applied patch — commit it alongside
-`composer.json` / `composer.lock`.
+Root cause: `FreshCommand` declared an
+`#[AsCommand(name: 'native:migrate:fresh')]` attribute but inherited the
+`migrate:fresh …` `$signature` from Laravel's command, so the loader key never
+matched the real name; `WipeDatabaseCommand` shadowed Laravel's own `db:wipe`
+in reverse. This repo used to ship a local composer patch for both commands —
+**obsolete since nativephp/desktop 2.3.1**, which fixed the signatures
+upstream. The patch, `cweagans/composer-patches` and `patches/` were all
+removed (commit `fed034e`); plain `composer install` is all you need.
 
 ## Build & run (NativePHP v2 — verified)
 
 ```bash
-composer install                  # applies the composer patch automatically
+composer install
 npm install                       # frontend deps (Vite)
 php artisan bifrost:login         # nativephp account (one-time)
 php artisan bifrost:init          # select/create the desktop project
@@ -78,16 +61,17 @@ Notes:
   **NativePHP v1** — v2 uses `bifrost:*` + `native:run` / `native:build` above.
 - `native:run` needs the Electron bundle from `bifrost:download-bundle`, which
   requires a logged-in nativephp account.
-- Verified in this repo: `composer reinstall nativephp/desktop` re-applies the
-  patch; `php artisan list` exits 0 with all `native:*` / `bifrost:*`
-  commands present; `migrate:fresh` and `db:wipe` remain Laravel's own;
-  `npm install` + `npm run build` compile the frontend cleanly.
+- Verified in this repo: `php artisan list` exits 0 with all `native:*` /
+  `bifrost:*` commands present (nativephp/desktop 2.3.1); `migrate:fresh` and
+  `db:wipe` remain Laravel's own; `npm install` + `npm run build` compile the
+  frontend cleanly. CI runs `native:build` on PHP 8.4 / Node 22 for all three
+  OSes.
 
 ## Containerized compile-check (optional)
 
 Like the Tauri/JavaFX variants, a containerized build target exists —
 `lds/nativephp-dev` (layered on `lds/php`: PHP 8.4 CLI + composer + node 20,
-plus the SQLite driver and `patch`):
+plus the SQLite driver):
 
 ```bash
 docker buildx bake -f ../../docker-bake.hcl --load nativephp-dev   # one-time base image

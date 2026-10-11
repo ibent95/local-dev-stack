@@ -61,6 +61,12 @@ updates:
     ignore:
       # Same glib advisory as above — blocked on the same gtk-rs stack.
       - dependency-name: "glib*"
+      # rand <0.8.6 unsoundness (logger/ThreadRng aliasing): the only copy is
+      # rand 0.7.3, a BUILD-dependency (selectors -> phf_codegen ->
+      # phf_generator) that never ships in the app; no 0.7.x patch exists and
+      # selectors 0.24 pins the phf 0.8 line. Dismissed as tolerable risk.
+      - dependency-name: "rand"
+        versions: ["< 0.8.6"]
 
   # --- Stack apps: analytics / tasks / wiki (lockfiles are git-ignored, so
   # these PRs update the version ranges in package.json) ---

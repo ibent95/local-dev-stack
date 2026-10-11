@@ -14,7 +14,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>27</maven.compiler.release>
+    <maven.compiler.release>25</maven.compiler.release>
     <javafx.version>27</javafx.version>
     <mainClass>com.localdevstack.lds.LdsDesktopApp</mainClass>
   </properties>

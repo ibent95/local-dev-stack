@@ -7,23 +7,20 @@ stay the single source of truth):
 | Variant | Location | Stack | Run (host) | Build (container) |
 |:--------|:---------|:------|:-----------|:------------------|
 | **A — Tauri** | `tauri/` | Rust + Tauri v2 (system WebView) | `cargo tauri dev` | `desktop/build.sh tauri` via `lds/tauri-dev` |
-| **B — JavaFX** | `javafx/` | Java 21 + JavaFX (native controls) | `mvn javafx:run` | `desktop/build.sh javafx` via `lds/javafx-dev` |
-| **C — NativePHP** 🎓 | `nativephp/` | PHP 8.3+ + NativePHP v2 (Laravel + Electron) | `php artisan native:run` | `composer install` + `php artisan native:build` |
+| **B — JavaFX** | `javafx/` | Java 25 + JavaFX 27 (native controls) | `mvn javafx:run` | `desktop/build.sh javafx` via `lds/javafx-dev` |
+| **C — NativePHP** 🎓 | `nativephp/` | PHP 8.4 + NativePHP v2.3 (Laravel + Electron) | `php artisan native:run` | `composer install` + `php artisan native:build` |
 | **D — Dioxus** 🧪 | `dioxus/` | Rust + Dioxus 0.7 (`rsx!` UI, wry webview) | `cargo run` / `dx serve` | `desktop/build.sh dioxus` via `lds/tauri-dev` |
 
 🎓 = learning purposes only. Variant C is **scaffolded but not implemented**
-(no LDS logic yet) — see `nativephp/README.md` for the Laravel-13 composer
-patch and the verified v2 build flow.
+(no LDS logic yet) — see `nativephp/README.md` for the verified v2 build flow
+(the old Laravel-13 composer patch is obsolete: fixed upstream in
+`nativephp/desktop` 2.3.1).
 
 🧪 = **spike**. Variant D proves the tray + status panel pattern in pure-Rust
 UI (tray via `muda`, the same crate Tauri v2 uses) — no log streaming or lds
 command bridge yet. See `dioxus/README.md`.
 
-🎓 = learning purposes only. Variant C is **scaffolded but not implemented**
-(no LDS logic yet) — see `nativephp/README.md` for the Laravel-13 composer
-patch and the verified v2 build flow.
-
-## Features (identical in both)
+## Features (Tauri + JavaFX — identical)
 
 - System tray — Open panel · Start all profiles · Stop all · Quit
 - Lifecycle buttons — `lds start` / `stop` / `down` / `ps` / `logs` /
@@ -44,7 +41,7 @@ Base images (built with `lds build-bases` or
 - `lds/tauri-dev` — `rust-dev` + webkit2gtk-4.1/GTK3/appindicator deps + tauri-cli (**also builds the Dioxus variant** — wry needs the same webview deps)
 - `lds/tauri-win-dev` — `tauri-dev` + mingw-w64 + rustup windows target (cross-compiles a Windows `.exe`; on-demand, NOT in `lds build-bases` — it's ~2.5 GB)
 - `lds/javafx-dev` — `java-dev` + GTK3/fontconfig/X11 runtime deps
-- `lds/nativephp-dev` — `lds/php` + sqlite + patch (PHP 8.4 CLI + composer + node 20)
+- `lds/nativephp-dev` — `lds/php` + sqlite (PHP 8.4 CLI + composer + node 20)
 
 ```bash
 desktop/build.sh                     # all four variants, containerized (Linux)

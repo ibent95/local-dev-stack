@@ -34,7 +34,7 @@
 # Base images (see docker-bake.hcl):
 #   lds/tauri-dev     — rust-dev + webkit2gtk-4.1/GTK3 deps + tauri-cli
 #   lds/javafx-dev    — java-dev + GTK3/fontconfig/X11 deps + binutils (jpackage)
-#   lds/nativephp-dev — lds/php + sqlite + patch (PHP 8.4 CLI + composer + node)
+#   lds/nativephp-dev — lds/php + sqlite (PHP 8.4 CLI + composer + node)
 #   dioxus reuses lds/tauri-dev (wry needs the same webkit2gtk deps as Tauri).
 # Build them with:  lds build-bases   (or docker buildx bake tauri-dev javafx-dev nativephp-dev)
 #
@@ -124,7 +124,7 @@ host_build() {
     ( cd desktop/tauri/src-tauri && cargo tauri build )
   fi
   if [ "$want" = "javafx" ] || [ "$want" = "all" ]; then
-    command -v mvn >/dev/null 2>&1 || { echo "  missing: mvn (Maven 3.9+ with JDK 21+). See desktop/javafx/README.md"; exit 1; }
+    command -v mvn >/dev/null 2>&1 || { echo "  missing: mvn (Maven 3.9+ with JDK 25+). See desktop/javafx/README.md"; exit 1; }
     echo "==> [javafx] jpackage via package.sh — app/installer in desktop/javafx/target/dist/"
     bash desktop/javafx/package.sh
   fi
@@ -187,7 +187,7 @@ container_build() {
   if [ "$want" = "nativephp" ] || [ "$want" = "all" ]; then
     ensure_image "lds/nativephp-dev:${PHP_VERSION}"
     echo ""
-    echo "==> [nativephp] composer install (patch applies) + vite build + artisan check (Linux)"
+    echo "==> [nativephp] composer install + vite build + artisan check (Linux)"
     docker run --rm \
       -v "$ROOT:/app" \
       -w /app/desktop/nativephp \
