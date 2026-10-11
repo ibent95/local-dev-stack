@@ -11,9 +11,10 @@
 # Trigger: manual (workflow_dispatch) or on any push touching desktop/.
 #   * Tauri     — tauri-action (official): cargo tauri build with per-OS bundles
 #   * JavaFX    — mvn package + jpackage app-image (desktop/javafx/package.sh)
-#   * NativePHP — composer install (applies the Laravel-13 patch) + vite build
-#                 + `php artisan native:build <os>` (unsecure path, no account
-#                 needed; the bifrost bundle path needs nativephp credentials)
+#   * NativePHP — composer install + vite build + a CI .env (2.3.x requires
+#                 one at build time) + `php artisan native:build <os>`
+#                 (unsecure path, no account needed; the bifrost bundle path
+#                 needs nativephp credentials)
 # =============================================================================
 name: desktop-build
 
@@ -117,9 +118,9 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '22'
 
-      - name: Install deps (composer patch applies automatically)
+      - name: Install deps
         working-directory: desktop/nativephp
         run: composer install --no-interaction --no-progress
 
@@ -128,6 +129,12 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npm run build
+
+      - name: Prepare .env (required by the 2.3.x builder)
+        working-directory: desktop/nativephp
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
 
       - name: Build desktop app for ${{ matrix.target }}
         working-directory: desktop/nativephp
