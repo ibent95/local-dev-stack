@@ -1012,7 +1012,7 @@ services:
   # The DB is created by hive-metastore-init (auto-run after compose up for the
   # trino profile). Retries schematool to bridge the race until that DB exists.
   hive-metastore:
-    image: apache/hive:4.0.0
+    image: apache/hive:4.2.1
     container_name: lds-hive-metastore
     profiles: [trino, all]
     restart: *restart
