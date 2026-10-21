@@ -1,0 +1,59 @@
+// =============================================================================
+// Grafana Alloy — log collector for the LDS monitoring profile.
+// Bind-mounted read-only into lds-alloy at /etc/alloy/config.alloy
+// (restart with: lds restart monitoring).
+//
+// Alloy replaced Promtail, which reached end of life in March 2026. It talks to
+// the Docker Engine API through the socket (see the `alloy` service) and tails
+// the stdout/stderr of EVERY running container on the host — the LDS services
+// and your own project containers alike — pushing them to Loki.
+//
+// Result in Grafana (Explore → Loki): one stream per container, labelled
+// container="lds-postgres", stream="stderr", etc. Nothing has to be added per
+// project: a `docker compose up` in a template shows up in Loki seconds later.
+// =============================================================================
+logging {
+  level  = "warn"
+  format = "logfmt"
+}
+
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "5s"
+}
+
+// Docker's API names containers "/<name>"; strip the leading slash so the label
+// reads container="lds-mysql" instead of container="/lds-mysql".
+discovery.relabel "containers" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "compose_project"
+  }
+}
+
+loki.source.docker "containers" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.containers.targets
+  relabel_rules = discovery.relabel.containers.rules
+  labels     = { job = "docker" }
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

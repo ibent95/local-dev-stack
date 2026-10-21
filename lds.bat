@@ -23,6 +23,8 @@ if /I "%CMD%"=="db"                  goto db
 if /I "%CMD%"=="tools"               goto tools
 if /I "%CMD%"=="headlessx"           goto headlessx
 if /I "%CMD%"=="openvas"             call "%ROOT%scripts\run\openvas.bat" %REST% & goto end
+if /I "%CMD%"=="backup"             call "%ROOT%scripts\run\backup.bat" %REST% & goto end
+if /I "%CMD%"=="restore"            call "%ROOT%scripts\run\restore.bat" %REST% & goto end
 if /I "%CMD%"=="playwright"          call "%ROOT%scripts\run\playwright.bat" %REST% & goto end
 if /I "%CMD%"=="e2e"                 call "%ROOT%scripts\run\playwright.bat" %REST% & goto end
 if /I "%CMD%"=="init"                call "%ROOT%scripts\run\init.bat" %REST% & goto end
@@ -122,6 +124,12 @@ echo.
 echo  openvas ^<sub^>                  start ^| stop ^| restart ^| logs ^| ps ^| pull - OpenVAS/Greenbone
 echo                                 CE companion ^(out-of-stack, heavy; UI http://127.0.0.1:9392^)
 echo.
+echo   backup [--only a,b] [--volumes] [--keep N] [--list]
+echo                                 dump every RUNNING database ^(+ optional tool
+echo                                 volumes^) into data\backups\^<timestamp^>\
+echo   restore [^<folder^>] [--only a,b] [--yes]
+echo                                 replay such a folder into the running stack
+echo                                 ^(overwrites data; folder defaults to newest^)
 echo   certs [--force]               mint the wildcard *.test dev TLS cert (for LDS_ENABLE_HTTPS)
 echo   hosts-sync                    write www/ projects into the hosts file
 echo   env-sync [--dry-run]          sync .env to .env.example (keeps your values; adds missing vars)

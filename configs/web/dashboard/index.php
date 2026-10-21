@@ -126,6 +126,13 @@ $uiGroups = [
     'Monitoring & observability' => [
         ['label' => 'Grafana',       'desc' => 'dashboards · no login (anonymous)', 'url' => '//grafana.test',    'alt' => 'localhost:4532', 'health' => ['grafana', 3000]],
         ['label' => 'Prometheus',    'desc' => 'metrics TSDB · targets & queries', 'url' => '//prometheus.test', 'alt' => 'localhost:4533', 'health' => ['prometheus', 9090]],
+        ['label' => 'Loki',          'desc' => 'logs · every container (Explore → Loki)', 'url' => '//loki.test', 'alt' => 'localhost:4547', 'health' => ['loki', 3100]],
+        ['label' => 'Tempo',         'desc' => 'traces · OTLP 4317/4318 (Explore → Tempo)', 'url' => '//tempo.test', 'alt' => 'localhost:4548', 'health' => ['tempo', 3200]],
+        ['label' => 'cAdvisor',      'desc' => 'per-container CPU / memory / network', 'url' => 'http://localhost:4534', 'alt' => 'localhost:4534', 'health' => ['cadvisor', 8080]],
+    ],
+    'Search & identity' => [
+        ['label' => 'Meilisearch',   'desc' => 'instant search API · no UI · bearer key', 'url' => '//meili.test/health', 'alt' => 'localhost:4545', 'health' => ['meilisearch', 7700]],
+        ['label' => 'Keycloak',      'desc' => 'OIDC/OAuth2 · issuer /realms/lds · admin/admin', 'url' => '//auth.test/admin/', 'alt' => 'localhost:4546', 'health' => ['keycloak', 9000]],
     ],
     'Code & security quality scanner' => [
         ['label' => 'Semgrep',       'desc' => 'SAST · findings dashboard', 'url' => '//semgrep.test',    'alt' => 'localhost:4505', 'health' => ['semgrep', 8080]],

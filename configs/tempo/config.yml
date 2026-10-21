@@ -1,0 +1,52 @@
+# =============================================================================
+# Tempo — trace store for the LDS monitoring profile.
+# Bind-mounted read-only into lds-tempo at /etc/tempo/config.yml
+# (restart with: lds restart monitoring).
+#
+# Monolithic mode (`target: all`): every role in one process, blocks on the
+# local filesystem inside the tempo-data volume (wiped by `lds down -v`).
+# Receives OTLP on 4317 (gRPC) / 4318 (HTTP) — directly from an app, or through
+# the otel-collector gateway (configs/otel/collector.yml), which is the path the
+# docs and dashboard use.
+#
+# Tempo 3.x REMOVED the old top-level `ingester` / `compactor` blocks: recent
+# traces live in the live-store, and block maintenance moved to the
+# backend-scheduler/backend-worker pair below. Retention is set in BOTH
+# compaction blocks (scheduler decides, worker enforces).
+#
+# 24h retention keeps a long-lived stack small; traces are dev-debugging data,
+# not records.
+# =============================================================================
+target: all
+
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9095
+  log_level: warn
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/blocks
+    wal:
+      path: /var/tempo/wal
+
+backend_scheduler:
+  provider:
+    compaction:
+      compaction:
+        block_retention: 24h
+
+backend_worker:
+  compaction:
+    block_retention: 24h

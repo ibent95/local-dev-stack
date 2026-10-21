@@ -1,0 +1,31 @@
+# =============================================================================
+# Grafana datasource provisioning — Tempo (traces).
+# Mounted read-only at /etc/grafana/provisioning/datasources/ (see the
+# `grafana` service in docker-compose.yml). No manual "add datasource" click.
+#
+# tracesToLogsV2 goes the other way from the Loki datasource: pick a span and
+# jump to the container logs for that trace id in the same time window.
+# =============================================================================
+apiVersion: 1
+
+datasources:
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: true
+    jsonData:
+      httpMethod: GET
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: "-1m"
+        spanEndTimeShift: "1m"
+        filterByTraceID: true
+        filterBySpanID: false
+        customQuery: true
+        query: '{container=~".+"} |= "$${__span.traceId}"'
+      nodeGraph:
+        enabled: true
+      lokiSearch:
+        datasourceUid: loki

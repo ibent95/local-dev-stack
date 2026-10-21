@@ -68,6 +68,14 @@
 <td>buat cert TLS dev wildcard `*.test` (untuk overlay `LDS_ENABLE_HTTPS`)</td>
 </tr>
 <tr>
+<td>`backup [--only a,b] [--volumes] [--keep N] [--list]`</td>
+<td>dump setiap database yang **sedang berjalan** (MySQL, MariaDB, Postgres, Mongo, Redis, Valkey, SQL Server) ke `data/backups/<timestamp>/` beserta manifest checksum; `--volumes` ikut meng-*tarball* volume tool, `--list` menampilkan folder, `--keep N` memangkas yang lama</td>
+</tr>
+<tr>
+<td>`restore [<folder>] [--only a,b] [--yes]`</td>
+<td>memulihkan folder tersebut ke stack yang berjalan (**menimpa data**; default folder terbaru). Pulihkan ke stack yang baru dihapus agar hasilnya persis</td>
+</tr>
+<tr>
 <td>`hosts-sync`</td>
 <td>tulis proyek + host tool ke berkas hosts (fallback DNS), dikelompokkan per kategori</td>
 </tr>

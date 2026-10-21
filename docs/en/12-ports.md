@@ -174,7 +174,7 @@ anything else on your machine. Each one is set by a `*_HOST_PORT` variable in
 </tr>
 <tr>
 <td colspan="4">
-    <b>Admin tools</b> <code>4500–4544</code>
+    <b>Admin tools</b> <code>4500–4548</code>
 </td>
 </tr>
 <tr>
@@ -253,6 +253,36 @@ anything else on your machine. Each one is set by a `*_HOST_PORT` variable in
 <td>SonarQube</td>
 <td><code>localhost:4544</code> (<code>sonarqube.test</code>)</td>
 <td><code>sonarqube:9000</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Meilisearch</td>
+<td><code>localhost:4545</code> (<code>meili.test</code>)</td>
+<td><code>meilisearch:7700</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Keycloak</td>
+<td><code>localhost:4546</code> (<code>auth.test</code>)</td>
+<td><code>keycloak:8080</code> (+ <code>:9000</code> mgmt)</td>
+</tr>
+<tr>
+<td></td>
+<td>Loki</td>
+<td><code>localhost:4547</code> (<code>loki.test</code>)</td>
+<td><code>loki:3100</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Tempo</td>
+<td><code>localhost:4548</code> (<code>tempo.test</code>)</td>
+<td><code>tempo:3200</code></td>
+</tr>
+<tr>
+<td></td>
+<td>OTLP (collector)</td>
+<td><code>localhost:4317</code> gRPC / <code>4318</code> HTTP</td>
+<td><code>otel-collector:4317/4318</code></td>
 </tr>
 <tr>
 <td></td>
@@ -373,6 +403,12 @@ anything else on your machine. Each one is set by a `*_HOST_PORT` variable in
 <td>Prometheus</td>
 <td><code>localhost:4533</code> (<code>prometheus.test</code>)</td>
 <td><code>prometheus:9090</code></td>
+</tr>
+<tr>
+<td></td>
+<td>cAdvisor</td>
+<td><code>localhost:4534</code></td>
+<td><code>cadvisor:8080</code></td>
 </tr>
 <tr>
 <td></td>

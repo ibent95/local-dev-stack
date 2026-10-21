@@ -36,6 +36,10 @@ case "$cmd" in
     esac ;;
   openvas)
     exec "$ROOT/scripts/run/openvas.sh" "$@" ;;
+  backup)
+    exec "$ROOT/scripts/run/backup.sh" "$@" ;;
+  restore)
+    exec "$ROOT/scripts/run/restore.sh" "$@" ;;
   playwright)
     # playwright.sh expects its OWN subcommand as argv[1] (init/run/codegen/…)
     exec "$ROOT/scripts/run/playwright.sh" "$@" ;;
@@ -120,6 +124,12 @@ local-dev-stack — usage: ./lds.sh <command> [args]
                                   ui <name> | shell | report (E2E tests via the Playwright runner)
  e2e <sub>                      alias for `playwright`
 
+  backup [--only a,b] [--volumes] [--keep N] [--list]
+                                dump every RUNNING database (+ optional tool
+                                volumes) into data/backups/<timestamp>/
+  restore [<folder>] [--only a,b] [--yes]
+                                replay such a folder into the running stack
+                                (overwrites data; folder defaults to newest)
   certs [--force]               mint the wildcard *.test dev TLS cert (for LDS_ENABLE_HTTPS)
   hosts-sync                    write www/ projects into the hosts file (fallback)
   env-sync [--dry-run]          sync .env to .env.example (keeps your values; adds missing vars)

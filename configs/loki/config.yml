@@ -1,0 +1,70 @@
+# =============================================================================
+# Loki — single-binary log store for the LDS monitoring profile.
+# Bind-mounted read-only into lds-loki at /etc/loki/config.yml
+# (restart with: lds restart monitoring).
+#
+# Single process (no microservices, no object store): chunks + TSDB index on
+# the local filesystem inside the loki-data volume, which `lds down -v` wipes.
+# 7-day retention is enforced by the compactor, so a long-lived stack does not
+# grow without bound.
+#
+# Ingestion paths:
+#   - Grafana Alloy (configs/alloy/config.alloy) tails every Docker container's
+#     stdout/stderr through the Docker socket and pushes here.
+#   - The OpenTelemetry collector's `otlphttp/loki` exporter posts to the native
+#     OTLP endpoint at /otlp (no extra config needed here).
+# =============================================================================
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  log_level: warn
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+ingester:
+  # Alloy tails containers from the START of their log file on a fresh install,
+  # so the first push is historical. Loki's per-stream "too far behind" window
+  # is half of max_chunk_age (default 2h -> 1h); widen it for the one-time
+  # backfill. After the positions file exists this only affects late writes.
+  max_chunk_age: 24h
+
+limits_config:
+  # Backfill-friendly: accept the historical entries Alloy replays once.
+  reject_old_samples: false
+  unordered_writes: true
+  # Keep structured metadata (trace_id/span_id from Alloy) — Tempo's
+  # traces-to-logs link depends on it.
+  allow_structured_metadata: true
+  retention_period: 168h
+  volume_enabled: true
+
+compactor:
+  working_directory: /loki/compactor
+  delete_request_store: filesystem
+  retention_enabled: true
+  retention_delete_delay: 2h
+
+analytics:
+  reporting_enabled: false

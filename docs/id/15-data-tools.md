@@ -856,27 +856,105 @@ skrip `ldapmodify`. Tanpa web UI sama sekali; kelola via DBX atau CLI LDAP.
   `configs/openldap/`; data persist di `data/openldap/` (hapus dengan
   `lds down openldap -v` atau hapus foldernya)
 
-## Monitoring — Prometheus & Grafana
+### Keycloak — `auth.test`
 
-**Profile:** `monitoring` (`LDS_ENABLE_MONITORING`) — menjalankan **kedua**
-service. **Mati secara default.**
+**Profile:** `keycloak` (`LDS_ENABLE_KEYCLOAK`). **Mati secara default.** Jalankan
+`lldap` bersamanya — realm yang di-import mem-*federate* direktori tersebut.
 
-- **Prometheus** (`prom/prometheus`, `PROMETHEUS_VERSION`) — TSDB metrik
-  pull-based di `prometheus.test` / `localhost:4533`. Meng-scrape dirinya
-  sendiri + Grafana sejak awal; tambahkan job `/metrics` layanan Anda di
-  `configs/prometheus/prometheus.yml` (di-bind mount, restart untuk
-  menerapkan). Retensi 15 hari; TSDB ada di volume `prometheus-data`
-  (terhapus oleh `down -v`, seperti database).
-- **Grafana** (`grafana/grafana`, `GRAFANA_VERSION`) — dashboard + alerting di
-  `grafana.test` / `localhost:4532` — tanpa login: akses anonymous Admin
-  (`GRAFANA_ANONYMOUS=true`; set `false` untuk kembali ke **`admin`** /
-  `GRAFANA_ADMIN_PASSWORD`, pendaftaran nonaktif; cek update/usage
-  phone-home juga nonaktif). Datasource Prometheus di-provision otomatis
-  dari `configs/grafana/provisioning/`, jadi grafik langsung bisa dipakai
-  tanpa login; state (SQLite + plugin) ada di volume `grafana-data`.
+Satu issuer OIDC/OAuth2 untuk semua project, bukan login buatan sendiri di
+setiap aplikasi.
 
-Keduanya dibatasi mem (`PROMETHEUS_MEM_LIMIT`, `GRAFANA_MEM_LIMIT`); versi
-di-pin di `.env`.
+- Konsol admin: `auth.test` / `localhost:4546` — `admin` /
+  `KEYCLOAK_ADMIN_PASSWORD` (default `admin`)
+- Issuer: `http://auth.test/realms/lds`, dikunci oleh `KC_HOSTNAME` sehingga
+  nilainya sama lewat proxy, di `localhost:4546`, dan di dalam `lds-network`
+  (`http://keycloak:8080` untuk panggilan antar-service)
+- Client dari realm yang di-import: **`lds-web`** (SPA publik, PKCE S256,
+  redirect `*.test` / `localhost`) dan **`lds-api`** (confidential, secret
+  `KEYCLOAK_API_CLIENT_SECRET`, service account aktif)
+- Role realm: `admin`, `developer`, `viewer`
+- **User federation:** realm mengarah ke `ldap://lldap:3890`
+  (`ou=people,<base DN>`, `uid` sebagai username dan UUID, READ_ONLY, import saat
+  login pertama), jadi password diverifikasi ke direktori — Keycloak tidak
+  memiliki datanya. Buat user di LLDAP, lalu login dengan user itu di client mana
+  pun.
+- Sumber realm: `configs/keycloak/import/lds-realm.json`, hanya di-import pada
+  boot pertama. Setelah mengubahnya: `lds rm keycloak && lds up keycloak`.
+- Metadata: Postgres bersama (`lds_keycloak` via `POSTGRES_INIT_SPECS`), jadi
+  client dan sesi bertahan setelah restart. `start-dev` memang disengaja (HTTP
+  lokal) tetapi tetap memakai Postgres, bukan file H2.
+- `KC_BOOTSTRAP_ADMIN_*` (bukan `KEYCLOAK_ADMIN*` lama) membuat admin, dan hanya
+  saat database masih kosong.
+
+## Observability — Prometheus, Grafana, Loki, Tempo & collector OTel
+
+**Profile:** `monitoring` (`LDS_ENABLE_MONITORING`) — satu toggle menyalakan
+seluruh loop: metrik, log, dan trace. **Mati secara default.**
+
+- **Prometheus** (`prom/prometheus`) — TSDB metrik pull-based di
+  `prometheus.test` / `localhost:4533`. Remote-write aktif agar collector OTel
+  bisa mendorong metrik juga; retensi 15 hari di volume `prometheus-data`.
+  Tambahkan job Anda di `configs/prometheus/prometheus.yml` (bind-mount —
+  restart untuk menerapkan).
+- **Grafana** (`grafana/grafana`) — dashboard di `grafana.test` /
+  `localhost:4532`, anonymous Admin (`GRAFANA_ANONYMOUS=false` mengembalikan
+  login `admin` / `GRAFANA_ADMIN_PASSWORD`). Tiga datasource di-provision saat
+  boot — **Prometheus**, **Loki**, **Tempo** — jadi tidak ada klik "add
+  datasource", dan trace id di log tertaut ke trace (dua arah).
+- **cAdvisor** — metrik CPU / memori / jaringan / filesystem per-container di
+  `localhost:4534`, di-scrape sebagai `job=cadvisor`. Inilah yang menjawab
+  "container mana yang makan RAM?".
+- **node-exporter** — metrik CPU, memori, disk, dan load host/VM
+  (`node-exporter:9100`, internal saja).
+- **Loki** (`grafana/loki`) — penyimpanan log di `loki.test` / `localhost:4547`,
+  retensi 7 hari di volume `loki-data`.
+- **Alloy** (`grafana/alloy`) — membaca stdout/stderr setiap container lewat
+  Docker socket lalu mendorongnya ke Loki. Ini penerus Promtail (EOL Maret 2026)
+  dan tanpa konfigurasi per-project: `docker compose up` apa pun muncul di
+  Grafana beberapa detik kemudian, dengan label `container`, `stream`, dan
+  `compose_project`.
+- **Tempo** (`grafana/tempo`) — penyimpanan trace di `tempo.test` /
+  `localhost:4548`, retensi 24 jam, OTLP masuk di `4317`/`4318`.
+- **Collector OpenTelemetry** — SATU endpoint yang dituju aplikasi:
+  `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` dari host, atau
+  `http://otel-collector:4318` dari container. Collector meneruskan trace ke
+  Tempo, log ke Loki, dan metrik ke Prometheus remote-write — instrumentasi
+  cukup satu env var per aplikasi.
+
+Coba: `lds up monitoring`, lalu Grafana → Explore → Loki →
+`{container="lds-postgres"}`, dan Explore → Tempo untuk trace.
+
+Setiap service dibatasi memori dan versinya dipin di `.env` (`LOKI_VERSION`,
+`TEMPO_VERSION`, `ALLOY_VERSION`, `CADVISOR_VERSION`, `NODE_EXPORTER_VERSION`,
+`OTEL_COLLECTOR_VERSION`). Loki, Tempo, dan collector adalah image distroless
+tanpa shell, jadi **tidak punya healthcheck di dalam container** — Prometheus
+yang men-scrape, dan Grafana langsung menandai datasource mati bila gagal.
+
+## Pencarian — Meilisearch
+
+**Profile:** `search` (`LDS_ENABLE_SEARCH`). **Mati secara default.**
+
+Pencarian dan faceting yang toleran salah ketik dan langsung saat mengetik —
+alternatif ringan OpenSearch/Elasticsearch ketika Anda hanya butuh "cari sambil
+mengetik" yang cepat.
+
+- API: `meili.test` / `localhost:4545` — **tanpa UI web**, ini API JSON
+- Auth: `Authorization: Bearer $MEILISEARCH_MASTER_KEY`
+  (default `lds-dev-meili-master-key-change-me`); tanpa itu dapat `401`
+- Health: `GET /health` → `{"status":"available"}`
+- Data: `data/meilisearch` (index LMDB + dump)
+- Lisensi: hanya MIT **Community Edition** — Enterprise Edition (BUSL-1.1)
+  tidak diaktifkan, jadi tidak ada fitur SSO/sharding
+
+```bash
+K=lds-dev-meili-master-key-change-me
+curl -X POST -H "Authorization: Bearer $K" -H 'Content-Type: application/json' \
+     -d '{"uid":"docs","primaryKey":"id"}' http://localhost:4545/indexes
+curl -X POST -H "Authorization: Bearer $K" -H 'Content-Type: application/json' \
+     -d '[{"id":1,"title":"Hello search"}]' http://localhost:4545/indexes/docs/documents
+curl -H "Authorization: Bearer $K" http://localhost:4545/indexes/docs/search \
+     -H 'Content-Type: application/json' -d '{"q":"helo"}'
+```
 
 ## Utilitas bawaan — LDS Text Diff & LDS Palette Generator
 

@@ -316,10 +316,22 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 <td>`openldap` — server OpenLDAP standar (LDAP `:4540`, tanpa web UI — kelola via DBX)</td>
 </tr>
 <tr>
+<td>`search`</td>
+<td>`LDS_ENABLE_SEARCH`</td>
+<td>❌</td>
+<td>`meilisearch` — API pencarian instan, tanpa UI (`meili.test` / `:4545`)</td>
+</tr>
+<tr>
+<td>`keycloak`</td>
+<td>`LDS_ENABLE_KEYCLOAK`</td>
+<td>❌</td>
+<td>`keycloak` (+ `postgres` bersama) — issuer OIDC/OAuth2 di `auth.test` / `:4546`, mem-*federate* direktori `lldap`</td>
+</tr>
+<tr>
 <td>`monitoring`</td>
 <td>`LDS_ENABLE_MONITORING`</td>
 <td>❌</td>
-<td>`prometheus`, `grafana` — TSDB metrik + dashboard (`prometheus.test`, `grafana.test`)</td>
+<td>`prometheus`, `grafana`, `cadvisor`, `node-exporter`, `loki`, `alloy`, `tempo`, `otel-collector` — loop metrik · log · trace lengkap (`prometheus.test`, `grafana.test`, `loki.test`, `tempo.test`; OTLP `:4317`/`:4318`)</td>
 </tr>
 <tr>
 <td>`all`</td>

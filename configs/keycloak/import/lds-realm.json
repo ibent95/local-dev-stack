@@ -1,0 +1,105 @@
+{
+  "realm": "lds",
+  "displayName": "LDS Local Dev",
+  "displayNameHtml": "<strong>LDS</strong> Local Dev",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "registrationEmailAsUsername": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": false,
+  "rememberMe": true,
+  "verifyEmail": false,
+  "accessTokenLifespan": 3600,
+  "ssoSessionIdleTimeout": 28800,
+  "ssoSessionMaxLifespan": 604800,
+  "roles": {
+    "realm": [
+      { "name": "admin", "description": "Full access to LDS tools" },
+      { "name": "developer", "description": "Can run scans, pipelines and jobs" },
+      { "name": "viewer", "description": "Read-only access to dashboards" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "lds-web",
+      "name": "LDS web apps (public SPA)",
+      "description": "Browser-side OIDC with PKCE. Any *.test origin is allowed.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": true,
+      "redirectUris": [
+        "http://*.test/*",
+        "http://localhost/*",
+        "http://localhost:*/*",
+        "http://127.0.0.1/*",
+        "http://127.0.0.1:*/*"
+      ],
+      "webOrigins": ["+"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://*.test/*##http://localhost/*##http://127.0.0.1/*"
+      }
+    },
+    {
+      "clientId": "lds-api",
+      "name": "LDS backend services (confidential)",
+      "description": "Server-side client credentials / auth-code flow for APIs.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "lds-dev-api-secret-change-me",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": true,
+      "redirectUris": ["http://*.test/*", "http://localhost/*", "http://127.0.0.1/*"],
+      "webOrigins": ["+"]
+    }
+  ],
+  "components": {
+    "org.keycloak.storage.UserStorageProvider": [
+      {
+        "name": "lldap",
+        "providerId": "ldap",
+        "config": {
+          "enabled": ["true"],
+          "priority": ["0"],
+          "vendor": ["other"],
+          "connectionUrl": ["ldap://lldap:3890"],
+          "authType": ["simple"],
+          "bindDn": ["uid=admin,ou=people,dc=lds,dc=test"],
+          "bindCredential": ["adminadmin"],
+          "usersDn": ["ou=people,dc=lds,dc=test"],
+          "usernameLDAPAttribute": ["uid"],
+          "rdnLDAPAttribute": ["uid"],
+          "uuidLDAPAttribute": ["uid"],
+          "userObjectClasses": ["person"],
+          "editMode": ["READ_ONLY"],
+          "importEnabled": ["true"],
+          "syncRegistrations": ["false"],
+          "searchScope": ["2"],
+          "pagination": ["true"],
+          "batchSizeForSync": ["1000"],
+          "fullSyncPeriod": ["-1"],
+          "changedSyncPeriod": ["-1"],
+          "cachePolicy": ["DEFAULT"],
+          "connectionPooling": ["true"],
+          "useTruststoreSpi": ["ldapsOnly"],
+          "allowKerberosAuthentication": ["false"],
+          "validatePasswordPolicy": ["false"],
+          "debug": ["false"]
+        }
+      }
+    ]
+  }
+}

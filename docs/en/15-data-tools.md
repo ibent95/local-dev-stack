@@ -858,27 +858,103 @@ the LDAP CLI.
   data persists in `data/openldap/` (wipe with `lds down openldap -v` or
   by deleting the folder)
 
-## Monitoring — Prometheus & Grafana
+### Keycloak — `auth.test`
 
-**Profile:** `monitoring` (`LDS_ENABLE_MONITORING`) — starts **both** services.
-**Off by default.**
+**Profile:** `keycloak` (`LDS_ENABLE_KEYCLOAK`). **Off by default.** Run
+`lldap` alongside it — the imported realm federates that directory.
 
-- **Prometheus** (`prom/prometheus`, `PROMETHEUS_VERSION`) — pull-based
-  metrics TSDB at `prometheus.test` / `localhost:4533`. Scrapes itself +
-  Grafana out of the box; add your services' `/metrics` jobs in
-  `configs/prometheus/prometheus.yml` (bind-mounted, restart to apply).
-  15-day retention; TSDB lives in the `prometheus-data` volume (wiped by
-  `down -v`, like the DBs).
-- **Grafana** (`grafana/grafana`, `GRAFANA_VERSION`) — dashboards + alerting
-  at `grafana.test` / `localhost:4532` — no login: anonymous Admin access
-  (`GRAFANA_ANONYMOUS=true`; set `false` to fall back to **`admin`** /
-  `GRAFANA_ADMIN_PASSWORD`, sign-ups disabled; version/usage phone-home
-  checks off). The Prometheus datasource is auto-provisioned from
-  `configs/grafana/provisioning/`, so graphs work immediately; state
-  (SQLite + plugins) is in the `grafana-data` volume.
+One OIDC/OAuth2 issuer for every project instead of a bespoke login per app.
 
-Both are mem-capped (`PROMETHEUS_MEM_LIMIT`, `GRAFANA_MEM_LIMIT`); versions
-are pinned in `.env`.
+- Admin console: `auth.test` / `localhost:4546` — `admin` /
+  `KEYCLOAK_ADMIN_PASSWORD` (default `admin`)
+- Issuer: `http://auth.test/realms/lds`, pinned by `KC_HOSTNAME` so the same
+  value works through the proxy, on `localhost:4546`, and inside `lds-network`
+  (`http://keycloak:8080` for server-to-server calls)
+- Clients from the imported realm: **`lds-web`** (public SPA, PKCE S256, any
+  `*.test` / `localhost` redirect) and **`lds-api`** (confidential, secret
+  `KEYCLOAK_API_CLIENT_SECRET`, service accounts enabled)
+- Realm roles: `admin`, `developer`, `viewer`
+- **User federation:** the realm points at `ldap://lldap:3890`
+  (`ou=people,<base DN>`, `uid` as username and UUID, READ_ONLY, import on first
+  login), so a password is checked against the directory — Keycloak never owns
+  the users. Create one in LLDAP, then sign in with it at any client.
+- Realm source: `configs/keycloak/import/lds-realm.json`, imported on the first
+  boot only. After editing it: `lds rm keycloak && lds up keycloak`.
+- Metadata: the shared Postgres (`lds_keycloak` via `POSTGRES_INIT_SPECS`), so
+  clients and sessions survive restarts. `start-dev` is deliberate (local HTTP)
+  but still uses Postgres, not the H2 dev file.
+- `KC_BOOTSTRAP_ADMIN_*` (not the old `KEYCLOAK_ADMIN*`) creates the admin, and
+  only on an empty database.
+
+## Observability — Prometheus, Grafana, Loki, Tempo & the OTel collector
+
+**Profile:** `monitoring` (`LDS_ENABLE_MONITORING`) — one toggle starts the whole
+loop: metrics, logs and traces. **Off by default.**
+
+- **Prometheus** (`prom/prometheus`) — pull-based metrics TSDB at
+  `prometheus.test` / `localhost:4533`. Remote-write is enabled so the OTel
+  collector can push metrics too; 15-day retention in the `prometheus-data`
+  volume. Add your own jobs in `configs/prometheus/prometheus.yml`
+  (bind-mounted — restart to apply).
+- **Grafana** (`grafana/grafana`) — dashboards at `grafana.test` /
+  `localhost:4532`, anonymous Admin (`GRAFANA_ANONYMOUS=false` restores
+  `admin` / `GRAFANA_ADMIN_PASSWORD`). Three datasources are provisioned on
+  boot — **Prometheus**, **Loki**, **Tempo** — so there is no "add datasource"
+  click, and trace ids in logs link to traces (and back).
+- **cAdvisor** — per-container CPU / memory / network / filesystem metrics on
+  `localhost:4534`, scraped as `job=cadvisor`. This answers "which container is
+  eating RAM?".
+- **node-exporter** — host/VM CPU, memory, disk and load
+  (`node-exporter:9100`, internal only).
+- **Loki** (`grafana/loki`) — log store at `loki.test` / `localhost:4547`,
+  7-day retention in the `loki-data` volume.
+- **Alloy** (`grafana/alloy`) — tails every container's stdout/stderr through the
+  Docker socket and pushes to Loki. It is Promtail's successor (Promtail reached
+  EOL in March 2026) and needs no per-project config: any `docker compose up`
+  shows up in Grafana seconds later, labelled with `container`, `stream` and
+  `compose_project`.
+- **Tempo** (`grafana/tempo`) — trace store at `tempo.test` / `localhost:4548`,
+  24h retention, OTLP in on `4317`/`4318`.
+- **OpenTelemetry collector** — the ONE endpoint an app should send to:
+  `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` from the host, or
+  `http://otel-collector:4318` from a container. It fans traces to Tempo, logs
+  to Loki and metrics to Prometheus remote-write, so instrumentation is one env
+  var per app.
+
+Try it: `lds up monitoring`, then Grafana → Explore → Loki →
+`{container="lds-postgres"}`, and Explore → Tempo for traces.
+
+Every service is mem-capped and its version is pinned in `.env`
+(`LOKI_VERSION`, `TEMPO_VERSION`, `ALLOY_VERSION`, `CADVISOR_VERSION`,
+`NODE_EXPORTER_VERSION`, `OTEL_COLLECTOR_VERSION`). Loki, Tempo and the
+collector are distroless images with no shell, so they carry **no in-container
+healthcheck** — Prometheus scrapes them, and Grafana shows a dead datasource
+immediately if one fails.
+
+## Search — Meilisearch
+
+**Profile:** `search` (`LDS_ENABLE_SEARCH`). **Off by default.**
+
+Typo-tolerant, as-you-type search and faceting — the small alternative to
+OpenSearch/Elasticsearch when you just need fast "find as I type".
+
+- API: `meili.test` / `localhost:4545` — **no web UI**, it is a JSON API
+- Auth: `Authorization: Bearer $MEILISEARCH_MASTER_KEY`
+  (default `lds-dev-meili-master-key-change-me`); without it you get `401`
+- Health: `GET /health` → `{"status":"available"}`
+- Data: `data/meilisearch` (LMDB index + dumps)
+- License: MIT **Community Edition** only — the BUSL-1.1 Enterprise Edition is
+  not enabled, so no SSO/sharding features
+
+```bash
+K=lds-dev-meili-master-key-change-me
+curl -X POST -H "Authorization: Bearer $K" -H 'Content-Type: application/json' \
+     -d '{"uid":"docs","primaryKey":"id"}' http://localhost:4545/indexes
+curl -X POST -H "Authorization: Bearer $K" -H 'Content-Type: application/json' \
+     -d '[{"id":1,"title":"Hello search"}]' http://localhost:4545/indexes/docs/documents
+curl -H "Authorization: Bearer $K" http://localhost:4545/indexes/docs/search \
+     -H 'Content-Type: application/json' -d '{"q":"helo"}'
+```
 
 ## Built-in utilities — LDS Text Diff & LDS Palette Generator
 

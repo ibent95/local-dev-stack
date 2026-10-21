@@ -3,10 +3,15 @@
 # Bind-mounted read-only into lds-prometheus at /etc/prometheus/prometheus.yml
 # (restart with: lds restart monitoring).
 #
-# Out of the box it scrapes itself + Grafana's own /metrics endpoint. Most LDS
-# services don't expose Prometheus metrics yet — add any that do (or your own
-# apps on lds-network) under scrape_configs below. A target that is DOWN only
-# shows up in Status > Targets; it never breaks Prometheus itself.
+# Out of the box it scrapes the whole observability loop — itself, Grafana,
+# cAdvisor (per-container), node-exporter (host), Loki, Tempo, Alloy and the
+# OTel collector — plus it ACCEPTS remote-write so the collector's metrics
+# pipeline can push (see the --web.enable-remote-write-receiver flag in
+# docker-compose.yml).
+#
+# Add your own services' /metrics endpoints under scrape_configs below. A
+# target that is DOWN only shows up in Status > Targets; it never breaks
+# Prometheus itself.
 # =============================================================================
 global:
   scrape_interval: 15s
@@ -20,6 +25,44 @@ scrape_configs:
   - job_name: grafana
     static_configs:
       - targets: ["grafana:3000"]
+
+  # --- LDS observability loop ------------------------------------------------
+  # Per-container CPU / memory / network / filesystem. container_last_seen,
+  # container_cpu_usage_seconds_total, container_memory_working_set_bytes, …
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["cadvisor:8080"]
+
+  # Host/VM metrics: node_cpu_seconds_total, node_memory_*, node_filesystem_*, …
+  - job_name: node-exporter
+    static_configs:
+      - targets: ["node-exporter:9100"]
+
+  - job_name: loki
+    static_configs:
+      - targets: ["loki:3100"]
+
+  - job_name: tempo
+    static_configs:
+      - targets: ["tempo:3200"]
+
+  - job_name: alloy
+    static_configs:
+      - targets: ["alloy:12345"]
+
+  # The collector's own telemetry (otelcol_receiver_accepted_spans_total, …).
+  - job_name: otel-collector
+    static_configs:
+      - targets: ["otel-collector:8888"]
+
+  # Keycloak exposes /metrics on its management port when the `keycloak`
+  # profile runs. Self-registering: Prometheus drops the target cleanly while
+  # it is off (no metric), so enabling it costs nothing.
+  - job_name: keycloak
+    static_configs:
+      - targets: ["keycloak:9000"]
+    # Empty when Keycloak is off — the scrape just fails silently (DOWN target).
+    # Comment the block out if you would rather not see the red target.
 
   # --- Your services ----------------------------------------------------------
   # Any container on lds-network that serves a Prometheus /metrics endpoint:

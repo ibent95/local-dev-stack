@@ -19,13 +19,17 @@
 #           vaultwarden | mail | penpot | instatic | analytics | tasks | wiki |
 #           soketi | centrifugo | mqtt | kafka | openwa | rustfs | headlessx |
 #           playwright | erpnext | duckdb | trino | hive-metastore |
-#           snapotter | imgcompress | drawio | lldap | openldap | monitoring | all
+#           snapotter | imgcompress | drawio | lldap | openldap | search | keycloak |
+#           monitoring | all
 #
 # Host port layout (all in the 44xx-45xx block):
 #   4400-4419  Databases      (MySQL, MariaDB, MSSQL, Oracle, Postgres, Mongo, Redis, Valkey, Memcached)
 #   4420-4439  Kafka          (Broker, Schema Registry, Connect, UI)
 #   4440-4449  Realtime       (Soketi, Centrifugo, Mosquitto, MQTTX)
 #   4450-4459  Query engines  (DuckDB, Trino)
+#   4545-4549  Search & identity (Meilisearch :4545, Keycloak :4546) +
+#              observability UIs (Loki :4547, Tempo :4548); cAdvisor :4534,
+#              OTLP 4317/4318 published on loopback for host-run apps.
 #   4500-4543  Web UIs & apps (phpCacheAdmin, DBX, DrawDB, Hop, Superset, Metabase, Hoppscotch,
 #                             Plane, Semgrep, ZAP, Trivy, CRG, Vaultwarden, Mailpit, Penpot,
 #                             Instatic, HeadlessX, Playwright, ERPNext, OpenWA, RustFS, Analytics,
@@ -390,7 +394,7 @@ services:
   postgres:
     image: ${DHI_REGISTRY:-dhi.io}/postgres:${POSTGRES_VERSION:-18.4-alpine3.24}
     container_name: lds-postgres
-    profiles: [postgres, analytics, tasks, wiki, openwa, trino, penpot, headlessx, erpnext, snapotter, hoppscotch, superset, metabase, plane, sonarqube, all]
+    profiles: [postgres, analytics, tasks, wiki, openwa, trino, penpot, headlessx, erpnext, snapotter, hoppscotch, superset, metabase, plane, sonarqube, keycloak, all]
     restart: *restart
     <<: *dns
     # Override entrypoint so we can init databases AFTER postgres starts.
@@ -1832,6 +1836,123 @@ services:
     mem_limit: ${OPENLDAP_MEM_LIMIT:-1g}
     networks: [lds-network]
 
+  # ===========================================================================
+  # Search (profile: search, all)
+  # ===========================================================================
+
+  # Meilisearch - typo-tolerant, as-you-type search engine (~50 MB RSS idle),
+  # the lightweight alternative to OpenSearch/Elasticsearch for app search,
+  # faceting and instant typeahead. MIT Community Edition ONLY: Meilisearch's
+  # Enterprise Edition is BUSL-1.1, and the enterprise features (SSO, sharding,
+  # distributed search) are not part of this image.
+  #   API:      http://meili.test  /  http://127.0.0.1:4545   (no web UI)
+  #   Key:      MEILISEARCH_MASTER_KEY (dev placeholder)
+  #   Data:     data/meilisearch (LMDB index + dumps)
+  # Uses the upstream image rather than DHI: the hardened runtime is shell-less,
+  # so no in-container health probe is possible; this one ships curl.
+  meilisearch:
+    image: ${MEILISEARCH_IMAGE:-getmeili/meilisearch}:${MEILISEARCH_VERSION:-v1.55.0}
+    container_name: lds-meilisearch
+    profiles: [search, all]
+    restart: *restart
+    <<: *dns
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      MEILI_ENV: ${MEILISEARCH_ENV:-development}
+      MEILI_MASTER_KEY: ${MEILISEARCH_MASTER_KEY:-lds-dev-meili-master-key-change-me}
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_HTTP_ADDR: 0.0.0.0:7700
+      VIRTUAL_HOST: ${MEILISEARCH_HOST:-meili.test}
+      VIRTUAL_PORT: "7700"
+      CERT_NAME: _.test
+    expose:
+      - "7700"
+    ports:
+      - "127.0.0.1:${MEILISEARCH_HOST_PORT:-4545}:7700"
+    volumes:
+      - ./data/meilisearch:/meili_data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://127.0.0.1:7700/health >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    mem_limit: ${MEILISEARCH_MEM_LIMIT:-256m}
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Identity (profile: keycloak, all)
+  # ===========================================================================
+
+  # Keycloak - one OIDC/OAuth2 issuer for every project in the stack, so apps
+  # stop inventing their own login.
+  #   Admin console:  http://auth.test  /  http://127.0.0.1:4546  (admin/admin)
+  #   Issuer:         http://auth.test/realms/lds
+  #   Clients:        lds-web (public SPA, PKCE) + lds-api (confidential)
+  #   Federation:     the LLDAP directory (profile `lldap`) is mounted as a
+  #                   READ_ONLY user store, so directory users sign in without
+  #                   being copied into Keycloak's own tables.
+  # The `lds` realm is imported on first boot from configs/keycloak/import/
+  # (to re-import after editing it: `lds rm keycloak` then `lds up keycloak`).
+  # Metadata lives in the SHARED postgres (`lds_keycloak` via
+  # POSTGRES_INIT_SPECS), not in the dev H2 file, so clients/sessions survive.
+  # DHI image: hardened runtime, no curl/wget, but bash - the healthcheck below
+  # uses bash's /dev/tcp to read /health/ready on the management port (9000).
+  keycloak:
+    image: ${DHI_REGISTRY:-dhi.io}/keycloak:${KEYCLOAK_VERSION:-26.8.1}
+    container_name: lds-keycloak
+    profiles: [keycloak, all]
+    restart: *restart
+    <<: *dns
+    command: ["start-dev", "--import-realm"]
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      # Bootstrap only: applied on the FIRST boot against an empty database.
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${KEYCLOAK_DB:-lds_keycloak}
+      KC_DB_USERNAME: ${POSTGRES_USER:-app}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-app}
+      # Issuer host. Apps inside lds-network can also use http://keycloak:8080.
+      # Hostname v2: a full URL pins the issuer exactly, so tokens are the same
+      # whether the caller used auth.test (proxy) or localhost:4546 (mapped
+      # port). v1 options like KC_HOSTNAME_PORT are deprecated in 26.x.
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:-http://auth.test}
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_PORT: "8080"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_LOG_LEVEL: ${KEYCLOAK_LOG_LEVEL:-warn}
+      VIRTUAL_HOST: ${KEYCLOAK_HOST:-auth.test}
+      VIRTUAL_PORT: "8080"
+      CERT_NAME: _.test
+    expose:
+      - "8080"
+      - "9000"
+    ports:
+      - "127.0.0.1:${KEYCLOAK_HOST_PORT:-4546}:8080"
+    volumes:
+      - ./configs/keycloak/import:/opt/keycloak/data/import:ro
+    healthcheck:
+      # bash-only HTTP probe: no curl/wget in the hardened image.
+      test:
+        [
+          "CMD-SHELL",
+          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000; printf \"GET /health/ready HTTP/1.0\\r\\n\\r\\n\" >&3; IFS= read -r -t 5 l <&3; [[ $$l == *200* ]]'",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    mem_limit: ${KEYCLOAK_MEM_LIMIT:-1g}
+    networks: [lds-network]
   # Prometheus — pull-based metrics TSDB. Scrapes itself + Grafana out of the
   # box; add your services' /metrics endpoints in configs/prometheus/
   # prometheus.yml (bind-mounted read-only). Data in a named volume (TSDB is
@@ -1855,6 +1976,8 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
       - "--storage.tsdb.retention.time=15d"
+      # Accept the OTel collector's remote-write (metrics pipeline).
+      - "--web.enable-remote-write-receiver"
       - "--web.console.libraries=/usr/share/prometheus/console_libraries"
       - "--web.console.templates=/usr/share/prometheus/consoles"
     volumes:
@@ -1916,6 +2039,196 @@ services:
     mem_limit: ${GRAFANA_MEM_LIMIT:-384m}
     networks: [lds-network]
 
+  # ---------------------------------------------------------------------------
+  # Full observability: host + container metrics, container logs, traces.
+  # Everything below is part of the SAME `monitoring` profile as Prometheus and
+  # Grafana - one toggle gives you the whole loop (metrics -> logs -> traces),
+  # all pre-wired as Grafana datasources, no manual "add datasource" step.
+  # ---------------------------------------------------------------------------
+
+  # cAdvisor - per-container CPU / memory / network / filesystem metrics. This
+  # is what makes "which container is eating RAM?" answerable in Grafana.
+  # The image ships its own HEALTHCHECK (healthcheck.sh) - none declared here.
+  cadvisor:
+    image: ${CADVISOR_IMAGE:-ghcr.io/google/cadvisor}:${CADVISOR_VERSION:-v0.60.6}
+    container_name: lds-cadvisor
+    profiles: [monitoring, all]
+    restart: *restart
+    <<: *dns
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+    command:
+      - --housekeeping_interval=30s
+      - --docker_only=true
+    ports:
+      - "127.0.0.1:${CADVISOR_HOST_PORT:-4534}:8080"
+    volumes:
+      # Read-only host views. On Docker Desktop these are the Linux VM's paths,
+      # which is exactly what the containers live in.
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    expose:
+      - "8080"
+    mem_limit: ${CADVISOR_MEM_LIMIT:-256m}
+    networks: [lds-network]
+
+  # node-exporter - host/VM level metrics (CPU, memory, disk, network, load).
+  # cAdvisor answers "which container"; this answers "is the machine itself
+  # healthy". No host port: Prometheus scrapes it over lds-network.
+  node-exporter:
+    image: ${NODE_EXPORTER_IMAGE:-prom/node-exporter}:${NODE_EXPORTER_VERSION:-v1.12.1}
+    container_name: lds-node-exporter
+    profiles: [monitoring, all]
+    restart: *restart
+    <<: *dns
+    command:
+      - --path.rootfs=/host
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      # No rslave here: Docker Desktop's rootfs is not a shared/slave mount and
+      # the container refuses to start ("path / is not a shared or slave mount").
+      - /:/host:ro
+    expose:
+      - "9100"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:9100/metrics >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    mem_limit: ${NODE_EXPORTER_MEM_LIMIT:-128m}
+    networks: [lds-network]
+
+  # Loki - log store. Single binary, filesystem chunks + TSDB index in the
+  # loki-data volume, 7-day retention. Query it in Grafana (Explore -> Loki).
+  # Distroless image (no shell) -> no in-container health probe; Prometheus
+  # scrapes its /metrics and Grafana surfaces a dead datasource immediately.
+  loki:
+    image: ${LOKI_IMAGE:-grafana/loki}:${LOKI_VERSION:-3.7.9}
+    container_name: lds-loki
+    profiles: [monitoring, all]
+    restart: *restart
+    <<: *dns
+    # The image runs as uid 10001; a Docker-created named volume is root-owned,
+    # so run as root to keep /loki writable (WAL, chunks, compactor).
+    user: "0:0"
+    command: ["-config.file=/etc/loki/config.yml"]
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      VIRTUAL_HOST: ${LOKI_HOST:-loki.test}
+      VIRTUAL_PORT: "3100"
+      CERT_NAME: _.test
+    expose:
+      - "3100"
+      - "9096"
+    ports:
+      - "127.0.0.1:${LOKI_HOST_PORT:-4547}:3100"
+    volumes:
+      - ./configs/loki/config.yml:/etc/loki/config.yml:ro
+      - loki-data:/loki
+    mem_limit: ${LOKI_MEM_LIMIT:-384m}
+    networks: [lds-network]
+
+  # Alloy - log collector (Promtail's successor; Promtail reached EOL in
+  # March 2026). Tails EVERY container's stdout/stderr through the Docker
+  # socket and pushes to Loki, so a `docker compose up` in any template shows
+  # up in Grafana seconds later with zero per-project config.
+  # Runs as root for read access to the Docker socket.
+  alloy:
+    image: ${ALLOY_IMAGE:-grafana/alloy}:${ALLOY_VERSION:-v1.21.0}
+    container_name: lds-alloy
+    profiles: [monitoring, all]
+    restart: *restart
+    <<: *dns
+    user: "0:0"
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+    volumes:
+      - ./configs/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy-data:/var/lib/alloy/data
+    expose:
+      - "12345"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/12345'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    mem_limit: ${ALLOY_MEM_LIMIT:-160m}
+    networks: [lds-network]
+
+  # Tempo - trace store. OTLP in on 4317/4318, blocks on the tempo-data volume,
+  # 24h retention. Query traces in Grafana (Explore -> Tempo); the datasource
+  # is linked both ways with Loki (trace id <-> log lines).
+  # Distroless image -> no in-container health probe.
+  tempo:
+    image: ${TEMPO_IMAGE:-grafana/tempo}:${TEMPO_VERSION:-3.1.0}
+    container_name: lds-tempo
+    profiles: [monitoring, all]
+    restart: *restart
+    <<: *dns
+    user: "0:0"
+    command: ["-config.file=/etc/tempo/config.yml"]
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      VIRTUAL_HOST: ${TEMPO_HOST:-tempo.test}
+      VIRTUAL_PORT: "3200"
+      CERT_NAME: _.test
+    expose:
+      - "3200"
+      - "4317"
+      - "4318"
+    ports:
+      - "127.0.0.1:${TEMPO_HOST_PORT:-4548}:3200"
+    volumes:
+      - ./configs/tempo/config.yml:/etc/tempo/config.yml:ro
+      - tempo-data:/var/tempo
+    mem_limit: ${TEMPO_MEM_LIMIT:-384m}
+    networks: [lds-network]
+
+  # OpenTelemetry collector - ONE OTLP endpoint for apps (traces, logs and
+  # metrics) that fans out to Tempo / Loki / Prometheus. Ports are published on
+  # loopback so a host-run project (npm run dev outside Docker) can send too:
+  #   OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
+  # Distroless image -> no in-container health probe; the health_check extension
+  # answers on :13133 inside the network.
+  otel-collector:
+    image: ${OTEL_COLLECTOR_IMAGE:-otel/opentelemetry-collector-contrib}:${OTEL_COLLECTOR_VERSION:-0.162.0}
+    container_name: lds-otel-collector
+    profiles: [monitoring, all]
+    restart: *restart
+    <<: *dns
+    command: ["--config=/etc/otelcol-contrib/config.yml"]
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+    expose:
+      - "4317"
+      - "4318"
+      - "8888"
+      - "13133"
+    ports:
+      - "127.0.0.1:${OTEL_GRPC_HOST_PORT:-4317}:4317"
+      - "127.0.0.1:${OTEL_HTTP_HOST_PORT:-4318}:4318"
+    volumes:
+      - ./configs/otel/collector.yml:/etc/otelcol-contrib/config.yml:ro
+    mem_limit: ${OTEL_COLLECTOR_MEM_LIMIT:-384m}
+    networks: [lds-network]
   # ===========================================================================
   # LDS Apps — custom-built tooling (profiles: analytics | tasks | wiki | all)
   #   Each app has its own API (Hono + Drizzle + PostgreSQL) and UI (different
@@ -3397,6 +3710,9 @@ volumes:
   rustfs-data:
   duckdb-data:
   prometheus-data:
+  loki-data:
+  tempo-data:
+  alloy-data:
   grafana-data:
   headlessx-browser-profile:
   headlessx-models:

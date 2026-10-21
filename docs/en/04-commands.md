@@ -68,6 +68,14 @@
 <td>mint the wildcard `*.test` dev TLS cert (for the `LDS_ENABLE_HTTPS` overlay)</td>
 </tr>
 <tr>
+<td>`backup [--only a,b] [--volumes] [--keep N] [--list]`</td>
+<td>dump every **running** database (MySQL, MariaDB, Postgres, Mongo, Redis, Valkey, SQL Server) into `data/backups/<timestamp>/` with a checksum manifest; `--volumes` also tarballs tool volumes, `--list` shows folders, `--keep N` prunes</td>
+</tr>
+<tr>
+<td>`restore [<folder>] [--only a,b] [--yes]`</td>
+<td>replay such a folder into the running stack (**overwrites data**; defaults to the newest folder). Restore into a freshly removed stack for an exact result</td>
+</tr>
+<tr>
 <td>`hosts-sync`</td>
 <td>write projects + tool hosts into the hosts file (DNS fallback), grouped by category</td>
 </tr>

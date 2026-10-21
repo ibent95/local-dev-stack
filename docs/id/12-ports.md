@@ -255,6 +255,36 @@ di mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 </tr>
 <tr>
 <td></td>
+<td>Meilisearch</td>
+<td><code>localhost:4545</code> (<code>meili.test</code>)</td>
+<td><code>meilisearch:7700</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Keycloak</td>
+<td><code>localhost:4546</code> (<code>auth.test</code>)</td>
+<td><code>keycloak:8080</code> (+ <code>:9000</code> mgmt)</td>
+</tr>
+<tr>
+<td></td>
+<td>Loki</td>
+<td><code>localhost:4547</code> (<code>loki.test</code>)</td>
+<td><code>loki:3100</code></td>
+</tr>
+<tr>
+<td></td>
+<td>Tempo</td>
+<td><code>localhost:4548</code> (<code>tempo.test</code>)</td>
+<td><code>tempo:3200</code></td>
+</tr>
+<tr>
+<td></td>
+<td>OTLP (collector)</td>
+<td><code>localhost:4317</code> gRPC / <code>4318</code> HTTP</td>
+<td><code>otel-collector:4317/4318</code></td>
+</tr>
+<tr>
+<td></td>
 <td>OpenVAS — UI <i>(kompanion out-of-stack, <code>lds openvas</code>)</i></td>
 <td><code>localhost:9392</code> (<code>openvas.test</code>)</td>
 <td><code>lds-openvas-web:9392</code></td>
@@ -372,6 +402,12 @@ di mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 <td>Prometheus</td>
 <td><code>localhost:4533</code> (<code>prometheus.test</code>)</td>
 <td><code>prometheus:9090</code></td>
+</tr>
+<tr>
+<td></td>
+<td>cAdvisor</td>
+<td><code>localhost:4534</code></td>
+<td><code>cadvisor:8080</code></td>
 </tr>
 <tr>
 <td></td>

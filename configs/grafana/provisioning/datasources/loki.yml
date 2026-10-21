@@ -1,0 +1,26 @@
+# =============================================================================
+# Grafana datasource provisioning — Loki (logs).
+# Mounted read-only at /etc/grafana/provisioning/datasources/ (see the
+# `grafana` service in docker-compose.yml). No manual "add datasource" click.
+#
+# derivedFields turns a `trace_id=<hex>` token in a log line into a clickable
+# jump to Tempo, so a log entry leads straight to its trace and back.
+# =============================================================================
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: true
+    jsonData:
+      maxLines: 1000
+      timeout: 60
+      derivedFields:
+        - name: TraceID
+          matcherRegex: "trace_id=(\\w+)"
+          datasourceUid: tempo
+          url: "$${__value.raw}"
+          urlDisplayLabel: "Open trace in Tempo"

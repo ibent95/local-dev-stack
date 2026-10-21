@@ -316,10 +316,22 @@ when you'd turn it on.
 <td>`openldap` — standards-compliant OpenLDAP server (LDAP `:4540`, no web UI — manage via DBX)</td>
 </tr>
 <tr>
+<td>`search`</td>
+<td>`LDS_ENABLE_SEARCH`</td>
+<td>❌</td>
+<td>`meilisearch` — instant search API, no UI (`meili.test` / `:4545`)</td>
+</tr>
+<tr>
+<td>`keycloak`</td>
+<td>`LDS_ENABLE_KEYCLOAK`</td>
+<td>❌</td>
+<td>`keycloak` (+ shared `postgres`) — OIDC/OAuth2 issuer at `auth.test` / `:4546`, federates the `lldap` directory</td>
+</tr>
+<tr>
 <td>`monitoring`</td>
 <td>`LDS_ENABLE_MONITORING`</td>
 <td>❌</td>
-<td>`prometheus`, `grafana` — metrics TSDB + dashboards (`prometheus.test`, `grafana.test`)</td>
+<td>`prometheus`, `grafana`, `cadvisor`, `node-exporter`, `loki`, `alloy`, `tempo`, `otel-collector` — the full metrics · logs · traces loop (`prometheus.test`, `grafana.test`, `loki.test`, `tempo.test`; OTLP `:4317`/`:4318`)</td>
 </tr>
 <tr>
 <td>`all`</td>
