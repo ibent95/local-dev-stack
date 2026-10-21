@@ -173,7 +173,7 @@ di mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 </tr>
 <tr>
 <td colspan="4">
-    <b>Alat admin</b> <code>4500–4543</code>
+    <b>Alat admin</b> <code>4500–4544</code>
 </td>
 </tr>
 <tr>
@@ -246,6 +246,24 @@ di mesin Anda. Masing-masing diatur oleh variabel `*_HOST_PORT` di `.env`.
 <td>Viewer Trivy</td>
 <td><code>localhost:4511</code> (<code>trivy.test</code>)</td>
 <td><code>trivy:8080</code></td>
+</tr>
+<tr>
+<td></td>
+<td>SonarQube</td>
+<td><code>localhost:4544</code> (<code>sonarqube.test</code>)</td>
+<td><code>sonarqube:9000</code></td>
+</tr>
+<tr>
+<td></td>
+<td>OpenVAS — UI <i>(kompanion out-of-stack, <code>lds openvas</code>)</i></td>
+<td><code>localhost:9392</code> (<code>openvas.test</code>)</td>
+<td><code>lds-openvas-web:9392</code></td>
+</tr>
+<tr>
+<td></td>
+<td>OpenVAS — TLS <i>(kompanion out-of-stack)</i></td>
+<td><code>localhost:8943</code></td>
+<td><code>lds-openvas-nginx:443</code></td>
 </tr>
 <tr>
 <td></td>

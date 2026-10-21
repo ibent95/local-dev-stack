@@ -175,7 +175,7 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 <td>`semgrep`</td>
 <td>`LDS_ENABLE_SEMGREP`</td>
 <td>❌</td>
-<td>`semgrep` — viewer SARIF (`lds tools semgrep` menjalankan scan)</td>
+<td>`semgrep` — dashboard temuan (`lds tools semgrep` menjalankan scan)</td>
 </tr>
 <tr>
 <td>`zap`</td>
@@ -187,7 +187,13 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 <td>`trivy`</td>
 <td>`LDS_ENABLE_TRIVY`</td>
 <td>❌</td>
-<td>`trivy` — viewer laporan di `trivy.test` (`lds tools trivy` menjalankan scan)</td>
+<td>`trivy` - viewer laporan di `trivy.test` (`lds tools trivy` menjalankan scan)</td>
+</tr>
+<tr>
+<td>`sonarqube`</td>
+<td>`LDS_ENABLE_SONARQUBE`</td>
+<td>❌</td>
+<td>`sonarqube` - server kualitas kode di `sonarqube.test` (:4544, quality gate; `lds tools sonar` menjalankan scan; butuh `postgres`)</td>
 </tr>
 <tr>
 <td>`crg`</td>
@@ -325,7 +331,7 @@ terlibat, kredensial, volume, dan kapan Anda mengaktifkannya.
 </table>
 
 > **Aplikasi kustom** (`analytics`, `tasks`, `wiki`), **tool data** (`drawdb`,
-> `hop`, `superset`, `metabase`, `hoppscotch`, `plane`, `semgrep`, `zap`, `trivy`, `crg`, `vaultwarden`, `mail`,
+> `hop`, `superset`, `metabase`, `hoppscotch`, `plane`, `semgrep`, `zap`, `trivy`, `sonarqube`, `crg`, `vaultwarden`, `mail`,
 > `penpot`, `instatic`, `openwa`, `rustfs`), **profile automasi/pengujian**
 > (`headlessx`, `playwright`) serta **utilitas** (`snapotter`, `imgcompress`,
 > `drawio`, `lldap`, `openldap`, `monitoring`) punya halaman sendiri —

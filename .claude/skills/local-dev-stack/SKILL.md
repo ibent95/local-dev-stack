@@ -98,8 +98,9 @@ and after editing the PHP itself, run `docker exec lds-php php -l ...` and
   (config, cache, project exports) must still be writable by UID 65532 (the DHI
   nonroot user). On Linux, fix with `chown 65532:65532 data/superset` then
   recreate. On Windows Docker Desktop this is a non-issue. Login `admin`/`admin`.
-- **Semgrep** = two services: `semgrep` (nginx viewer at `semgrep.test`, serving
-  `data/semgrep/reports/`) and `semgrep-scan` (pinned `semgrep/semgrep` CLI in
+- **Semgrep** = two services: `semgrep` (static findings dashboard at
+  `semgrep.test`, serving `data/semgrep/reports/` — facets, expandable findings,
+  printable report) and `semgrep-scan` (pinned `semgrep/semgrep` CLI in
   its own run-only profile — never auto-starts). `lds tools semgrep [path]` runs
   that pinned image via `docker run -v <path>:/src` → `report.sarif`; then refresh
   the viewer. (Not `docker compose run` — Compose's -v splits on ':' and chokes on

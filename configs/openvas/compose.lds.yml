@@ -1,0 +1,24 @@
+# LDS overlay for the vendored Greenbone/OpenVAS companion (configs/openvas).
+# Applied by `lds openvas start` ONLY when the main stack's networks exist:
+#   - ospd-openvas (the actual scanner) joins lds-network + lds-dnsnet with the
+#     in-network *.test DNS view (10.99.0.53), so scans can target
+#     http://myapp.test straight through the LDS proxy — same trick ZAP uses;
+#   - lds-openvas-web joins lds-network so the LDS proxy routes
+#     openvas.test -> the GSA UI (its VIRTUAL_HOST env lives in the base file).
+services:
+  ospd-openvas:
+    dns:
+      - 10.99.0.53
+    networks:
+      default:
+      lds-network:
+      lds-dnsnet:
+  nginx:
+    networks:
+      default:
+      lds-network:
+networks:
+  lds-network:
+    external: true
+  lds-dnsnet:
+    external: true

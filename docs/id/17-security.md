@@ -43,6 +43,7 @@ kamu tahu apa yang harus diubah lebih dulu jika stack keluar dari mesinmu:
 <tr><td>Secret Vaultwarden / Penpot / Instatic / RustFS / OpenWA semuanya <code>…change-me</code></td><td>sama</td><td>isi masing-masing <code>*_SECRET_KEY</code>, <code>*_TOKEN</code>, <code>*_KEY</code> di <code>.env</code></td></tr>
 <tr><td>Centrifugo + Soketi berjalan dalam mode dev <code>*_insecure</code></td><td>sama</td><td>key nyata; hilangkan <code>--client_insecure</code> / <code>--admin_insecure</code></td></tr>
 <tr><td>Dashboard dan viewer Semgrep/Trivy/CRG/ZAP <b>tanpa login</b></td><td>dashboard + compose</td><td>biarkan lokal, atau pasang auth di proxy</td></tr>
+<tr><td>SonarQube bisa dijelajahi <b>tanpa login</b> secara default (<code>SONARQUBE_FORCE_AUTH=false</code>: anonim, hanya-baca) dan memakai <code>admin/admin</code> bawaan untuk aksi admin + bootstrap token scanner</td><td><code>SONARQUBE_FORCE_AUTH</code> + <code>SONAR_ADMIN_USER</code>/<code>SONAR_ADMIN_PASSWORD</code> + <code>SONAR_TOKEN</code></td><td>ubah <code>SONARQUBE_FORCE_AUTH=true</code>, ganti password admin, lalu segarkan token via <code>lds tools sonar token</code></td></tr>
 <tr><td>Port host dipublikasikan ke semua antarmuka (default Docker)</td><td>compose <code>ports:</code></td><td>ikat ke loopback: <code>"127.0.0.1:4405:6379"</code></td></tr>
 <tr><td>Hanya HTTP (tanpa TLS)</td><td>proxy</td><td><code>LDS_ENABLE_HTTPS=true</code> + <code>./lds.sh certs</code></td></tr>
 <tr><td><code>*.test</code> mengarah ke <code>127.0.0.1</code></td><td><code>configs/dns</code></td><td>biarkan lokal; jangan mendelegasikan zona ke publik</td></tr>
@@ -55,7 +56,9 @@ kamu tahu apa yang harus diubah lebih dulu jika stack keluar dari mesinmu:
 ./lds.sh tools semgrep [path]     # SAST - viewer SARIF di semgrep.test
 ./lds.sh tools trivy [path]       # CVE/SCA atas berkas, dependensi, image
 ./lds.sh tools trivy image <name> # sama, untuk satu image
+./lds.sh tools sonar [path]       # kualitas kode - SonarQube di sonarqube.test
 ./lds.sh up zap                   # DAST terhadap aplikasi berjalan (zap.test)
+./lds.sh openvas start            # DAST mendalam - kompanion Greenbone CE (localhost:9392)
 ./lds.sh tools crg <path>         # graf intelejen kode AI (crg.test)
 ```
 

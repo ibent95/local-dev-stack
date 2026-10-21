@@ -20,9 +20,11 @@ if "%METABASE_HOST%"=="" set "METABASE_HOST=metabase.test"
 if "%HOPPSCOTCH_HOST%"=="" set "HOPPSCOTCH_HOST=hoppscotch.test"
 if "%PLANE_HOST%"=="" set "PLANE_HOST=plane.test"
 if "%SEMGREP_HOST%"=="" set "SEMGREP_HOST=semgrep.test"
+if "%SONARQUBE_HOST%"=="" set "SONARQUBE_HOST=sonarqube.test"
 if "%PLAYWRIGHT_REPORT_HOST%"=="" set "PLAYWRIGHT_REPORT_HOST=playwright.test"
 if "%TRIVY_HOST%"=="" set "TRIVY_HOST=trivy.test"
 if "%ZAP_HOST%"=="" set "ZAP_HOST=zap.test"
+if "%OPENVAS_HOST%"=="" set "OPENVAS_HOST=openvas.test"
 if "%MAIL_HOST%"=="" set "MAIL_HOST=mail.test"
 if "%PENPOT_HOST%"=="" set "PENPOT_HOST=penpot.test"
 if "%ANALYTICS_HOST%"=="" set "ANALYTICS_HOST=lds-analytics.test"
@@ -105,12 +107,14 @@ call :add %HOPPSCOTCH_HOST% "(API client - Postman alternative)"
 call :add %PLANE_HOST% "(project management - Jira/Linear alternative)"
 call :sec "Code quality"
 call :add %SEMGREP_HOST%
+call :add %SONARQUBE_HOST% "(code quality - bugs · coverage · quality gates)"
 call :add %CRG_HOST% "(code-review-graph - AI code graph · blast-radius)"
 call :sec "Testing tools"
 call :add %PLAYWRIGHT_REPORT_HOST% "(Playwright E2E report viewer)"
 call :sec "Security tools"
 call :add %TRIVY_HOST%
 call :add %ZAP_HOST%
+call :add %OPENVAS_HOST% "(OpenVAS/Greenbone companion - start with 'lds openvas start')"
 call :sec "LDS apps"
 call :add %ANALYTICS_HOST%
 call :add %TASKS_HOST%

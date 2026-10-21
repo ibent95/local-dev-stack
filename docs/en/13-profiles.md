@@ -175,7 +175,7 @@ when you'd turn it on.
 <td>`semgrep`</td>
 <td>`LDS_ENABLE_SEMGREP`</td>
 <td>❌</td>
-<td>`semgrep` — SARIF viewer (`lds tools semgrep` runs the scan)</td>
+<td>`semgrep` — findings dashboard (`lds tools semgrep` runs the scan)</td>
 </tr>
 <tr>
 <td>`zap`</td>
@@ -188,6 +188,12 @@ when you'd turn it on.
 <td>`LDS_ENABLE_TRIVY`</td>
 <td>❌</td>
 <td>`trivy` — report viewer at `trivy.test` (`lds tools trivy` runs the scan)</td>
+</tr>
+<tr>
+<td>`sonarqube`</td>
+<td>`LDS_ENABLE_SONARQUBE`</td>
+<td>❌</td>
+<td>`sonarqube` — code-quality server at `sonarqube.test` (:4544, quality gates; `lds tools sonar` runs the scan; needs `postgres`)</td>
 </tr>
 <tr>
 <td>`crg`</td>
@@ -325,7 +331,7 @@ when you'd turn it on.
 </table>
 
 > **Custom apps** (`analytics`, `tasks`, `wiki`), **data tools** (`drawdb`, `hop`,
-> `superset`, `metabase`, `hoppscotch`, `plane`, `semgrep`, `zap`, `trivy`, `crg`, `vaultwarden`, `mail`, `penpot`,
+> `superset`, `metabase`, `hoppscotch`, `plane`, `semgrep`, `zap`, `trivy`, `sonarqube`, `crg`, `vaultwarden`, `mail`, `penpot`,
 > `instatic`, `openwa`, `rustfs`), the **automation/testing profiles**
 > (`headlessx`, `playwright`) and the **utilities** (`snapotter`, `imgcompress`,
 > `drawio`, `lldap`, `openldap`, `monitoring`) get their own page —

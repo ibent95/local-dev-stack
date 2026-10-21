@@ -13,6 +13,7 @@ baru untuk berbagai bahasa dan framework.
   `mongo`, `redis`, `valkey`, `memcached`, `rabbitmq`, `kafka`, `phpcacheadmin`,
   `dbx`,
   `drawdb`, `hop`, `superset`, `metabase`, `hoppscotch`, `plane`, `duckdb`, `trino`, `semgrep`, `zap`, `trivy`,
+  `sonarqube`,
   `crg`, `vaultwarden`, `mail`, `penpot`, `instatic`, `analytics`, `tasks`,
   `wiki`, `openwa`, `rustfs`, `headlessx`, `playwright`, `erpnext`, `soketi`,
   `centrifugo`, `mqtt`, `snapotter`, `imgcompress`, `drawio`, `lldap`,

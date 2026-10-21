@@ -14,7 +14,9 @@ gated behind **profiles** and share one external network `lds-network`.
    (mass-vhost), `dns/` (dnsmasq image + conf), `web/dashboard/` (control panel
    `index.php` + `connectors.php`, a Kafka Connect connector builder that proxies
    both workers' REST APIs server-side and renders forms from their config
-   schema, + `docs.php`, the in-browser handbook rendered from `docs/` via
+   schema, + `sonar-report.php`, a printable SonarQube project report (gate ·
+   measures · issues; Print/Save-as-PDF or Download HTML), + `docs.php`, the
+   in-browser handbook rendered from `docs/` via
    `lib/parsedown.php`),
   `redis/`, `mysql/init/`, `postgres/init/` (SQL run on first boot),
   `mongo/init/` (*.js/*.sh — NOT auto-run: DHI mongodb has no
@@ -24,11 +26,13 @@ gated behind **profiles** and share one external network `lds-network`.
   JSON), `kafka/connect-generic/` (generic Connect: `connect-distributed.properties`
   + `plugins/`),
   `proxy/certs/` (git-ignored dev TLS certs minted by `lds certs`; mounted into
-  nginx-proxy only by the HTTPS overlay), `prometheus/` (`prometheus.yml`
-  scrape config, bind-mounted), `grafana/provisioning/` (auto-provisioned
-  Prometheus datasource), and `web/dashboard/tools/` (two static utilities
-  served from the control panel: `diff/` rich-text diff + `palette/`
-  Coolors-style palette generator).
+   nginx-proxy only by the HTTPS overlay), `prometheus/` (`prometheus.yml`
+   scrape config, bind-mounted), `grafana/provisioning/` (auto-provisioned
+   Prometheus datasource), `openvas/` (vendored Greenbone CE companion compose:
+   `compose.yaml` + `compose.lds.yml` overlay joining `lds-network`/`lds-dnsnet`),
+   and `web/dashboard/tools/` (two static utilities
+   served from the control panel: `diff/` rich-text diff + `palette/`
+   Coolors-style palette generator).
 -  `data/` — bind-mounted user data for tools (git-ignored; each developer has
   their own): `hop/{config,audit,projects}` (Hop pipelines, workflows, connections,
   plus folder-per-project under `projects/`),
@@ -39,6 +43,9 @@ gated behind **profiles** and share one external network `lds-network`.
   `dbx/` (DBX connections `dbx.db` + `.dbx/secret.key`; a leftover `dbgate/`
   from the retired DBGate UI may still exist on older checkouts),
   `semgrep/reports/`, `trivy/reports/`, `crg/reports/` (scanner report viewers),
+  `sonarqube/{data,logs,extensions}` + `sonarqube/token` (SonarQube server state +
+  cached scanner token; DB in shared Postgres `lds_sonarqube`),
+  `openvas/` (Greenbone CE companion state — VT data, psql, gvmd; out-of-stack),
   `playwright/{projects,reports}` (E2E projects + HTML reports),
   `mailpit/` (Mailpit messages), `penpot/assets/` (design assets),
   `instatic/` (SQLite `cms.db` + uploads), `erpnext/{sites,logs}` (Frappe site),
@@ -194,7 +201,7 @@ gated behind **profiles** and share one external network `lds-network`.
 `proxy` `php` `mysql` `mariadb` `mssql` `oracle` `postgres` `mongo` `redis`
 `valkey` `memcached` `rabbitmq` `kafka` `phpcacheadmin` `dbx` `drawdb` `hop` `superset`
 `metabase` `hoppscotch` `plane`
-`duckdb` `trino` `semgrep` `zap` `trivy` `crg` `vaultwarden` `mail` `penpot`
+`duckdb` `trino` `semgrep` `zap` `trivy` `sonarqube` `crg` `vaultwarden` `mail` `penpot`
 `instatic` `analytics` `tasks` `wiki` `openwa` `rustfs` `headlessx` `playwright`
 `erpnext` `soketi` `centrifugo` `mqtt` `snapotter` `imgcompress` `drawio` `lldap`
 `openldap` `monitoring` `all`
@@ -246,10 +253,35 @@ migrator + a caddy edge named
 `plane-proxy` — NOT `proxy`, that alias belongs to the LDS edge router; DB/
 .cache/broker/object-storage are shared (Postgres `lds_plane`, Redis DB 0,
 RabbitMQ, RustFS `uploads` bucket); first visit runs the setup wizard).
-**Semgrep** = SAST, two services: `semgrep` (nginx SARIF viewer, `semgrep.test` /
-:4505) + `semgrep-scan` (pinned `semgrep/semgrep` CLI, its own run-only profile so
-it never auto-starts). `lds tools semgrep [path]` scans via `docker run` and
-writes `data/semgrep/reports/report.sarif`, shown by the viewer.
+**Semgrep** = SAST, two services: `semgrep` (self-contained findings dashboard,
+`semgrep.test` / :4505 — severity tiles + rule/file/tag breakdowns and facet
+filters, expandable findings with snippets, printable full report) + `semgrep-scan`
+(pinned `semgrep/semgrep` CLI, its own run-only profile so it never auto-starts);
+`SEMGREP_RULES` is a comma list (one `--config` each, default
+`p/default,p/security-audit`), plus `SEMGREP_SEVERITY` and `SEMGREP_ERROR=1`
+(exit 1 on findings). `lds tools semgrep [path]` scans via `docker run` and
+writes `data/semgrep/reports/report.sarif`, shown by the dashboard.
+**SonarQube** = code quality (bugs/smells/coverage/quality gates): `sonarqube`
+server at `sonarqube.test` / :4544 (rolling `community` tag, DB `lds_sonarqube`
+in shared postgres — so `postgres` is in the sonarqube profile chain, ES bootstrap
+checks disabled for Docker Desktop) + one-shot `sonar-scanner` image (own
+`sonar-scanner` profile, never auto-starts). UI browsing is login-free by default
+(`SONARQUBE_FORCE_AUTH=false` → forced auth off, anonymous read-only; admin
+actions + scans still authenticate). `lds tools sonar [path] [key]` waits for
+the server, resolves a scanner token (env/file accepted only if the server
+validates it — stale/foreign values are ignored), runs the scanner on
+`lds-network` (key: `[key]` arg > `SONAR_PROJECT_KEY` from `.env` > folder
+name; a key inherited from the shell env is ignored with a note, since stale
+terminals would otherwise silently retarget scans); `token` refreshes the cache
+and `reset` restores admin/admin
+(documented recovery SQL) after a UI password change. `sonarqube-init`
+reconciles the admin password with `SONAR_ADMIN_PASSWORD` on every `up`
+(applies it while the DB still has the default; warns on drift — the policy
+wants 12+ chars incl. an uppercase letter). The control panel serves a
+printable FULL report at `http://localhost/sonar-report.php` (project picker →
+gate, ratings, every measure, every issue, hotspots, per-file metrics, duplication
+groups and the analysis history; Print/Save-as-PDF or Download HTML — Community
+has no built-in export; reads the Web API anonymously).
 **CRG** (code-review-graph) = AI code-intelligence, same split: `crg` viewer at
 `crg.test` / :4530 + one-shot `lds/crg` scanner image (built from `configs/crg`;
 upstream ships no image) invoked by `lds tools crg <path>` → interactive D3 HTML
@@ -268,6 +300,14 @@ of containers/filesystems/deps, mirroring the semgrep split: `trivy` viewer at
 `trivy.test` / :4511 + one-shot `trivy-scan` (own profile, never auto-starts),
 invoked by `lds tools trivy [path]` / `lds tools trivy image <name>` → HTML
 report served by the viewer; the vuln DB is cached in `data/trivy/cache`.
+**OpenVAS** = deep DAST as an OUT-OF-STACK companion (NOT a profile/service in
+this compose): vendored Greenbone CE stack in `configs/openvas/` (compose.yaml +
+compose.lds.yml overlay, ~18 containers, data bind-mounted to `data/openvas/`),
+managed by `lds openvas <start|stop|restart|logs|ps|pull>`. UI `localhost:9392`
+(admin/admin) + TLS :8943; overlay joins the web container to `lds-network`
+(→ `openvas.test` via the proxy) and the scanner to `lds-dnsnet` (10.99.0.53) so
+`*.test` targets scan directly. Heavy (~4+ GB RAM, feed sync 20-60+ min first
+boot).
 **Instatic** = self-hosted visual CMS / website builder (`instatic.test` /
 :4528, admin at `/admin`; SQLite + uploads in `data/instatic/`; official image,
 pre-1.0). **ERPNext** = full ERP suite on Frappe (`erpnext.test` / :4529) — DB on

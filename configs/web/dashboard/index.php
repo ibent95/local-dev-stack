@@ -128,9 +128,12 @@ $uiGroups = [
         ['label' => 'Prometheus',    'desc' => 'metrics TSDB · targets & queries', 'url' => '//prometheus.test', 'alt' => 'localhost:4533', 'health' => ['prometheus', 9090]],
     ],
     'Code & security quality scanner' => [
-        ['label' => 'Semgrep',       'desc' => 'SAST · SARIF viewer',     'url' => '//semgrep.test',    'alt' => 'localhost:4505', 'health' => ['semgrep', 8080]],
+        ['label' => 'Semgrep',       'desc' => 'SAST · findings dashboard', 'url' => '//semgrep.test',    'alt' => 'localhost:4505', 'health' => ['semgrep', 8080]],
         ['label' => 'Trivy',         'desc' => 'CVE scanner · containers & deps', 'url' => '//trivy.test', 'alt' => 'localhost:4511', 'health' => ['trivy', 8080]],
+        ['label' => 'SonarQube',     'desc' => 'code quality · bugs · quality gates', 'url' => '//sonarqube.test', 'alt' => 'localhost:4544', 'health' => ['sonarqube', 9000]],
+        ['label' => 'SonarQube report', 'desc' => 'printable full report · all measures · issues · files', 'url' => '/sonar-report.php', 'alt' => null, 'health' => null],
         ['label' => 'OWASP ZAP',     'desc' => 'DAST · web app scanner',  'url' => '//zap.test/zap',    'alt' => 'localhost:4510', 'health' => ['zap', 8080]],
+        ['label' => 'OpenVAS',       'desc' => 'DAST · Greenbone CE companion · first feed sync is slow', 'url' => '//openvas.test', 'alt' => 'localhost:9392', 'health' => ['lds-openvas-web', 9392]],
         ['label' => 'code-review-graph', 'desc' => 'AI code graph · blast-radius', 'url' => '//crg.test', 'alt' => 'localhost:4530', 'health' => ['crg', 8080]],
     ],
     'Testing tools' => [

@@ -140,14 +140,26 @@ talk to them.
 <tr>
 <td>Code quality</td>
 <td>`semgrep`</td>
-<td>Semgrep SARIF viewer (`lds tools semgrep` runs the scan)</td>
+<td>Semgrep findings dashboard (`lds tools semgrep` runs the scan)</td>
 <td>4505</td>
+</tr>
+<tr>
+<td></td>
+<td>`sonarqube`</td>
+<td>SonarQube server — bugs, smells, coverage, quality gates (`lds tools sonar` runs the scan)</td>
+<td>4544</td>
 </tr>
 <tr>
 <td>Vulnerability scanning</td>
 <td>`zap`</td>
 <td>OWASP ZAP — DAST web app scanner (UI at `zap.test`, proxy/API :4512)</td>
 <td>4510, 4512</td>
+</tr>
+<tr>
+<td></td>
+<td>`openvas` <i>(companion)</i></td>
+<td>OpenVAS/Greenbone CE — deep DAST companion, out-of-stack (`lds openvas start`, UI at `localhost:9392`)</td>
+<td>9392, 8943</td>
 </tr>
 <tr>
 <td></td>
@@ -577,6 +589,24 @@ From other containers on `lds-network`, use the service name + its internal port
 <td>Trivy viewer</td>
 <td>`localhost:4511` (`trivy.test`)</td>
 <td>`trivy:8080`</td>
+</tr>
+<tr>
+<td></td>
+<td>SonarQube</td>
+<td>`localhost:4544` (`sonarqube.test`)</td>
+<td>`sonarqube:9000`</td>
+</tr>
+<tr>
+<td></td>
+<td>OpenVAS — UI <i>(companion)</i></td>
+<td>`localhost:9392` (`openvas.test`)</td>
+<td>`lds-openvas-web:9392`</td>
+</tr>
+<tr>
+<td></td>
+<td>OpenVAS — TLS <i>(companion)</i></td>
+<td>`localhost:8943`</td>
+<td>`lds-openvas-nginx:443`</td>
 </tr>
 <tr>
 <td></td>

@@ -85,6 +85,7 @@ add "${PLANE_HOST:-plane.test}" "(project management - Jira/Linear alternative)"
 
 group "Code quality"
 add "${SEMGREP_HOST:-semgrep.test}"
+add "${SONARQUBE_HOST:-sonarqube.test}" "(code quality — bugs · coverage · quality gates)"
 add "${CRG_HOST:-crg.test}" "(code-review-graph — AI code graph · blast-radius)"
 
 group "Testing tools"
@@ -93,6 +94,7 @@ add "${PLAYWRIGHT_REPORT_HOST:-playwright.test}" "(Playwright E2E report viewer)
 group "Security tools"
 add "${TRIVY_HOST:-trivy.test}"
 add "${ZAP_HOST:-zap.test}"
+add "${OPENVAS_HOST:-openvas.test}" "(OpenVAS/Greenbone companion — start with 'lds openvas start')"
 
 group "LDS apps"
 add "${ANALYTICS_HOST:-lds-analytics.test}"

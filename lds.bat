@@ -22,6 +22,7 @@ if /I "%CMD%"=="kafka"               goto kafka
 if /I "%CMD%"=="db"                  goto db
 if /I "%CMD%"=="tools"               goto tools
 if /I "%CMD%"=="headlessx"           goto headlessx
+if /I "%CMD%"=="openvas"             call "%ROOT%scripts\run\openvas.bat" %REST% & goto end
 if /I "%CMD%"=="playwright"          call "%ROOT%scripts\run\playwright.bat" %REST% & goto end
 if /I "%CMD%"=="e2e"                 call "%ROOT%scripts\run\playwright.bat" %REST% & goto end
 if /I "%CMD%"=="init"                call "%ROOT%scripts\run\init.bat" %REST% & goto end
@@ -81,9 +82,10 @@ goto end
 for /f "tokens=1*" %%a in ("%REST%") do ( set "SUB=%%a" & set "SUBREST=%%b" )
 if /I "!SUB!"=="semgrep"    ( call "%ROOT%scripts\run\semgrep.bat" !SUBREST! & goto end )
 if /I "!SUB!"=="trivy"      ( call "%ROOT%scripts\run\trivy.bat" !SUBREST! & goto end )
+if /I "!SUB!"=="sonar"      ( call "%ROOT%scripts\run\sonar.bat" !SUBREST! & goto end )
 if /I "!SUB!"=="crg"        ( call "%ROOT%scripts\run\crg.bat" !SUBREST! & goto end )
 if /I "!SUB!"=="playwright" ( call "%ROOT%scripts\run\playwright.bat" !SUBREST! & goto end )
-echo usage: lds tools ^<semgrep [path^|clear] ^| trivy [path^|clear] ^| trivy image ^<name^> ^| crg ^<path^> [name] ^| playwright ^<init^|run^|codegen^|ui^|shell^|report^>^>
+echo usage: lds tools ^<semgrep [path^|clear] ^| trivy [path^|clear] ^| trivy image ^<name^> ^| sonar [path^|token^|reset] [key] ^| crg ^<path^> [name] ^| playwright ^<init^|run^|codegen^|ui^|shell^|report^>^>
 goto end
 
 :headlessx
@@ -114,8 +116,11 @@ echo.
 echo  kafka ^<sub^>                    topics ^| connect-plugin [--generic^|--debezium] ^<name^> ^| register-connectors ^| init
 echo  db ^<sub^>                       init [mysql^|postgres^|mongo^|all] ^| seed (DBX connections)
 echo  tools ^<sub^>                    semgrep [path^|clear] ^| trivy [path^|clear] ^| trivy image ^<name^>
-echo                                 ^| crg ^<path^> [name] ^| playwright ^<init^|run^|codegen^|ui^|shell^|report^> (alias)
-echo                                 (scan; view at semgrep.test / trivy.test / crg.test via the matching up)
+echo                                 ^| sonar [path^|token^|reset] [key] ^| crg ^<path^> [name] ^| playwright ^<init^|run^|codegen^|ui^|shell^|report^> (alias)
+echo                                 (scan; view at semgrep.test / trivy.test / sonarqube.test / crg.test via the matching up)
+echo.
+echo  openvas ^<sub^>                  start ^| stop ^| restart ^| logs ^| ps ^| pull - OpenVAS/Greenbone
+echo                                 CE companion ^(out-of-stack, heavy; UI http://127.0.0.1:9392^)
 echo.
 echo   certs [--force]               mint the wildcard *.test dev TLS cert (for LDS_ENABLE_HTTPS)
 echo   hosts-sync                    write www/ projects into the hosts file

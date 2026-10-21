@@ -1,0 +1,346 @@
+# =============================================================================
+# OpenVAS / Greenbone Community Edition — LDS companion stack (OUT OF the main
+# stack: it is NOT a profile; managed by `lds openvas <start|stop|...>`).
+#
+# Adapted from the official Greenbone Community Edition compose file (vendored
+# 2026-10; image/license attribution is listed in docs 18-credits):
+#   https://greenbone.github.io/docs/latest/_static/compose.yaml
+# Local adaptations:
+#   - project name `lds-openvas` (containers/volumes are namespaced);
+#   - data binds under data/openvas/ (repo convention, git-ignored) instead of
+#     named volumes; only the ephemeral runtime pieces (unix-socket dirs, nginx
+#     config/certs) keep project-scoped named volumes;
+#   - host ports trimmed to 127.0.0.1 only, and the TLS port remapped from 443
+#     to 8943 so it can NEVER collide with the LDS edge proxy:
+#       UI/API:  http://127.0.0.1:9392   (plain, per GSAD_HTTP_ONLY below)
+#       TLS:     https://127.0.0.1:8943  (self-signed cert from gvm-config)
+#   - the web container is named `lds-openvas-web` + carries VIRTUAL_HOST so,
+#     when the optional LDS overlay (compose.lds.yml) puts it on lds-network,
+#     the LDS proxy serves it at http://openvas.test too;
+#   - `ospd-openvas` (the actual scanner) joins lds-network + lds-dnsnet via the
+#     overlay so scans can resolve *.test straight to the LDS proxy — the same
+#     in-network DNS view ZAP uses. The overlay is applied automatically by
+#     `lds openvas start` when those networks exist.
+#
+# Requirements: ~2 CPU / 4+ GB free RAM / 20+ GB disk; the first boot syncs the
+# vulnerability feeds (20-60+ min, visible via `lds openvas logs`). Default GSA
+# login: admin / admin. On Linux hosts the data/openvas/* bind dirs must be
+# writable by the images' uids (redis 999, postgres 70, gvm 1002, ospd 1000,
+# nginx 1001) — `chown -R 1000:1000 data/openvas` as a starting point.
+# =============================================================================
+name: lds-openvas
+
+services:
+  vulnerability-tests:
+    image: registry.community.greenbone.net/community/vulnerability-tests
+    environment:
+      FEED_RELEASE: "24.10"
+      KEEP_ALIVE: 1
+    volumes:
+      - ../../data/openvas/vt-data:/mnt
+
+  notus-data:
+    image: registry.community.greenbone.net/community/notus-data
+    environment:
+      KEEP_ALIVE: 1
+    volumes:
+      - ../../data/openvas/notus-data:/mnt
+
+  scap-data:
+    image: registry.community.greenbone.net/community/scap-data
+    environment:
+      KEEP_ALIVE: 1
+    volumes:
+      - ../../data/openvas/scap-data:/mnt
+
+  cert-bund-data:
+    image: registry.community.greenbone.net/community/cert-bund-data
+    environment:
+      KEEP_ALIVE: 1
+    volumes:
+      - ../../data/openvas/cert-data:/mnt
+
+  dfn-cert-data:
+    image: registry.community.greenbone.net/community/dfn-cert-data
+    environment:
+      KEEP_ALIVE: 1
+    volumes:
+      - ../../data/openvas/cert-data:/mnt
+    depends_on:
+      cert-bund-data:
+        condition: service_healthy
+
+  data-objects:
+    image: registry.community.greenbone.net/community/data-objects
+    environment:
+      FEED_RELEASE: "24.10"
+      KEEP_ALIVE: 1
+    volumes:
+      - ../../data/openvas/data-objects:/mnt
+
+  report-formats:
+    image: registry.community.greenbone.net/community/report-formats
+    environment:
+      FEED_RELEASE: "24.10"
+      KEEP_ALIVE: 1
+    volumes:
+      - ../../data/openvas/data-objects:/mnt
+    depends_on:
+      data-objects:
+        condition: service_healthy
+
+  gpg-data:
+    image: registry.community.greenbone.net/community/gpg-data
+    volumes:
+      - ../../data/openvas/gpg-data:/mnt
+
+  redis-server:
+    image: registry.community.greenbone.net/community/redis-server
+    deploy:
+      restart_policy:
+        condition: any
+    volumes:
+      - redis_socket_vol:/run/redis/
+
+  pg-gvm:
+    image: registry.community.greenbone.net/community/pg-gvm:stable
+    deploy:
+      restart_policy:
+        condition: any
+    volumes:
+      - ../../data/openvas/psql-data:/var/lib/postgresql
+      - psql_socket_vol:/var/run/postgresql
+    depends_on:
+      pg-gvm-migrator:
+        condition: service_completed_successfully
+
+  pg-gvm-migrator:
+    image: registry.community.greenbone.net/community/pg-gvm-migrator:stable
+    deploy:
+      restart_policy:
+        condition: none
+    volumes:
+      - ../../data/openvas/psql-data:/var/lib/postgresql
+      - psql_socket_vol:/var/run/postgresql
+
+  gvmd:
+    image: registry.community.greenbone.net/community/gvmd:stable
+    deploy:
+      restart_policy:
+        condition: any
+    volumes:
+      - ../../data/openvas/gvmd-data:/var/lib/gvm
+      - ../../data/openvas/scap-data:/var/lib/gvm/scap-data/
+      - ../../data/openvas/cert-data:/var/lib/gvm/cert-data
+      - ../../data/openvas/data-objects:/var/lib/gvm/data-objects/gvmd
+      - ../../data/openvas/vt-data:/var/lib/openvas/plugins
+      - ../../data/openvas/psql-data:/var/lib/postgresql
+      - gvmd_socket_vol:/run/gvmd
+      - ospd_openvas_socket_vol:/run/ospd
+      - psql_socket_vol:/var/run/postgresql
+    depends_on:
+      pg-gvm:
+        condition: service_started
+      scap-data:
+        condition: service_healthy
+      cert-bund-data:
+        condition: service_healthy
+      dfn-cert-data:
+        condition: service_healthy
+      data-objects:
+        condition: service_healthy
+      report-formats:
+        condition: service_healthy
+
+  gsa:
+    image: registry.community.greenbone.net/community/gsa:stable-slim
+    environment:
+      MOUNT_PATH: "/mnt/web"
+      KEEP_ALIVE: 1
+    healthcheck:
+      test: [ "CMD-SHELL", "test -e /run/gsa/copying.done" ]
+      start_period: 5s
+    volumes:
+      - ../../data/openvas/gsa-web:/mnt/web
+
+  gsad:
+    image: registry.community.greenbone.net/community/gsad:stable
+    deploy:
+      restart_policy:
+        condition: any
+    environment:
+      GSAD_HTTP_ONLY: "true"
+      GSAD_API_ONLY: "true"
+      GSAD_FOREGROUND: "true"
+    volumes:
+      - gvmd_socket_vol:/run/gvmd
+    depends_on:
+      gvmd:
+        condition: service_started
+
+  gvm-config:
+    image: registry.community.greenbone.net/community/gvm-config:latest
+    environment:
+      ENABLE_NGINX_CONFIG: true
+      ENABLE_TLS_GENERATION: true
+    volumes:
+      - nginx_config_vol:/mnt/nginx/configs
+      - nginx_certificates_vol:/mnt/nginx/certs
+
+  nginx:
+    image: registry.community.greenbone.net/community/nginx:latest
+    # LDS: named web container — the LDS proxy + dashboard probe/route this one.
+    container_name: lds-openvas-web
+    # Host ports 127.0.0.1 only; TLS remapped 443 -> 8943 (never collides with
+    # the LDS edge proxy's :443).
+    ports:
+      - 127.0.0.1:${OPENVAS_TLS_PORT:-8943}:443
+      - 127.0.0.1:${OPENVAS_WEB_PORT:-9392}:9392
+    environment:
+      # Once the compose.lds.yml overlay puts this container on lds-network, the
+      # LDS proxy serves it at http://<OPENVAS_HOST> as well.
+      VIRTUAL_HOST: ${OPENVAS_HOST:-openvas.test}
+      VIRTUAL_PORT: "9392"
+      CERT_NAME: _.test
+    volumes:
+      - nginx_config_vol:/etc/nginx/conf.d:ro
+      - nginx_certificates_vol:/etc/nginx/certs:ro
+      - ../../data/openvas/gsa-web:/usr/share/nginx/html:ro
+    deploy:
+      restart_policy:
+        condition: any
+    depends_on:
+      gvm-config:
+        condition: service_completed_successfully
+      gsa:
+        condition: service_healthy
+      gsad:
+        condition: service_started
+
+  # Sets log level of openvas to the set LOG_LEVEL within the env
+  # and changes log output to /var/log/openvas instead /var/log/gvm
+  # to reduce likelihood of unwanted log interferences
+  configure-openvas:
+    image: registry.community.greenbone.net/community/openvas-scanner:stable
+    volumes:
+      - ../../data/openvas/openvas-data:/mnt
+      - ../../data/openvas/openvas-logs:/var/log/openvas
+    command:
+      - /bin/sh
+      - -c
+      - |
+        printf "table_driven_lsc = yes\nopenvasd_server = http://openvasd:80\n" > /mnt/openvas.conf
+        sed "s/127/128/" /etc/openvas/openvas_log.conf | sed 's/gvm/openvas/' > /mnt/openvas_log.conf
+        chmod 644 /mnt/openvas.conf
+        chmod 644 /mnt/openvas_log.conf
+        touch /var/log/openvas/openvas.log
+        chmod 666 /var/log/openvas/openvas.log
+
+  # shows logs of openvas
+  openvas:
+    image: registry.community.greenbone.net/community/openvas-scanner:stable
+    volumes:
+      - ../../data/openvas/openvas-data:/etc/openvas
+      - ../../data/openvas/openvas-logs:/var/log/openvas
+    command:
+      - /bin/sh
+      - -c
+      - |
+        cat /etc/openvas/openvas.conf
+        tail -f /var/log/openvas/openvas.log
+    depends_on:
+      configure-openvas:
+        condition: service_completed_successfully
+
+  openvasd:
+    image: registry.community.greenbone.net/community/openvas-scanner:stable
+    deploy:
+      restart_policy:
+        condition: any
+    environment:
+      # `service_notus` is set to disable everything but notus,
+      # if you want to utilize openvasd directly, remove `OPENVASD_MODE`
+      OPENVASD_MODE: service_notus
+      GNUPGHOME: /etc/openvas/gnupg
+      LISTENING: 0.0.0.0:80
+    volumes:
+      - ../../data/openvas/openvas-data:/etc/openvas
+      - ../../data/openvas/openvas-logs:/var/log/openvas
+      - ../../data/openvas/gpg-data:/etc/openvas/gnupg
+      - ../../data/openvas/notus-data:/var/lib/notus
+    # enable port forwarding when you want to use the http api from your host machine
+    # ports:
+    #   - 127.0.0.1:3000:80
+    depends_on:
+      vulnerability-tests:
+        condition: service_healthy
+      notus-data:
+        condition: service_healthy
+      configure-openvas:
+        condition: service_completed_successfully
+      gpg-data:
+        condition: service_completed_successfully
+    networks:
+      default:
+        aliases:
+          - openvasd
+
+  ospd-openvas:
+    image: registry.community.greenbone.net/community/ospd-openvas:stable
+    deploy:
+      restart_policy:
+        condition: any
+    hostname: ospd-openvas.local
+    cap_add:
+      - NET_ADMIN # for capturing packages in promiscuous mode
+      - NET_RAW # for raw sockets e.g. used for the boreas alive detection
+    security_opt:
+      - seccomp=unconfined
+      - apparmor=unconfined
+    command:
+      [
+        "ospd-openvas",
+        "-f",
+        "--config",
+        "/etc/gvm/ospd-openvas.conf",
+        "--notus-feed-dir",
+        "/var/lib/notus/advisories",
+        "-m",
+        "666",
+      ]
+    volumes:
+      - ../../data/openvas/gpg-data:/etc/openvas/gnupg
+      - ../../data/openvas/vt-data:/var/lib/openvas/plugins
+      - ../../data/openvas/notus-data:/var/lib/notus
+      - ospd_openvas_socket_vol:/run/ospd
+      - redis_socket_vol:/run/redis/
+      - ../../data/openvas/openvas-data:/etc/openvas/
+      - ../../data/openvas/openvas-logs:/var/log/openvas
+    depends_on:
+      redis-server:
+        condition: service_started
+      gpg-data:
+        condition: service_completed_successfully
+      configure-openvas:
+        condition: service_completed_successfully
+      vulnerability-tests:
+        condition: service_healthy
+      notus-data:
+        condition: service_healthy
+
+  gvm-tools:
+    image: registry.community.greenbone.net/community/gvm-tools
+    volumes:
+      - gvmd_socket_vol:/run/gvmd
+      - ospd_openvas_socket_vol:/run/ospd
+    depends_on:
+      - gvmd
+      - ospd-openvas
+
+volumes:
+  psql_socket_vol:
+  gvmd_socket_vol:
+  ospd_openvas_socket_vol:
+  redis_socket_vol:
+  nginx_config_vol:
+  nginx_certificates_vol:

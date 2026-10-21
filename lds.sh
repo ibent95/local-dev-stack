@@ -23,9 +23,10 @@ case "$cmd" in
     case "$sub" in
       semgrep)    exec "$ROOT/scripts/run/semgrep.sh" "$@" ;;
       trivy)      exec "$ROOT/scripts/run/trivy.sh" "$@" ;;
+      sonar)      exec "$ROOT/scripts/run/sonar.sh" "$@" ;;
       crg)        exec "$ROOT/scripts/run/crg.sh" "$@" ;;
       playwright) exec "$ROOT/scripts/run/playwright.sh" "$@" ;;
-      *) echo "usage: lds tools <semgrep [path|clear] | trivy [path|clear] | trivy image <name> | crg <path> [name] | playwright <init|run|codegen|ui|shell|report>>"; exit 1 ;;
+      *) echo "usage: lds tools <semgrep [path|clear] | trivy [path|clear] | trivy image <name> | sonar [path|token|reset] [key] | crg <path> [name] | playwright <init|run|codegen|ui|shell|report>>"; exit 1 ;;
     esac ;;
   headlessx)
     sub="${1:-}"; shift 2>/dev/null || true
@@ -33,6 +34,8 @@ case "$cmd" in
       init|update) exec "$ROOT/scripts/run/headlessx-init.sh" "$@" ;;
       *) echo "usage: lds headlessx <init | update>"; exit 1 ;;
     esac ;;
+  openvas)
+    exec "$ROOT/scripts/run/openvas.sh" "$@" ;;
   playwright)
     # playwright.sh expects its OWN subcommand as argv[1] (init/run/codegen/…)
     exec "$ROOT/scripts/run/playwright.sh" "$@" ;;
@@ -107,10 +110,12 @@ local-dev-stack — usage: ./lds.sh <command> [args]
                                   | register-connectors | init (topics + connectors)
  db <sub>                       init [mysql|postgres|mongo|all] | seed (DBX connections)
  tools <sub>                    semgrep [path|clear] | trivy [path|clear] | trivy image <name>
-                                  | crg <path> [name] | playwright <init|run|codegen|ui|shell|report> (alias)
-                                  (scan; view at semgrep.test / trivy.test / crg.test via the matching `up`)
+                                  | sonar [path|token|reset] [key] | crg <path> [name] | playwright <init|run|codegen|ui|shell|report> (alias)
+                                  (scan; view at semgrep.test / trivy.test / sonarqube.test / crg.test via the matching `up`)
  headlessx <sub>                init | update (clone/refresh the HeadlessX source checkout
                                   used to build the headlessx profile)
+ openvas <sub>                  start | stop | restart | logs | ps | pull — OpenVAS/Greenbone
+                                  CE companion (out-of-stack, heavy; UI http://127.0.0.1:9392)
  playwright <sub>               init <name> [url] | run <name> [args...] | codegen [url] |
                                   ui <name> | shell | report (E2E tests via the Playwright runner)
  e2e <sub>                      alias for `playwright`

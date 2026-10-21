@@ -174,7 +174,7 @@ anything else on your machine. Each one is set by a `*_HOST_PORT` variable in
 </tr>
 <tr>
 <td colspan="4">
-    <b>Admin tools</b> <code>4500–4543</code>
+    <b>Admin tools</b> <code>4500–4544</code>
 </td>
 </tr>
 <tr>
@@ -247,6 +247,24 @@ anything else on your machine. Each one is set by a `*_HOST_PORT` variable in
 <td>Trivy viewer</td>
 <td><code>localhost:4511</code> (<code>trivy.test</code>)</td>
 <td><code>trivy:8080</code></td>
+</tr>
+<tr>
+<td></td>
+<td>SonarQube</td>
+<td><code>localhost:4544</code> (<code>sonarqube.test</code>)</td>
+<td><code>sonarqube:9000</code></td>
+</tr>
+<tr>
+<td></td>
+<td>OpenVAS — UI <i>(out-of-stack companion, <code>lds openvas</code>)</i></td>
+<td><code>localhost:9392</code> (<code>openvas.test</code>)</td>
+<td><code>lds-openvas-web:9392</code></td>
+</tr>
+<tr>
+<td></td>
+<td>OpenVAS — TLS <i>(out-of-stack companion)</i></td>
+<td><code>localhost:8943</code></td>
+<td><code>lds-openvas-nginx:443</code></td>
 </tr>
 <tr>
 <td></td>

@@ -390,7 +390,7 @@ services:
   postgres:
     image: ${DHI_REGISTRY:-dhi.io}/postgres:${POSTGRES_VERSION:-18.4-alpine3.24}
     container_name: lds-postgres
-    profiles: [postgres, analytics, tasks, wiki, openwa, trino, penpot, headlessx, erpnext, snapotter, hoppscotch, superset, metabase, plane, all]
+    profiles: [postgres, analytics, tasks, wiki, openwa, trino, penpot, headlessx, erpnext, snapotter, hoppscotch, superset, metabase, plane, sonarqube, all]
     restart: *restart
     <<: *dns
     # Override entrypoint so we can init databases AFTER postgres starts.
@@ -1055,8 +1055,9 @@ services:
 
   # ===========================================================================
   # Code quality — static analysis (SAST).  (profiles: semgrep | semgrep-scan)
-  #   semgrep      : the VIEWER — a tiny nginx serving the SARIF report + UI at
-  #                  semgrep.test. Long-running; this is what `lds up semgrep` starts.
+  #   semgrep      : the VIEWER — a tiny nginx serving the self-contained findings
+  #                  dashboard + SARIF at semgrep.test. Long-running; this is what
+  #                  `lds up semgrep` starts.
   #   semgrep-scan : the SCANNER — the real semgrep/semgrep CLI image, pinned and
   #                  declared here so it's versioned + pre-pullable as part of the
   #                  stack. It is a ONE-SHOT (runs, writes report.sarif, exits), so
@@ -1090,7 +1091,7 @@ services:
   # [path]` adds `-v <path>:/src -w /src` and the scan args at run time; this
   # service fixes the image + the /out mount (the viewer's report dir).
   semgrep-scan:
-    image: ${SEMGREP_IMAGE:-semgrep/semgrep}:${SEMGREP_VERSION:-1.167.0}
+    image: ${SEMGREP_IMAGE:-semgrep/semgrep}:${SEMGREP_VERSION:-1.181.0}
     profiles: [semgrep-scan]
     environment:
       # `lds tools semgrep` passes --metrics off by default (SEMGREP_RULES=auto
@@ -1192,11 +1193,85 @@ services:
   # pins the image and mounts the report dir + the vulnerability-DB cache
   # (data/trivy/cache) so the DB downloads once, not on every scan.
   trivy-scan:
-    image: ${TRIVY_IMAGE:-aquasec/trivy}:${TRIVY_VERSION:-0.58.1}
+    image: ${TRIVY_IMAGE:-aquasec/trivy}:${TRIVY_VERSION:-0.76.0}
     profiles: [trivy-scan]
     volumes:
       - ./data/trivy/reports:/out
       - ./data/trivy/cache:/root/.cache/trivy
+    networks: [lds-network]
+
+  # ===========================================================================
+  # Code quality — SonarQube (profiles: sonarqube | sonar-scanner)
+  #   sonarqube     : the SERVER — SonarQube Community Build (code smells, bugs,
+  #                   coverage, duplication, quality gates) at sonarqube.test.
+  #                   Metadata in the shared Postgres (lds_sonarqube, created by
+  #                   POSTGRES_INIT_SPECS + scripts/run/sonarqube-init). Browsing
+  #                   needs NO login by default (SONAR_FORCE_AUTH=false — the UI
+  #                   opens anonymously, read-only); admin actions still use
+  #                   admin/admin -> set a new password, then `lds tools sonar
+  #                   <path>` creates a scanner token automatically.
+  #   sonar-scanner : the one-shot Scanner CLI (sonarsource/sonar-scanner-cli);
+  #                   declared here so it's pinned + pre-pullable as part of the
+  #                   stack, but in its OWN profile (like semgrep-scan/trivy-scan
+  #                   NOT in `all` — it never auto-starts). Invoked via
+  #                   `lds tools sonar <path>` (docker run).
+  # ===========================================================================
+  sonarqube:
+    image: ${SONARQUBE_IMAGE:-sonarqube}:${SONARQUBE_VERSION:-community}
+    container_name: lds-sonarqube
+    profiles: [sonarqube, all]
+    restart: *restart
+    <<: *dns
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      VIRTUAL_HOST: ${SONARQUBE_HOST:-sonarqube.test}
+      VIRTUAL_PORT: "9000"
+      CERT_NAME: _.test
+      # Metadata DB = shared postgres (lds_sonarqube, created by
+      # POSTGRES_INIT_SPECS / sonarqube-init).
+      SONAR_JDBC_URL: jdbc:postgresql://postgres:5432/${SONARQUBE_POSTGRES_DB:-lds_sonarqube}
+      SONAR_JDBC_USERNAME: ${SONARQUBE_POSTGRES_USER:-app}
+      SONAR_JDBC_PASSWORD: ${SONARQUBE_POSTGRES_PASSWORD:-app}
+      # The bundled Elasticsearch aborts on the Docker Desktop VM's default
+      # vm.max_map_count; the bootstrap check must be disabled there (dev-only
+      # escape hatch — on a Linux host, set vm.max_map_count=524288 instead).
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "${SONARQUBE_BOOTSTRAP_CHECKS_DISABLE:-true}"
+      # Forced auth OFF (default): the web UI is browsable WITHOUT login —
+      # anonymous, read-only (public projects, like DBX's open UI). Admin
+      # actions (settings, users, tokens) and scans (scanner token) still
+      # authenticate. Set SONARQUBE_FORCE_AUTH=true to require login to browse.
+      SONAR_FORCEAUTHENTICATION: "${SONARQUBE_FORCE_AUTH:-false}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "9000"
+    ports:
+      - "127.0.0.1:${SONARQUBE_HOST_PORT:-4544}:9000"
+    volumes:
+      # Host dirs must be writable by UID 1000 (the image's user):
+      # `chown -R 1000:1000 data/sonarqube` on Linux if startup fails.
+      - ${SONARQUBE_DATA_PATH:-./data/sonarqube/data}:/opt/sonarqube/data
+      - ${SONARQUBE_LOGS_PATH:-./data/sonarqube/logs}:/opt/sonarqube/logs
+      - ${SONARQUBE_EXTENSIONS_PATH:-./data/sonarqube/extensions}:/opt/sonarqube/extensions
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/api/system/status | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 15s
+      timeout: 8s
+      retries: 30
+      start_period: 120s
+    mem_limit: ${SONARQUBE_MEM_LIMIT:-4g}
+    networks: [lds-network]
+
+  # Sonar scanner (one-shot, run-only — like semgrep-scan/trivy-scan). Invoked
+  # by `lds tools sonar <path>`; the wrapper adds the workspace mount + token at
+  # run time. This service pins the scanner image (pre-pulled by `lds up
+  # sonarqube`) so a scan never waits on a surprise pull.
+  sonar-scanner:
+    image: ${SONAR_SCANNER_IMAGE:-sonarsource/sonar-scanner-cli}:${SONAR_SCANNER_VERSION:-12.2.0.4256_8.1.0}
+    profiles: [sonar-scanner]
+    environment:
+      SONAR_HOST_URL: http://sonarqube:9000
     networks: [lds-network]
 
   # ===========================================================================

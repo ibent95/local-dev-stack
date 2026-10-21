@@ -4,8 +4,8 @@ This page covers the **control panel** at `http://localhost` and the standalone
 tool profiles added on top of the core stack: **DrawDB** (schema design),
 **Apache Hop** + **Apache Superset** + **Metabase** (data warehouse & BI), **Hoppscotch**
 (API client / Postman alternative) + **Plane** (project management), **DuckDB** + **Trino**
-(analytical query engines), **Semgrep** + **OWASP ZAP** + **Trivy** (code &
-vulnerability scanning), **code-review-graph** (AI code intelligence),
+(analytical query engines), **Semgrep** + **SonarQube** + **OWASP ZAP** + **Trivy**
++ **OpenVAS** (code & vulnerability scanning), **code-review-graph** (AI code intelligence),
 **Vaultwarden** (password manager), **Mailpit** (SMTP + inbox), **Penpot**
 (design), **Instatic** (visual CMS), **OpenWA** (WhatsApp API), **RustFS**
 (file sharing), **HeadlessX** (undetected browser automation), **Playwright**
@@ -37,7 +37,7 @@ The PHP container serves a control panel as its default site, reachable at
   (Plane), *Analytic & Business
   intelligence* (Analytics, Hop, Trino, Superset, Metabase), *Monitoring &
   observability* (Grafana, Prometheus), *Code & security quality
-  scanner* (Semgrep, Trivy, ZAP, code-review-graph), *Testing tools*
+  scanner* (Semgrep, SonarQube, Trivy, ZAP, OpenVAS, code-review-graph), *Testing tools*
   (Playwright, Hoppscotch), *Developer utilities* (LDS Text Diff), and *Websockets monitoring*
   (Centrifugo, MQTTX) — each with a
   ●/○ reachability dot.
@@ -206,11 +206,17 @@ cycles, modules, pages, analytics.
 
 **Profile:** `semgrep` (`LDS_ENABLE_SEMGREP`). **Off by default.**
 
-A static-analysis (SAST) scanner with a lightweight SARIF viewer. It's two
-compose services:
+A static-analysis (SAST) scanner with a self-contained SARIF findings dashboard.
+It's two compose services:
 
 - **`semgrep`** (profile `semgrep`, `all`) — the **viewer**: a tiny nginx serving
-  `data/semgrep/reports/` at `semgrep.test`. This is what `lds up semgrep` starts.
+  `data/semgrep/reports/` at `semgrep.test`. `index.html` is a self-contained
+  dashboard over `report.sarif` (no backend): severity tiles, findings-by-rule /
+  by-file / category (CWE, OWASP, confidence) breakdowns, facet filters (severity,
+  rule, file, tag, search), expandable findings with the code snippet + rule
+  description, paging, and **Print report** (the current filtered view, all rows)
+  for Save-as-PDF. It also reads `scan-meta.json` for the scan metadata. This is
+  what `lds up semgrep` starts.
 - **`semgrep-scan`** (profile `semgrep-scan`) — the **scanner**: the pinned
   `semgrep/semgrep` CLI image, declared in compose so it's versioned. It's a
   one-shot, so it lives in its own profile and **never auto-starts** on
@@ -222,7 +228,7 @@ compose services:
 Run a scan:
 
 ```sh
-lds tools semgrep [path]      # default: current dir, ruleset SEMGREP_RULES (p/default)
+lds tools semgrep [path]      # default: current dir, rulesets from SEMGREP_RULES
 lds tools semgrep clear       # clear current SARIF + metadata from viewer storage
 ```
 
@@ -230,27 +236,37 @@ That runs the pinned `semgrep-scan` image with `docker run -v <path>:/src` and
 writes `data/semgrep/reports/report.sarif` into the folder the viewer serves.
 (It uses `docker run`, not `docker compose run`, because Compose's `-v` parser
 splits on `:` and chokes on a Windows drive-letter path like `D:\…`.) Refresh
-**`semgrep.test`** and it renders the findings (filter by severity / search),
-including last scanned project metadata and a **Clear** action. No DB; until you
-run a scan there's no `report.sarif` to show.
+**`semgrep.test`** and the dashboard renders the findings with the last scanned
+project metadata and a **Clear** action. No DB; until you run a scan there's no
+`report.sarif` to show.
 
-Default ruleset is **`p/default`**, run with telemetry **off**. Pick another with
-`SEMGREP_RULES` — any registry pack (`p/php`, `p/security-audit`, `p/ci`), a rules
-URL, or a local YAML; all run with metrics off. `auto` is also valid but
-**requires metrics on** (it uploads project metadata to semgrep.dev to choose
+`SEMGREP_RULES` takes **one or more rulesets, comma-separated** — each becomes
+its own `--config` flag, which is how you tighten coverage. The shipped default
+is **`p/default,p/security-audit`** (security-audit is deliberately noisier);
+other useful sets: `p/default,p/owasp-top-ten,p/cwe-top-25` or per-language
+packs like `p/default,p/php,p/typescript`. Registry packs (`p/php`, `p/ci`),
+rules URLs, and local YAML paths all run with metrics off. `auto` is also valid
+but **requires metrics on** (it uploads project metadata to semgrep.dev to choose
 rules), and that end-of-run upload can hang on slow/offline links — so the script
-only enables metrics when you explicitly set `SEMGREP_RULES=auto`. (Registry packs
-are still fetched over the network at scan start; that's load time, not a hang.)
+only enables metrics when `auto` is among the rulesets. (Registry packs are still
+fetched over the network at scan start; that's load time, not a hang.)
 
-## Vulnerability scanning — OWASP ZAP & Trivy
+Two more knobs: `SEMGREP_SEVERITY` filters what's reported (comma list of
+`INFO,WARNING,ERROR`), and **`SEMGREP_ERROR=1`** makes the CLI exit `1` when
+findings exist (the report is still written first) — handy for CI gating.
 
-**Profiles:** `zap` (`LDS_ENABLE_ZAP`), `trivy` (`LDS_ENABLE_TRIVY`). **Off by
-default.** Two scanners that complement Semgrep (SAST, source code):
+## Vulnerability scanning — OWASP ZAP, OpenVAS & Trivy
+
+**Profiles:** `zap` (`LDS_ENABLE_ZAP`), `trivy` (`LDS_ENABLE_TRIVY`);
+`sonarqube` (`LDS_ENABLE_SONARQUBE`) adds code quality. **Off by default.** These
+complement Semgrep (SAST, source code):
 
 | Tool | What it scans | How |
 |---|---|---|
 | **Semgrep** (SAST) | source code, for bug patterns | `lds tools semgrep [path]` |
+| **SonarQube** (code quality) | bugs, code smells, duplications, coverage, quality gates | `lds tools sonar [path]` |
 | **OWASP ZAP** (DAST) | your **running** `.test` apps (SQLi, XSS, SSRF, auth, …) | browser UI at `zap.test/zap` |
+| **OpenVAS** (DAST) | deep vulnerability scans (Greenbone CE companion) | `lds openvas start` → `localhost:9392` |
 | **Trivy** (SCA) | containers, filesystems, git repos, dependency manifests | `lds tools trivy [path]` / `lds tools trivy image <name>` |
 
 ### OWASP ZAP — `zap.test` / `localhost:4510`
@@ -284,6 +300,25 @@ view — then open **`zap.test/zap`** (ZAP's proxy/API port is
 > Scanning needs the target app to be **running** — start the project first
 > (`lds up` with its profile), then point ZAP at it.
 
+### OpenVAS — Greenbone CE companion (out-of-stack)
+
+**Not a profile.** The deep DAST alternative, built on Greenbone Community
+Edition and managed as an out-of-stack companion:
+`lds openvas start|stop|restart|logs|ps|pull` (`configs/openvas/` — its own full
+Greenbone stack, ~18 containers, data in `data/openvas/`). Much heavier and
+slower than ZAP — ~4+ GB RAM, multi-GB pulls, and the first boot syncs the
+vulnerability feeds for 20–60+ minutes — but considerably deeper when you need a
+real vulnerability-management scan.
+
+- UI: **`http://localhost:9392`** (login `admin`/`admin`), TLS on `:8943`.
+  When the main stack is up the wrapper applies an overlay: the web UI joins
+  `lds-network` (so **`openvas.test`** works through the LDS proxy) and the
+  scanner joins `lds-network` + `lds-dnsnet` with the in-network `*.test` DNS
+  view — so `http://myapp.test` is scannable directly, exactly like ZAP.
+- Different scope than ZAP: OpenVAS is a *vulnerability management* scanner
+  (CVE feed-driven, targets + credentialed scans); ZAP is a web-app fuzzer.
+  Running both is fine.
+
 ### Trivy — `trivy.test` / `localhost:4511`
 
 Known-CVE (SCA) scanning of *artifacts*, not live apps: container images,
@@ -304,6 +339,84 @@ service), so the first scan downloads it and later scans run fast. The viewer
 shows scanned target metadata and has a **Clear** button. Like Semgrep, the
 script uses `docker run` (not `docker compose run`) so Windows drive-letter
 paths mount correctly.
+
+`TRIVY_SCANNERS` picks what to look for (default
+`vuln,misconfig,secret,license` — drop `secret`/`license` for quieter reports).
+Tighten with `TRIVY_SEVERITY` (comma list of `UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL`),
+`TRIVY_IGNORE_UNFIXED=1` (only actionable findings), and
+`TRIVY_DETECTION_PRIORITY=comprehensive` (looser rootfs/ebpf detection — the
+default is the precise mode). **`TRIVY_EXIT_CODE`** (e.g. `1`) makes the scan
+exit with that code when anything is found — the report is still written first —
+ready for CI gating. `TRIVY_VERSION` is pinned in `.env`.
+
+## Code quality — SonarQube
+
+**Profile:** `sonarqube` (`LDS_ENABLE_SONARQUBE`). **Off by default.**
+
+A full code-quality platform (SonarQube Community Build): bugs, code smells,
+duplications, coverage, and **quality gates** — broader than the security-only
+Semgrep. Same viewer/scanner idea as Semgrep/Trivy, except the "viewer" is a
+real server: the running **`sonarqube`** service (`sonarqube.test` /
+`localhost:4544`, healthchecked) + a one-shot **`sonar-scanner`** image (own
+`sonar-scanner` profile, never auto-starts).
+
+```sh
+lds tools sonar [path] [project-key]   # scan; key defaults to SONAR_PROJECT_KEY or the folder name
+lds tools sonar token                  # create/refresh + print the analyzer token
+lds tools sonar reset                  # lockout recovery: restore the admin/admin login
+```
+
+- Open **`sonarqube.test`** — **browsing needs no login** (see below). New
+  projects are auto-created on the first scanner run (per-request project
+  creation is on by default) or via the UI wizard.
+- **No login to browse (default):** `SONARQUBE_FORCE_AUTH=false` disables forced
+  authentication, so the UI (dashboards, issues, measures) opens anonymously —
+  same spirit as DBX's open UI. It's read-only: settings, users and token
+  management still require the `admin` login, and scans always authenticate with
+  the scanner token. Flip `SONARQUBE_FORCE_AUTH=true` in `.env` to require a
+  login for browsing too. (Once you toggle it in the UI it's persisted in the
+  DB, which then wins over the env var — reset it under General settings >
+  Security.)
+- **Report export:** Community Build has no built-in report export (PDF reports
+  are a commercial Governance/Enterprise feature) — the control panel serves a
+  printable **full** report at **`http://localhost/sonar-report.php`** (also the
+  "SonarQube report" card): pick a project → quality gate + conditions, ratings,
+  every measure (grouped by domain), every issue (severity/type/rule/impacts/
+  effort/status/tags/flows), all security hotspots, per-file metrics with
+  totals, duplication groups, rule names and the analysis history, with
+  **Print / Save as PDF** and **Download HTML**. It reads the Web API
+  anonymously, so it needs no token/login as long as browsing needs no login.
+- **Admin password:** on every `lds up sonarqube`, the `sonarqube-init` step
+  reconciles the server's admin password with `SONAR_ADMIN_PASSWORD`: while the
+  DB still has the initial `admin`, the value from `.env` is applied via the API
+  (the policy wants **12+ chars incl. an uppercase letter**); if neither the
+  `.env` value nor `admin` logs in, it warns instead of touching anything.
+  Locked out after changing the password in the UI? `lds tools sonar reset`
+  restores `admin`/`admin` with the documented recovery SQL and drops the cached
+  token (the next scan recreates it).
+- **Auth:** since SonarQube 26.10 the scanner refuses unauthenticated analysis
+  and password basic auth is gone — the wrapper logs in through the Web API form
+  (session cookie + `X-XSRF-TOKEN`), then calls `user_tokens/generate` (older
+  servers fall back to basic auth). The token is cached at
+  `data/sonarqube/token` and passed to the scanner. A `SONAR_TOKEN` from the
+  env/`.env` wins only when **this** server accepts it — stale or foreign values
+  (e.g. a global `SONAR_TOKEN` for another server) are ignored with a warning,
+  and so is a stale cached token (recreated automatically). Refresh it with
+  `lds tools sonar token`.
+- **Server DB** is the shared Postgres (`lds_sonarqube` via
+  `POSTGRES_INIT_SPECS`), so SonarQube needs the `postgres` profile running. The
+  server binds `data/sonarqube/{data,logs,extensions}` (uid 1000 — on Linux those
+  folders must be writable by that uid).
+  `SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true` is set because Docker Desktop can't
+  raise the Elasticsearch `vm.max_map_count` requirement; flip it to `false` on a
+  native Linux host to enforce the check.
+- Knobs in `.env`: `SONAR_SOURCES` (scan a subdir), `SONAR_EXCLUSIONS`,
+  `SONAR_QUALITYGATE_WAIT=1` (scanner waits for the gate and exits `3` when it
+  fails). `SONAR_PROJECT_KEY` fixes the key for every scan (else derived from the
+  folder name) — only the value in `.env` counts: one inherited from the shell
+  environment is ignored with a `note:`, since a stale terminal would otherwise
+  silently retarget every scan. `SONARQUBE_MEM_LIMIT` caps the server (default 4g).
+  Community Build limits: single branch, no PR decoration, no Rust analysis.
 
 ## Code intelligence — code-review-graph
 

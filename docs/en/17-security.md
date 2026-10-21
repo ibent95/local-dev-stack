@@ -42,6 +42,7 @@ first if the stack ever leaves your machine:
 <tr><td>Vaultwarden / Penpot / Instatic / RustFS / OpenWA secrets all <code>…change-me</code></td><td>same</td><td>set each <code>*_SECRET_KEY</code>, <code>*_TOKEN</code>, <code>*_KEY</code> in <code>.env</code></td></tr>
 <tr><td>Centrifugo + Soketi run in dev <code>*_insecure</code> modes</td><td>same</td><td>real keys; drop <code>--client_insecure</code> / <code>--admin_insecure</code></td></tr>
 <tr><td>Dashboard and the Semgrep/Trivy/CRG/ZAP viewers have <b>no login</b></td><td>dashboard + compose</td><td>keep them local, or put auth at the proxy</td></tr>
+<tr><td>SonarQube browses <b>without login</b> by default (<code>SONARQUBE_FORCE_AUTH=false</code>: anonymous, read-only) and ships the default <code>admin/admin</code> for admin actions + scanner token bootstrap</td><td><code>SONARQUBE_FORCE_AUTH</code> + <code>SONAR_ADMIN_USER</code>/<code>SONAR_ADMIN_PASSWORD</code> + <code>SONAR_TOKEN</code></td><td>flip <code>SONARQUBE_FORCE_AUTH=true</code>, change the admin password, then refresh the token via <code>lds tools sonar token</code></td></tr>
 <tr><td>Host ports publish on all interfaces (Docker default)</td><td>compose <code>ports:</code></td><td>bind loopback: <code>"127.0.0.1:4405:6379"</code></td></tr>
 <tr><td>HTTP only (no TLS)</td><td>proxy</td><td><code>LDS_ENABLE_HTTPS=true</code> + <code>./lds.sh certs</code></td></tr>
 <tr><td><code>*.test</code> resolves to <code>127.0.0.1</code></td><td><code>configs/dns</code></td><td>keep it local; don't delegate the zone publicly</td></tr>
@@ -54,7 +55,9 @@ first if the stack ever leaves your machine:
 ./lds.sh tools semgrep [path]     # SAST - SARIF viewer at semgrep.test
 ./lds.sh tools trivy [path]       # CVE/SCA of files, deps and images
 ./lds.sh tools trivy image <name> # same, for one image
+./lds.sh tools sonar [path]       # code quality - SonarQube at sonarqube.test
 ./lds.sh up zap                   # DAST against running apps (zap.test)
+./lds.sh openvas start            # deep DAST - Greenbone CE companion (localhost:9392)
 ./lds.sh tools crg <path>         # AI code-intelligence graph (crg.test)
 ```
 

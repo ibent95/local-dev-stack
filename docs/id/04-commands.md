@@ -53,7 +53,11 @@
 </tr>
 <tr>
 <td>`tools &lt;sub&gt;`</td>
-<td>`semgrep [path\|clear]` — jalankan/hapus report Semgrep · `trivy [path\|clear]` / `trivy image &lt;name&gt;` — jalankan/hapus report Trivy · `crg &lt;path&gt; [name]` — bangun code-review-graph + ekspor; lihat di `semgrep.test` / `trivy.test` / `crg.test` · `playwright &lt;…&gt;` — alias untuk `lds playwright` (lihat di bawah)</td>
+<td>`semgrep [path\|clear]` — jalankan/hapus report Semgrep · `trivy [path\|clear]` / `trivy image &lt;name&gt;` — jalankan/hapus report Trivy · `sonar [path\|token\|reset] [key]` — jalankan scan SonarQube / segarkan token analyzer / pulihkan login admin · `crg &lt;path&gt; [name]` — bangun code-review-graph + ekspor; lihat di `semgrep.test` / `trivy.test` / `sonarqube.test` / `crg.test` · `playwright &lt;…&gt;` — alias untuk `lds playwright` (lihat di bawah)</td>
+</tr>
+<tr>
+<td>`openvas &lt;sub&gt;`</td>
+<td>`start` · `stop` · `restart` · `logs` · `ps` · `pull` — kompanion OpenVAS/Greenbone CE (out-of-stack, berat; UI `localhost:9392` / `openvas.test`)</td>
 </tr>
 <tr>
 <td>`playwright &lt;sub&gt;`</td>

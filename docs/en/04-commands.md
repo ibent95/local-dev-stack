@@ -53,7 +53,11 @@
 </tr>
 <tr>
 <td>`tools &lt;sub&gt;`</td>
-<td>`semgrep [path\|clear]` — run/clear Semgrep report · `trivy [path\|clear]` / `trivy image &lt;name&gt;` — run/clear Trivy report · `crg &lt;path&gt; [name]` — build a code-review-graph + export it; view at `semgrep.test` / `trivy.test` / `crg.test` · `playwright &lt;…&gt;` — alias for `lds playwright` (see below)</td>
+<td>`semgrep [path\|clear]` — run/clear Semgrep report · `trivy [path\|clear]` / `trivy image &lt;name&gt;` — run/clear Trivy report · `sonar [path\|token\|reset] [key]` — run a SonarQube scan / refresh the analyzer token / restore the admin login · `crg &lt;path&gt; [name]` — build a code-review-graph + export it; view at `semgrep.test` / `trivy.test` / `sonarqube.test` / `crg.test` · `playwright &lt;…&gt;` — alias for `lds playwright` (see below)</td>
+</tr>
+<tr>
+<td>`openvas &lt;sub&gt;`</td>
+<td>`start` · `stop` · `restart` · `logs` · `ps` · `pull` — the OpenVAS/Greenbone CE companion (out-of-stack, heavy; UI `localhost:9392` / `openvas.test`)</td>
 </tr>
 <tr>
 <td>`playwright &lt;sub&gt;`</td>

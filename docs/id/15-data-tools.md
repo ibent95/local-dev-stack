@@ -4,8 +4,8 @@ Halaman ini membahas **panel kontrol** di `http://localhost` serta profile tool
 mandiri yang ditambahkan di atas stack inti: **DrawDB** (perancangan skema),
 **Apache Hop** + **Apache Superset** + **Metabase** (data warehouse & BI), **Hoppscotch**
 (API client / alternatif Postman) + **Plane** (manajemen proyek), **DuckDB** + **Trino**
-(mesin query analitis), **Semgrep** + **OWASP ZAP** + **Trivy** (pemindaian kode
-& kerentanan), **code-review-graph** (kecerdasan kode AI),
+(mesin query analitis), **Semgrep** + **SonarQube** + **OWASP ZAP** + **Trivy**
++ **OpenVAS** (pemindaian kode & kerentanan), **code-review-graph** (kecerdasan kode AI),
 **Vaultwarden** (password manager), **Mailpit** (SMTP + inbox), **Penpot**
 (desain), **Instatic** (visual CMS), **OpenWA** (API WhatsApp), **RustFS**
 (berbagi file), **HeadlessX** (automasi browser anti-deteksi), **Playwright**
@@ -34,7 +34,7 @@ Container PHP melayani panel kontrol sebagai situs default-nya, dapat diakses di
   (Plane), *Analytic &
   Business intelligence* (Analytics, Hop, Trino, Superset, Metabase), *Monitoring &
   observability* (Grafana, Prometheus), *Code & security
-  quality scanner* (Semgrep, Trivy, ZAP, code-review-graph), *Testing tools*
+  quality scanner* (Semgrep, SonarQube, Trivy, ZAP, OpenVAS, code-review-graph), *Testing tools*
   (Playwright, Hoppscotch), *Developer utilities* (LDS Text Diff), dan *Websockets monitoring*
   (Centrifugo, MQTTX) —
   masing-masing dengan titik ●/○ status keterjangkauan.
@@ -203,12 +203,17 @@ module, halaman, analitik.
 
 **Profile:** `semgrep` (`LDS_ENABLE_SEMGREP`). **Mati secara default.**
 
-Pemindai analisis statis (SAST) dengan viewer SARIF yang ringan. Terdiri dari
-dua service compose:
+Pemindai analisis statis (SAST) dengan dashboard temuan SARIF mandiri. Terdiri
+dari dua service compose:
 
 - **`semgrep`** (profile `semgrep`, `all`) — **viewer**: nginx kecil yang
-  menyajikan `data/semgrep/reports/` di `semgrep.test`. Inilah yang dijalankan
-  `lds up semgrep`.
+  menyajikan `data/semgrep/reports/` di `semgrep.test`. `index.html` adalah
+  dashboard mandiri di atas `report.sarif` (tanpa backend): tile severity,
+  rincian per rule / per file / per kategori (CWE, OWASP, confidence), filter
+  facet (severity, rule, file, tag, pencarian), temuan yang bisa diperluas
+  dengan cuplikan kode + deskripsi rule, paging, dan **Print report** (tampilan
+  terfilter saat ini, semua baris) untuk Save-as-PDF. Juga membaca
+  `scan-meta.json` untuk metadata scan. Inilah yang dijalankan `lds up semgrep`.
 - **`semgrep-scan`** (profile `semgrep-scan`) — **scanner**: image CLI
   `semgrep/semgrep` yang dipin, dideklarasikan di compose agar terversi.
   Sekali-jalan, jadi berada di profile sendiri dan **tidak pernah auto-start**
@@ -220,7 +225,7 @@ dua service compose:
 Jalankan scan:
 
 ```sh
-lds tools semgrep [path]      # default: direktori saat ini, ruleset SEMGREP_RULES (p/default)
+lds tools semgrep [path]      # default: direktori saat ini, ruleset dari SEMGREP_RULES
 lds tools semgrep clear       # hapus SARIF + metadata dari viewer
 ```
 
@@ -228,28 +233,38 @@ Itu menjalankan image `semgrep-scan` yang dipin dengan `docker run -v <path>:/sr
 dan menulis `data/semgrep/reports/report.sarif` ke folder yang disajikan
 viewer. (Memakai `docker run`, bukan `docker compose run`, karena parser `-v`
 Compose memecah pada `:` dan gagal pada path drive Windows seperti `D:\…`.)
-Segarkan **`semgrep.test`** dan viewer menampilkan temuan (filter per severity /
-cari), termasuk metadata project terakhir yang dipindai dan tombol **Clear**.
-Tanpa DB; sebelum Anda menjalankan scan, belum ada `report.sarif`.
+Segarkan **`semgrep.test`** dan dashboard menampilkan temuan beserta metadata
+project terakhir yang dipindai dan tombol **Clear**. Tanpa DB; sebelum Anda
+menjalankan scan, belum ada `report.sarif`.
 
-Ruleset default **`p/default`**, dijalankan dengan telemetri **off**. Pilih lain
-via `SEMGREP_RULES` — pack registry mana pun (`p/php`, `p/security-audit`,
-`p/ci`), URL rules, atau YAML lokal; semua jalan dengan metrics off. `auto` juga
-valid tapi **wajib metrics on** (mengunggah metadata proyek ke semgrep.dev untuk
-memilih rules), dan unggahan akhir itu bisa menggantung pada koneksi
-lambat/offline — jadi skrip hanya menyalakan metrics bila Anda set
-`SEMGREP_RULES=auto`. (Pack registry tetap diambil via jaringan saat scan mulai;
-itu waktu muat, bukan macet.)
+`SEMGREP_RULES` menerima **satu atau lebih ruleset yang dipisah koma** —
+masing-masing menjadi flag `--config` sendiri, dan itulah cara memperketat
+cakupan. Default bawaan adalah **`p/default,p/security-audit`** (security-audit
+sengaja lebih berisik); set lain yang berguna:
+`p/default,p/owasp-top-ten,p/cwe-top-25` atau pack per-bahasa seperti
+`p/default,p/php,p/typescript`. Pack registry (`p/php`, `p/ci`), URL rules, dan
+YAML lokal semuanya jalan dengan metrics off. `auto` juga valid tapi **wajib
+metrics on** (mengunggah metadata proyek ke semgrep.dev untuk memilih rules), dan
+unggahan akhir itu bisa menggantung pada koneksi lambat/offline — jadi skrip
+hanya menyalakan metrics bila `auto` ada di daftar ruleset. (Pack registry tetap
+diambil via jaringan saat scan mulai; itu waktu muat, bukan macet.)
 
-## Pemindaian kerentanan — OWASP ZAP & Trivy
+Dua knob lagi: `SEMGREP_SEVERITY` menyaring apa yang dilaporkan (daftar koma
+`INFO,WARNING,ERROR`), dan **`SEMGREP_ERROR=1`** membuat CLI keluar dengan kode
+`1` saat ada temuan (laporan tetap ditulis lebih dulu) — praktis untuk gating CI.
 
-**Profile:** `zap` (`LDS_ENABLE_ZAP`), `trivy` (`LDS_ENABLE_TRIVY`). **Mati secara
-default.** Dua pemindai yang melengkapi Semgrep (SAST, kode sumber):
+## Pemindaian kerentanan — OWASP ZAP, OpenVAS & Trivy
+
+**Profile:** `zap` (`LDS_ENABLE_ZAP`), `trivy` (`LDS_ENABLE_TRIVY`);
+`sonarqube` (`LDS_ENABLE_SONARQUBE`) menambah kualitas kode. **Mati secara
+default.** Ini melengkapi Semgrep (SAST, kode sumber):
 
 | Tool | Yang dipindai | Cara |
 |---|---|---|
 | **Semgrep** (SAST) | kode sumber, untuk pola bug | `lds tools semgrep [path]` |
+| **SonarQube** (kualitas kode) | bug, code smell, duplikasi, coverage, quality gate | `lds tools sonar [path]` |
 | **OWASP ZAP** (DAST) | aplikasi `.test` yang **berjalan** (SQLi, XSS, SSRF, auth, …) | UI browser di `zap.test/zap` |
+| **OpenVAS** (DAST) | pemindaian kerentanan mendalam (kompanion Greenbone CE) | `lds openvas start` → `localhost:9392` |
 | **Trivy** (SCA) | container, filesystem, git repo, manifest dependensi | `lds tools trivy [path]` / `lds tools trivy image <name>` |
 
 ### OWASP ZAP — `zap.test` / `localhost:4510`
@@ -283,6 +298,25 @@ dan pindai aplikasi lokal dengan **`http://<folder>.test`** sebagai target.
 > Pemindaian membutuhkan aplikasi target **berjalan** — nyalakan proyeknya dulu
 > (`lds up` dengan profile-nya), lalu arahkan ZAP ke aplikasi itu.
 
+### OpenVAS — kompanion Greenbone CE (out-of-stack)
+
+**Bukan profile.** Alternatif DAST yang mendalam, dibangun di atas Greenbone
+Community Edition dan dikelola sebagai kompanion out-of-stack:
+`lds openvas start|stop|restart|logs|ps|pull` (`configs/openvas/` — stack
+Greenbone lengkap tersendiri, ~18 container, data di `data/openvas/`). Jauh lebih
+berat dan lambat daripada ZAP — ~4+ GB RAM, pull multi-GB, dan boot pertama
+menyingkronkan feed kerentanan selama 20–60+ menit — tapi lebih dalam saat Anda
+butuh pemindaian vulnerability-management sungguhan.
+
+- UI: **`http://localhost:9392`** (login `admin`/`admin`), TLS di `:8943`. Saat
+  stack utama hidup, wrapper menerapkan overlay: UI web masuk ke `lds-network`
+  (sehingga **`openvas.test`** jalan lewat proxy LDS) dan scanner masuk ke
+  `lds-network` + `lds-dnsnet` dengan view DNS `*.test` in-network — jadi
+  `http://myapp.test` bisa dipindai langsung, persis seperti ZAP.
+- Cakupan berbeda dari ZAP: OpenVAS adalah pemindai *manajemen kerentanan*
+  (berbasis feed CVE, target + scan kredensial); ZAP adalah fuzzer web-app.
+  Menjalankan keduanya tidak masalah.
+
 ### Trivy — `trivy.test` / `localhost:4511`
 
 Pemindaian CVE yang dikenal (SCA) terhadap *artefak*, bukan aplikasi live:
@@ -303,6 +337,83 @@ sehingga scan pertama mengunduhnya dan scan berikutnya berjalan cepat. Viewer
 menampilkan metadata target pemindaian dan tombol **Clear**. Seperti Semgrep,
 skrip memakai `docker run` (bukan `docker compose run`) agar path Windows dengan
 drive letter ter-mount dengan benar.
+
+`TRIVY_SCANNERS` memilih apa yang dicari (default
+`vuln,misconfig,secret,license` — buang `secret`/`license` untuk laporan lebih
+tenang). Perketat dengan `TRIVY_SEVERITY` (daftar koma
+`UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL`), `TRIVY_IGNORE_UNFIXED=1` (hanya temuan yang
+bisa ditindaklanjuti), dan `TRIVY_DETECTION_PRIORITY=comprehensive` (deteksi
+rootfs/ebpf lebih longgar — default-nya mode presisi). **`TRIVY_EXIT_CODE`**
+(mis. `1`) membuat scan keluar dengan kode itu saat ada temuan — laporan tetap
+ditulis lebih dulu — siap untuk gating CI. `TRIVY_VERSION` dipin di `.env`.
+
+## Kualitas kode — SonarQube
+
+**Profile:** `sonarqube` (`LDS_ENABLE_SONARQUBE`). **Mati secara default.**
+
+Platform kualitas kode lengkap (SonarQube Community Build): bug, code smell,
+duplikasi, coverage, dan **quality gate** — lebih luas dari Semgrep yang hanya
+keamanan. Ide viewer/scanner sama seperti Semgrep/Trivy, hanya saja "viewer"-nya
+adalah server sungguhan: service **`sonarqube`** yang berjalan (`sonarqube.test` /
+`localhost:4544`, dengan healthcheck) + image **`sonar-scanner`** sekali-jalan
+(profile `sonar-scanner` sendiri, tidak pernah auto-start).
+
+```sh
+lds tools sonar [path] [project-key]   # scan; key default SONAR_PROJECT_KEY atau nama folder
+lds tools sonar token                  # buat/segarkan + cetak token analyzer
+lds tools sonar reset                  # pemulihan lockout: kembalikan login admin/admin
+```
+
+- Buka **`sonarqube.test`** — **menjelajah tanpa login** (lihat di bawah).
+  Proyek baru dibuat otomatis pada run scanner pertama (pembuatan proyek
+  per-request aktif secara default) atau lewat wizard UI.
+- **Tanpa login untuk menjelajah (default):** `SONARQUBE_FORCE_AUTH=false`
+  menonaktifkan forced authentication, sehingga UI (dashboard, isu, measure)
+  terbuka anonim — semangat yang sama dengan UI terbuka DBX. Hanya-baca:
+  pengaturan, pengguna, dan manajemen token tetap butuh login `admin`, dan scan
+  selalu terautentikasi dengan token scanner. Set `SONARQUBE_FORCE_AUTH=true` di
+  `.env` untuk mewajibkan login saat menjelajah. (Setelah diubah di UI, nilainya
+  tersimpan di DB dan menang atas env var — reset di General settings > Security.)
+- **Ekspor laporan:** Community Build tidak punya ekspor laporan bawaan (laporan
+  PDF adalah fitur komersial Governance/Enterprise) — panel kontrol menyediakan
+  versi cetak **lengkap** di **`http://localhost/sonar-report.php`** (juga kartu
+  "SonarQube report"): pilih proyek → quality gate + kondisi, rating, semua
+  measure (dikelompokkan per domain), semua isu (severity/tipe/rule/dampak/
+  effort/status/tag/flow), semua security hotspot, metrik per file plus total,
+  grup duplikasi, nama rule, dan riwayat analisis, dengan tombol **Print / Save
+  as PDF** dan **Download HTML**. Halaman ini membaca Web API secara anonim,
+  jadi tak perlu token/login selama menjelajah tidak butuh login.
+- **Password admin:** pada setiap `lds up sonarqube`, langkah `sonarqube-init`
+  merekonsiliasi password admin server dengan `SONAR_ADMIN_PASSWORD`: selama DB
+  masih memakai `admin` awal, nilai dari `.env` diterapkan via API (kebijakan
+  password butuh **12+ karakter termasuk huruf kapital**); bila baik nilai `.env`
+  maupun `admin` tidak bisa login, ia hanya memperingatkan tanpa mengubah apa pun.
+  Terkunci setelah mengganti password di UI? `lds tools sonar reset` memulihkan
+  `admin`/`admin` dengan SQL pemulihan resmi dan menghapus token ter-cache
+  (scan berikutnya membuatnya ulang).
+- **Auth:** sejak SonarQube 26.10 scanner menolak analisis tanpa autentikasi dan
+  basic auth password telah dihapus — wrapper login lewat form Web API (session
+  cookie + `X-XSRF-TOKEN`), lalu memanggil `user_tokens/generate` (server lama
+  jatuh ke basic auth). Token di-cache di `data/sonarqube/token` dan diberikan ke
+  scanner. `SONAR_TOKEN` dari env/`.env` dipakai hanya bila **server ini**
+  menerimanya — nilai basi/asing (mis. `SONAR_TOKEN` global untuk server lain)
+  diabaikan dengan peringatan, begitu juga token cache yang basi (dibuat ulang
+  otomatis). Segarkan dengan `lds tools sonar token`.
+- **DB server** memakai Postgres bersama (`lds_sonarqube` via
+  `POSTGRES_INIT_SPECS`), jadi SonarQube butuh profile `postgres` berjalan.
+  Server men-bind `data/sonarqube/{data,logs,extensions}` (uid 1000 — di Linux
+  folder itu harus bisa ditulis uid tersebut).
+  `SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true` diset karena Docker Desktop tidak bisa
+  menaikkan syarat `vm.max_map_count` Elasticsearch; ubah ke `false` di host
+  Linux native untuk menegakkan pemeriksaan itu.
+- Knob di `.env`: `SONAR_SOURCES` (pindai subdir), `SONAR_EXCLUSIONS`,
+  `SONAR_QUALITYGATE_WAIT=1` (scanner menunggu gate dan keluar `3` bila gagal).
+  `SONAR_PROJECT_KEY` mengunci key untuk setiap scan (bila kosong, diturunkan
+  dari nama folder) — hanya nilai di `.env` yang dipakai: nilai warisan dari
+  environment shell diabaikan (`note:`), karena terminal lama bisa mengalihkan
+  setiap scan tanpa disadari. `SONARQUBE_MEM_LIMIT` membatasi server
+  (default 4g). Batasan
+  Community Build: satu branch, tanpa dekorasi PR, tanpa analisis Rust.
 
 ## Code intelligence — code-review-graph
 
