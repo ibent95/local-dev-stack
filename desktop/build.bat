@@ -145,7 +145,7 @@ popd
 if "%WANT%"=="tauri" goto end
 
 :win_javafx
-where mvn >nul 2>&1 || (echo   missing: mvn ^(Maven 3.9+ with JDK 21+^). See desktop\javafx\README.md & goto end)
+where mvn >nul 2>&1 || (echo   missing: mvn ^(Maven 3.9+ with JDK 25+^). See desktop\javafx\README.md & goto end)
 echo ==^> [javafx] jpackage via package.sh
 bash desktop\javafx\package.sh
 if "%WANT%"=="javafx" goto end

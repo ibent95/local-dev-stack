@@ -174,6 +174,21 @@ fi
 docker compose "${compose_files[@]}" "${args[@]}" ps
 subdone
 
+# Plane's migrator is one-shot: once it exits 0 its stopped container has no
+# further value (Compose has no remove-after-exit), so delete it here to keep
+# `ps` clean. This only runs after a SUCCESSFUL `up` — api/worker/beat gate on
+# `service_completed_successfully`, so a failed migrator aborts above and the
+# container is kept for `docker logs lds-plane-migrator`. The next
+# `lds up plane` recreates + re-runs it from the compose file.
+case " ${profiles[*]} " in
+  *" plane "*|*" all "*)
+    if [ "$(docker inspect -f '{{.State.Status}}:{{.State.ExitCode}}' lds-plane-migrator 2>/dev/null || true)" = "exited:0" ]; then
+      sub "remove one-shot lds-plane-migrator (migrations already applied)"
+      docker rm lds-plane-migrator >/dev/null
+      subdone
+    fi ;;
+esac
+
 # Seed DBX connections AFTER it is up (the seed goes through DBX's Web API, so
 # the container must be answering; fresh setups only — skips if you already
 # added connections). Keeps the stack DBs auto-listed.

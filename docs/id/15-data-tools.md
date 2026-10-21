@@ -182,6 +182,9 @@ module, halaman, analitik.
   kanal `APP_RELEASE` (bawaan `stable`). Ini **stack CE vendor lengkap**
   (~13 kontainer): frontend, space, instance admin, live server, API, celery
   worker + beat, one-shot `migrator`, plus caddy edge miliknya sendiri.
+  Migrator dijalankan ulang di setiap `lds up plane`, dan kontainernya yang
+  sudah selesai langsung dihapus setelah `up` sukses (hanya disimpan bila
+  migrasi gagal, untuk `docker logs lds-plane-migrator`).
   **DB, cache, broker, dan object storage-nya memakai layanan bersama**:
   database khusus `lds_plane` di Postgres bersama (`POSTGRES_INIT_SPECS`),
   Redis bersama (logical DB 0), RabbitMQ bersama (profile `rabbitmq`), dan
@@ -623,7 +626,7 @@ direktori bersama `assets/jdbc/`.
   ```
 
 - **Image:** Official `trinodb/trino:${TRINO_VERSION}`.
-- **Metastore:** `hive-metastore` (official `apache/hive:4.0.0` image),
+- **Metastore:** `hive-metastore` (official `apache/hive:4.2.1` image),
   otomatis berjalan dengan profile `trino`. Menggunakan Postgres LDS bersama
   (database `lds_hive_metastore`).
 

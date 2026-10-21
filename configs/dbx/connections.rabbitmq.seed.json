@@ -1,0 +1,36 @@
+{
+  "configs": [
+    {
+      "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "name": "RabbitMQ (LDS)",
+      "db_type": "mq",
+      "host": "rabbitmq",
+      "port": 5672,
+      "username": "app",
+      "password": "app",
+      "color": "",
+      "connect_timeout_secs": 10,
+      "query_timeout_secs": 60,
+      "idle_timeout_secs": 60,
+      "keepalive_interval_secs": 30,
+      "ssl": false,
+      "save_password": true,
+      "external_config": {
+        "systemKind": "rabbitmq",
+        "adminUrl": "http://rabbitmq:15672",
+        "auth": {
+          "kind": "basic",
+          "username": "app",
+          "password": "app"
+        },
+        "extra": {
+          "addresses": "rabbitmq:5672",
+          "virtualHost": "app"
+        }
+      },
+      "database_info": {
+        "productName": "RabbitMQ"
+      }
+    }
+  ]
+}

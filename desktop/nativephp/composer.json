@@ -12,10 +12,9 @@
         "php": "^8.3",
         "laravel/framework": "^13.8",
         "laravel/tinker": "^3.0",
-        "nativephp/desktop": "^2.2"
+        "nativephp/desktop": "^2.3"
     },
     "require-dev": {
-        "cweagans/composer-patches": "^2.0",
         "fakerphp/faker": "^1.23",
         "laravel/pail": "^1.2.5",
         "laravel/pao": "^1.0.6",
@@ -80,11 +79,6 @@
     "extra": {
         "laravel": {
             "dont-discover": []
-        },
-        "patches": {
-            "nativephp/desktop": {
-                "Fix artisan command name conflicts on Laravel 13 (FreshCommand + WipeDatabaseCommand)": "patches/nativephp-desktop-laravel13-commands.patch"
-            }
         }
     },
     "config": {
@@ -93,8 +87,7 @@
         "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true,
-            "php-http/discovery": true,
-            "cweagans/composer-patches": true
+            "php-http/discovery": true
         }
     },
     "minimum-stability": "stable",
