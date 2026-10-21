@@ -3,6 +3,13 @@ REM Run a Semgrep scan and write SARIF for the viewer.  (lds tools semgrep [path
 REM   default path = current directory. Results -> data\semgrep\reports\report.sarif,
 REM   viewed at http://semgrep.test (start the viewer: lds up semgrep).
 REM   lds tools semgrep clear removes the current report + metadata.
+REM
+REM Tightening knobs (all optional, set in .env):
+REM   SEMGREP_RULES     one or MORE rulesets, comma-separated - each becomes its
+REM                     own --config flag (e.g. p/default,p/security-audit).
+REM   SEMGREP_SEVERITY  filter reported findings: comma list of INFO,WARNING,ERROR.
+REM   SEMGREP_ERROR=1   exit non-zero (1) when findings are reported - CI gating
+REM                     (the report is still written first).
 setlocal enabledelayedexpansion
 set "TARGET=%~1"
 if not defined TARGET set "TARGET=%CD%"
@@ -28,14 +35,33 @@ if not exist "%TARGET%" (
 pushd "%~dp0..\.."
 if exist ".env" for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do if not defined %%a set "%%a=%%b"
 if "%SEMGREP_IMAGE%"==""  set "SEMGREP_IMAGE=semgrep/semgrep"
-if "%SEMGREP_VERSION%"=="" set "SEMGREP_VERSION=1.167.0"
-if "%SEMGREP_RULES%"==""  set "SEMGREP_RULES=p/default"
+if "%SEMGREP_VERSION%"=="" set "SEMGREP_VERSION=1.181.0"
+if "%SEMGREP_RULES%"==""  set "SEMGREP_RULES=p/default,p/security-audit"
+if "%SEMGREP_HOST%"==""   set "SEMGREP_HOST=semgrep.test"
+
+REM Build one --config flag per comma-separated ruleset (commas -> spaces -> for).
+set "CFG_ARGS="
+for %%r in (%SEMGREP_RULES:,= %) do set "CFG_ARGS=!CFG_ARGS! --config %%r"
+if "%CFG_ARGS%"=="" set "CFG_ARGS=--config p/default"
+
 REM `auto` REQUIRES telemetry (uploads project metadata to pick rules); other
-REM configs work with metrics OFF (preferred — metrics-on's end-of-run upload
+REM configs work with metrics OFF (preferred - metrics-on's end-of-run upload
 REM hangs on slow/offline links). Metrics off by default; on only for auto.
 set "SEMGREP_METRICS=off"
-if /I "%SEMGREP_RULES%"=="auto" set "SEMGREP_METRICS=on"
-if "%SEMGREP_HOST%"==""   set "SEMGREP_HOST=semgrep.test"
+for %%r in (%SEMGREP_RULES:,= %) do if /I "%%r"=="auto" set "SEMGREP_METRICS=on"
+
+REM Optional severity filter (comma list of INFO,WARNING,ERROR -> repeated flags).
+set "SEV_ARGS="
+if defined SEMGREP_SEVERITY for %%s in (%SEMGREP_SEVERITY:,= %) do set "SEV_ARGS=!SEV_ARGS! --severity %%s"
+
+REM Optional gating: SEMGREP_ERROR=1 -> --error makes the CLI exit 1 on findings.
+set "GATE_FLAG="
+set "ERROR_GATE=0"
+if /I "%SEMGREP_ERROR%"=="1"    set "ERROR_GATE=1"
+if /I "%SEMGREP_ERROR%"=="true" set "ERROR_GATE=1"
+if /I "%SEMGREP_ERROR%"=="yes"  set "ERROR_GATE=1"
+if "!ERROR_GATE!"=="1" set "GATE_FLAG=--error"
+
 set "REPORTS=%CD%\data\semgrep\reports"
 if not exist "%REPORTS%" mkdir "%REPORTS%"
 
@@ -45,22 +71,34 @@ REM `docker compose run`: Compose's -v parser splits on ':' and chokes on a
 REM Windows drive-letter source (D:\...), leaving /src empty. The docker CLI
 REM handles D:\... correctly.
 REM Static, unique container name (timestamp + centiseconds) instead of Docker's
-REM random name — recognizable in `docker ps` and unique across concurrent runs.
+REM random name - recognizable in `docker ps` and unique across concurrent runs.
 for /f %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMddHHmmssff"') do set "TS=%%i"
 set "SCAN_NAME=lds-semgrep-scan-!TS!"
-echo Scanning %TARGET% with Semgrep (rules: %SEMGREP_RULES%, metrics: %SEMGREP_METRICS%) - container !SCAN_NAME!...
+if "!ERROR_GATE!"=="1" (set "GATE_DESC=, gating: on") else (set "GATE_DESC=")
+echo Scanning %TARGET% with Semgrep (rules: %SEMGREP_RULES%, metrics: %SEMGREP_METRICS%%GATE_DESC%) - container !SCAN_NAME!...
 docker run --rm --name !SCAN_NAME! -v "%TARGET%:/src" -v "%REPORTS%:/out" -w /src ^
   %SEMGREP_IMAGE%:%SEMGREP_VERSION% ^
-  semgrep scan --metrics %SEMGREP_METRICS% --config %SEMGREP_RULES% --sarif --output /out/report.sarif
+  semgrep scan --metrics %SEMGREP_METRICS% !CFG_ARGS! !SEV_ARGS! !GATE_FLAG! --sarif --output /out/report.sarif
+set "RC=!errorlevel!"
 
 set "SCAN_META=%REPORTS%\scan-meta.json"
 set "SCAN_TARGET=%TARGET%"
 set "SCAN_RULES=%SEMGREP_RULES%"
 set "SCAN_METRICS=%SEMGREP_METRICS%"
+set "SCAN_SEVERITY=%SEMGREP_SEVERITY%"
 powershell -NoProfile -Command ^
-  "$obj=[ordered]@{tool='semgrep';mode='fs';target=$env:SCAN_TARGET;rules=$env:SCAN_RULES;metrics=$env:SCAN_METRICS;scanned_at=(Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')};" ^
+  "$obj=[ordered]@{tool='semgrep';mode='fs';target=$env:SCAN_TARGET;rules=$env:SCAN_RULES;metrics=$env:SCAN_METRICS;severity=$env:SCAN_SEVERITY;error_gate=[int]$env:ERROR_GATE;scanned_at=(Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')};" ^
   "$json=$obj | ConvertTo-Json -Compress;" ^
   "[System.IO.File]::WriteAllText($env:SCAN_META,$json,[System.Text.UTF8Encoding]::new($false))"
+
+if not "!RC!"=="0" (
+  if "!ERROR_GATE!"=="1" if "!RC!"=="1" (
+    echo Semgrep found issues ^(gating enabled - SEMGREP_ERROR=1^) - exiting !RC!.
+    popd
+    endlocal & exit /b 1
+  )
+  echo note: semgrep exited with code !RC! - report may be incomplete.
+)
 
 echo Wrote %REPORTS%\report.sarif
 echo View at http://%SEMGREP_HOST%  (run 'lds up semgrep' if the viewer isn't running).

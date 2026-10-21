@@ -3,156 +3,764 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Semgrep — SARIF results</title>
+<title>Semgrep — results</title>
 <style>
-  :root { color-scheme: light dark; --b:#8883; }
-  * { box-sizing: border-box; }
-  body { margin:0; font:14px/1.5 system-ui,Segoe UI,Roboto,sans-serif; }
-  header { padding:14px 18px; border-bottom:1px solid var(--b); display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-  h1 { font-size:16px; margin:0; font-weight:600; }
-  .counts { display:flex; gap:8px; }
-  .pill { padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600; border:1px solid var(--b); cursor:pointer; user-select:none; }
-  .pill.off { opacity:.4; }
-  .error { background:#e5484d22; color:#e5484d; }
-  .warning { background:#f5a62322; color:#f5a623; }
-  .note { background:#3b82f622; color:#3b82f6; }
-  input { padding:6px 10px; border:1px solid var(--b); border-radius:6px; background:transparent; color:inherit; min-width:220px; flex:1; }
-  button, a.btn { padding:6px 10px; border:1px solid var(--b); border-radius:6px; background:transparent; color:inherit; text-decoration:none; font:inherit; cursor:pointer; }
-  button:hover, a.btn:hover { background:#8882; }
-  .meta { font-size:12px; color:#888; width:100%; }
-  table { border-collapse:collapse; width:100%; }
-  th,td { text-align:left; padding:8px 14px; border-bottom:1px solid var(--b); vertical-align:top; }
-  th { position:sticky; top:0; background:Canvas; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
-  td.sev { white-space:nowrap; }
-  code { font:12px/1.4 ui-monospace,Consolas,monospace; background:#8881; padding:1px 5px; border-radius:4px; }
-  .msg { max-width:60ch; }
-  .loc { white-space:nowrap; color:#888; }
-  #empty { padding:40px 18px; color:#888; }
-  .wrap { overflow-x:auto; }
+  :root { color-scheme: light dark; --line:#8884; --line2:#8882; --muted:#7d8590; --card:rgba(127,127,127,.04); --accent:#6366f1; --err:#e5484d; --warn:#c47f00; --note:#3b82f6; }
+  @media (prefers-color-scheme: dark) { :root { --card:rgba(255,255,255,.035); --warn:#f5a623; } }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.5 system-ui,'Segoe UI',Roboto,sans-serif; background:Canvas; color:CanvasText; }
+  .top { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; justify-content:space-between; padding:18px 22px 14px; border-bottom:1px solid var(--line); }
+  .brand h1 { margin:0; font-size:20px; font-weight:650; letter-spacing:-.01em; }
+  .brand h1 span { margin-left:8px; font-size:11px; font-weight:500; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); }
+  .meta { margin-top:4px; max-width:115ch; font-size:12px; color:var(--muted); }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; }
+  button, a.btn { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border:1px solid var(--line); border-radius:6px; background:transparent; color:inherit; font:inherit; text-decoration:none; cursor:pointer; }
+  button:hover, a.btn:hover { background:var(--card); border-color:var(--muted); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button.danger:hover { color:var(--err); border-color:var(--err); }
+  main { max-width:1500px; margin:0 auto; padding:18px 22px 60px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:16px; }
+  .tile { display:flex; flex-direction:column; gap:2px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--card); }
+  .tile .num { font-size:24px; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; }
+  .tile .lbl { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .tile.sev-error .num { color:var(--err); } .tile.sev-warning .num { color:var(--warn); } .tile.sev-note .num { color:var(--note); }
+  .panels { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); gap:14px; }
+  @media (max-width:900px) { .panels { grid-template-columns:1fr; } }
+  .panel { margin-bottom:14px; border:1px solid var(--line); border-radius:10px; background:var(--card); overflow:hidden; }
+  .panel h2 { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin:0; padding:12px 16px; border-bottom:1px solid var(--line); font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
+  .panel h2 .hint { font-size:11px; font-weight:400; letter-spacing:0; text-transform:none; color:var(--muted); }
+  .scroll { max-height:340px; overflow:auto; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { padding:8px 14px; border-bottom:1px solid var(--line2); text-align:left; vertical-align:top; }
+  th { position:sticky; top:0; z-index:1; background:Canvas; font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
+  .mini th, .mini td { padding:7px 14px; }
+  tbody tr:last-child td { border-bottom:0; }
+  tr[data-rule], tr[data-file] { cursor:pointer; }
+  tr[data-rule]:hover, tr[data-file]:hover { background:var(--card); }
+  tr.active { background:rgba(99,102,241,.1); }
+  .n { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .n.err { color:var(--err); } .n.warn { color:var(--warn); } .n.note { color:var(--note); }
+  code { padding:1px 5px; border-radius:4px; background:#8881; font:12px/1.45 ui-monospace,Consolas,'Cascadia Code',monospace; word-break:break-word; }
+  .sub { margin-top:2px; font-size:11px; color:var(--muted); }
+  .path { min-width:180px; word-break:break-all; } .path code { padding:0; background:none; }
+  .badge { display:inline-block; padding:2px 9px; border:1px solid transparent; border-radius:999px; font-size:10px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; white-space:nowrap; }
+  .badge.error { background:rgba(229,72,77,.13); border-color:rgba(229,72,77,.27); color:var(--err); }
+  .badge.warning { background:rgba(245,166,35,.13); border-color:rgba(245,166,35,.33); color:var(--warn); }
+  .badge.note { background:rgba(59,130,246,.13); border-color:rgba(59,130,246,.33); color:var(--note); }
+  .tags { display:flex; flex-direction:column; gap:12px; padding:14px 16px; }
+  .tag-group { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+  .tag-group h3 { width:100%; margin:0 0 2px; font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
+  .tag { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border:1px solid var(--line); border-radius:999px; background:transparent; color:inherit; font:inherit; font-size:12px; cursor:pointer; }
+  .tag:hover { border-color:var(--muted); }
+  .tag.active { border-color:var(--accent); background:var(--accent); color:#fff; }
+  .tag .n { font-size:11px; opacity:.75; }
+  .toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line); }
+  .toolbar input, .toolbar select { padding:6px 10px; border:1px solid var(--line); border-radius:6px; background:transparent; color:inherit; font:inherit; }
+  .toolbar input { flex:1; min-width:220px; }
+  .toolbar select { max-width:380px; }
+  .sev-filters { display:flex; flex-wrap:wrap; gap:6px; }
+  .pill { padding:3px 10px; border:1px solid var(--line); border-radius:999px; background:transparent; color:inherit; font:inherit; font-size:12px; font-weight:600; cursor:pointer; }
+  .pill:hover { background:var(--card); }
+  .pill.all.active { border-color:var(--accent); background:var(--accent); color:#fff; }
+  .pill.error { color:var(--err); } .pill.warning { color:var(--warn); } .pill.note { color:var(--note); }
+  .pill.off { opacity:.35; text-decoration:line-through; }
+  .filter-note { display:flex; flex-wrap:wrap; gap:6px; padding:10px 16px; border-bottom:1px solid var(--line); }
+  .fchip { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border:1px solid var(--accent); border-radius:999px; background:rgba(99,102,241,.08); color:inherit; font:inherit; font-size:12px; cursor:pointer; }
+  .fchip code { background:none; padding:0; }
+  .finding { cursor:pointer; }
+  .finding:hover { background:var(--card); }
+  .finding:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+  .finding .caret { width:26px; color:var(--muted); font-size:11px; transition:transform .12s ease; }
+  .finding.open .caret { transform:rotate(90deg); }
+  .finding .msg { max-width:78ch; }
+  .finding .loc code { background:none; padding:0; }
+  .sev { white-space:nowrap; }
+  tr.detail > td { padding:16px 20px; background:var(--card); }
+  .detail-grid { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:22px; }
+  @media (max-width:900px) { .detail-grid { grid-template-columns:1fr; } }
+  .detail h3 { margin:14px 0 4px; font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
+  .detail h3:first-child { margin-top:0; }
+  .detail p { margin:0 0 6px; }
+  .detail .message { max-width:95ch; white-space:pre-wrap; }
+  .detail .desc { max-width:95ch; color:var(--muted); }
+  .detail .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .chip { padding:2px 8px; border:1px solid var(--line); border-radius:999px; font-size:11px; color:var(--muted); }
+  pre.snippet { max-height:220px; margin:6px 0 0; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:Canvas; overflow:auto; }
+  pre.snippet code { padding:0; background:none; font-size:12px; white-space:pre; }
+  .meta-list { display:grid; grid-template-columns:auto 1fr; gap:4px 12px; margin:0; font-size:12px; }
+  .meta-list dt { color:var(--muted); } .meta-list dd { margin:0; }
+  .pager { display:flex; align-items:center; justify-content:flex-end; gap:10px; padding:10px 16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); }
+  .no-rows { padding:22px 16px; text-align:center; color:var(--muted); }
+  .empty { max-width:720px; margin:60px auto; padding:0 22px; }
+  .empty h2 { margin:0 0 8px; font-size:18px; }
+  .empty p { color:var(--muted); }
+  .print-head { display:none; }
+  @media print {
+    @page { margin:14mm; }
+    body { background:#fff; color:#000; }
+    .top { padding:0 0 10px; border-bottom:2px solid #000; }
+    .top .meta, .actions, .toolbar, .pager, .filter-note, .hint, #empty { display:none !important; }
+    main { max-width:none; padding:10px 0 0; }
+    .stats { gap:6px; }
+    .tile { border-color:#bbb; background:#fff; }
+    .panel { background:#fff; border-color:#bbb; }
+    .scroll { max-height:none; overflow:visible; }
+    a { color:#000; text-decoration:none; }
+    .print-head { display:block; margin:10px 0 0; font-size:12px; }
+    .print-head p { margin:0; }
+    th { position:static; background:#fff; color:#444; }
+    thead { display:table-header-group; }
+    tr { break-inside:avoid; }
+    .badge { border:1px solid #999 !important; background:#fff !important; color:#000 !important; }
+    .tile.sev-error .num, .tile.sev-warning .num, .tile.sev-note .num, .n.err, .n.warn, .n.note { color:#000; }
+    .tag { border-color:#bbb; } .tag.active { background:#eee; color:#000; }
+    .detail { break-inside:avoid; }
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>Semgrep results</h1>
-  <div class="counts" id="counts"></div>
-  <a class="btn" href="report.sarif" target="_blank" rel="noopener">Open SARIF</a>
-  <button id="clear">Clear</button>
-  <input id="q" type="search" placeholder="filter by rule, file, or message…">
-  <div id="meta" class="meta"></div>
+<header class="top">
+  <div class="brand">
+    <h1>Semgrep <span>static analysis</span></h1>
+    <div id="meta" class="meta"></div>
+  </div>
+  <div class="actions">
+    <button id="reload" type="button" title="Re-fetch report.sarif and scan metadata">Reload</button>
+    <button id="print" type="button" disabled title="Print the current view (Save as PDF)">Print report</button>
+    <a class="btn" href="report.sarif" download title="Download the raw SARIF file">Download SARIF</a>
+    <button id="clear" type="button" class="danger" title="Delete the report and scan metadata">Clear</button>
+  </div>
 </header>
-<div class="wrap"><table id="tbl">
-  <thead><tr><th>Severity</th><th>Rule</th><th>Location</th><th>Message</th></tr></thead>
-  <tbody></tbody>
-</table></div>
-<div id="empty" hidden></div>
+
+<main id="app" hidden>
+  <div class="print-head">
+    <p id="printMeta"></p>
+    <p id="printFilters"></p>
+    <p id="printDate"></p>
+  </div>
+
+  <section id="stats" class="stats"></section>
+
+  <div class="panels">
+    <section class="panel">
+      <h2>Findings by rule <span class="hint">click a row to filter</span></h2>
+      <div class="scroll"><table class="mini" id="ruleTbl">
+        <thead><tr><th>Rule</th><th>Severity</th><th class="n">Findings</th><th class="n">Files</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </section>
+    <section class="panel">
+      <h2>Findings by file <span class="hint">click a row to filter</span></h2>
+      <div class="scroll"><table class="mini" id="fileTbl">
+        <thead><tr><th>File</th><th class="n">E</th><th class="n">W</th><th class="n">N</th><th class="n">Total</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>Categories <span class="hint">click a tag to filter</span></h2>
+    <div id="tags" class="tags"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Findings <span class="hint" id="shown"></span></h2>
+    <div class="toolbar">
+      <div id="sevFilters" class="sev-filters"></div>
+      <select id="ruleSel" aria-label="Filter by rule"><option value="">All rules</option></select>
+      <select id="sortSel" aria-label="Sort findings">
+        <option value="severity">Sort: severity</option>
+        <option value="file">Sort: file</option>
+        <option value="rule">Sort: rule</option>
+      </select>
+      <input id="q" type="search" placeholder="Search rule, file, message, tag… (press /)" aria-label="Search findings">
+      <button id="reset" type="button">Clear filters</button>
+    </div>
+    <div id="filterNote" class="filter-note" hidden></div>
+    <div class="wrap"><table id="tbl">
+      <thead><tr><th class="caret-col"></th><th>Severity</th><th>Rule</th><th>Location</th><th>Message</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <div id="pager" class="pager"></div>
+  </section>
+</main>
+
+<div id="empty" class="empty" hidden></div>
 
 <script>
-let sev = { error:0, warning:0, note:0 };
-const off = new Set();
-let rows = [];
-let meta = null;
+'use strict';
 
-function levelOf(r){ return (r.level || 'warning'); }  // SARIF: error|warning|note
+const $ = (sel, root = document) => root.querySelector(sel);
+const LEVELS = ['error', 'warning', 'note'];
+const LEVEL_LABEL = { error: 'Error', warning: 'Warning', note: 'Note' };
+const LEVEL_ORDER = { error: 0, warning: 1, note: 2 };
+const PAGE_SIZE = 200;
 
-function resetState(){
-  sev = { error:0, warning:0, note:0 };
-  rows = [];
+const state = {
+  meta: null,
+  findings: [],
+  levelsOff: new Set(),
+  rule: '',
+  file: '',
+  tag: '',
+  q: '',
+  sort: 'severity',
+  page: 1,
+  printMode: false,
+  expanded: new Set(),
+  tool: null,
+  rulesLoaded: 0,
+};
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const num = (n) => Number(n || 0).toLocaleString('en-US');
+const sevLabel = (lvl) => LEVEL_LABEL[lvl] || lvl;
+const severityOf = (s) => { const l = String(s || '').toLowerCase(); return LEVEL_ORDER[l] === undefined ? 'warning' : l; };
+const badge = (lvl) => `<span class="badge ${lvl}">${sevLabel(lvl)}</span>`;
+const fmtDate = (s) => {
+  const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]} UTC` : String(s || '');
+};
+
+function tagLabel(tag) {
+  const cwe = /^CWE-(\d+)/i.exec(tag);
+  if (cwe) return 'CWE-' + cwe[1];
+  const owasp = /^(OWASP-[A-Z]\d{2}(?::\d{4})?)/i.exec(tag);
+  if (owasp) return owasp[1].toUpperCase();
+  if (/^(HIGH|MEDIUM|LOW) CONFIDENCE$/i.test(tag)) return tag.replace(/ CONFIDENCE$/i, '');
+  return tag;
 }
 
-async function loadMeta(){
-  meta = null;
+async function fetchMeta() {
   try {
-    const res = await fetch('scan-meta.json?_=' + Date.now());
-    if (!res.ok) throw new Error(res.status);
-    meta = await res.json();
-  } catch(e) {}
-  const tool = meta?.tool || 'semgrep';
-  const target = meta?.target ? ` · target: ${meta.target}` : '';
-  const scanned = meta?.scanned_at ? ` · scanned: ${meta.scanned_at}` : '';
-  const mode = meta?.mode ? ` · mode: ${meta.mode}` : '';
-  document.getElementById('meta').textContent = `${tool}${mode}${target}${scanned}`;
+    const res = await fetch('scan-meta.json?_=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
 }
 
-async function load(){
-  resetState();
-  let data = null;
-  try {
-    const res = await fetch('report.sarif?_=' + Date.now());
-    if(!res.ok) throw new Error(res.status);
-    data = await res.json();
-  } catch(e){
-    document.getElementById('empty').hidden = false;
-    document.getElementById('empty').textContent =
-      'No report.sarif yet — run `lds tools semgrep [path]` to generate one.';
-    return;
-  }
-  for(const run of (data.runs||[])){
-    for(const r of (run.results||[])){
-      const lvl = levelOf(r);
-      sev[lvl] = (sev[lvl]||0)+1;
-      const loc = r.locations?.[0]?.physicalLocation;
-      rows.push({
-        lvl,
-        rule: r.ruleId || '',
-        file: loc?.artifactLocation?.uri || '',
-        line: loc?.region?.startLine || '',
-        msg: (r.message?.text || '').trim(),
+async function fetchReport() {
+  const res = await fetch('report.sarif?_=' + Date.now(), { cache: 'no-store' });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return await res.json();
+}
+
+function parseReport(data) {
+  const findings = [];
+  let rulesLoaded = 0;
+  let tool = null;
+  for (const run of (data && data.runs) || []) {
+    const driver = (run.tool && run.tool.driver) || {};
+    if (!tool) tool = { name: driver.name || 'Semgrep', version: driver.semanticVersion || driver.version || '' };
+    const rules = driver.rules || [];
+    rulesLoaded += rules.length;
+    const byId = new Map();
+    rules.forEach((r) => { if (r && r.id) byId.set(r.id, r); });
+    for (const res of run.results || []) {
+      const rule = (typeof res.ruleIndex === 'number' && rules[res.ruleIndex]) || byId.get(res.ruleId) || {};
+      const level = severityOf(res.level || (rule.defaultConfiguration && rule.defaultConfiguration.level));
+      const loc = (((res.locations || [])[0] || {}).physicalLocation) || {};
+      const region = loc.region || {};
+      const uri = (loc.artifactLocation && loc.artifactLocation.uri) || '(unknown)';
+      const line = region.startLine || 0;
+      const col = region.startColumn || 0;
+      const tags = Array.isArray(rule.properties && rule.properties.tags) ? rule.properties.tags : [];
+      const fp = res.fingerprints && typeof res.fingerprints === 'object' ? Object.values(res.fingerprints)[0] : '';
+      const ruleId = res.ruleId || rule.id || '(unknown rule)';
+      findings.push({
+        key: String(fp || (ruleId + '|' + uri + '|' + line + '|' + col)) + '#' + findings.length,
+        level,
+        ruleId,
+        ruleName: (rule.shortDescription && rule.shortDescription.text) || '',
+        ruleDesc: (rule.fullDescription && rule.fullDescription.text) || (rule.shortDescription && rule.shortDescription.text) || '',
+        helpUri: rule.helpUri || '',
+        file: uri,
+        line,
+        col,
+        endLine: region.endLine || line,
+        msg: String((res.message && (res.message.text || res.message.markdown)) || '').trim(),
+        snippet: (region.snippet && region.snippet.text) || '',
+        tags,
+        fingerprint: res.fingerprints || null,
       });
     }
   }
-  renderCounts(); render();
+  return { findings, rulesLoaded, tool };
 }
 
-function renderCounts(){
-  const c = document.getElementById('counts');
-  c.innerHTML = '';
-  for(const lvl of ['error','warning','note']){
-    const el = document.createElement('span');
-    el.className = 'pill ' + lvl;
-    el.textContent = lvl + ' ' + (sev[lvl]||0);
-    el.onclick = () => { off.has(lvl) ? off.delete(lvl) : off.add(lvl); el.classList.toggle('off'); render(); };
-    c.appendChild(el);
+function metaLine() {
+  const m = state.meta || {};
+  const parts = [];
+  const tool = [state.tool && state.tool.name, state.tool && state.tool.version].filter(Boolean).join(' ');
+  if (tool) parts.push(tool);
+  if (m.mode) parts.push(m.mode + ' scan');
+  if (m.target) parts.push('target: ' + String(m.target).replace(/[\\/]+$/, ''));
+  if (m.rules) parts.push('rules: ' + m.rules);
+  if (m.scanned_at) parts.push('scanned: ' + fmtDate(m.scanned_at));
+  if (m.metrics) parts.push('metrics: ' + m.metrics);
+  if (m.severity) parts.push('severity filter: ' + m.severity);
+  if (Number(m.error_gate)) parts.push('gating: on');
+  if (state.rulesLoaded) parts.push(num(state.rulesLoaded) + ' rules loaded');
+  return parts.length ? parts.join(' · ') : 'No report loaded — run `lds tools semgrep [path]`.';
+}
+
+function describeFilters() {
+  const parts = [];
+  if (state.rule) parts.push('rule ' + state.rule);
+  if (state.file) parts.push('file ' + state.file);
+  if (state.tag) parts.push('tag ' + state.tag);
+  if (state.q.trim()) parts.push('search "' + state.q.trim() + '"');
+  const hidden = LEVELS.filter((l) => state.levelsOff.has(l));
+  if (hidden.length) parts.push('hidden severities: ' + hidden.join(', '));
+  return parts.join(' · ');
+}
+function levelCounts() {
+  const c = { error: 0, warning: 0, note: 0 };
+  for (const f of state.findings) c[f.level] = (c[f.level] || 0) + 1;
+  return c;
+}
+
+function ruleGroups() {
+  const map = new Map();
+  for (const f of state.findings) {
+    let g = map.get(f.ruleId);
+    if (!g) { g = { id: f.ruleId, name: f.ruleName, level: f.level, count: 0, files: new Set() }; map.set(f.ruleId, g); }
+    g.count += 1;
+    g.files.add(f.file);
+    if (LEVEL_ORDER[f.level] < LEVEL_ORDER[g.level]) g.level = f.level;
   }
+  return [...map.values()].sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
 }
 
-function render(){
-  const q = document.getElementById('q').value.toLowerCase();
-  const tb = document.querySelector('#tbl tbody');
-  tb.innerHTML = '';
-  let n = 0;
-  for(const r of rows){
-    if(off.has(r.lvl)) continue;
-    if(q && !(r.rule+' '+r.file+' '+r.msg).toLowerCase().includes(q)) continue;
-    n++;
-    const tr = document.createElement('tr');
-    tr.innerHTML =
-      `<td class="sev"><span class="pill ${r.lvl}">${r.lvl}</span></td>`+
-      `<td><code>${esc(r.rule)}</code></td>`+
-      `<td class="loc">${esc(r.file)}${r.line?':'+r.line:''}</td>`+
-      `<td class="msg">${esc(r.msg)}</td>`;
-    tb.appendChild(tr);
+function fileGroups() {
+  const map = new Map();
+  for (const f of state.findings) {
+    let g = map.get(f.file);
+    if (!g) { g = { file: f.file, error: 0, warning: 0, note: 0, total: 0 }; map.set(f.file, g); }
+    g[f.level] += 1;
+    g.total += 1;
   }
-  const empty = document.getElementById('empty');
-  empty.hidden = n>0 || rows.length===0;
-  if(n===0 && rows.length>0){ empty.hidden=false; empty.textContent='No findings match the filter.'; }
+  return [...map.values()].sort((a, b) => b.total - a.total || a.file.localeCompare(b.file));
 }
 
-function esc(s){ return String(s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function renderStats() {
+  const c = levelCounts();
+  const rules = new Set();
+  const files = new Set();
+  for (const f of state.findings) { rules.add(f.ruleId); files.add(f.file); }
+  const tiles = [
+    { level: 'error', n: c.error, label: 'Errors' },
+    { level: 'warning', n: c.warning, label: 'Warnings' },
+    { level: 'note', n: c.note, label: 'Notes' },
+    { n: state.findings.length, label: 'Findings' },
+    { n: rules.size, label: 'Rules hit' },
+    { n: files.size, label: 'Files affected' },
+  ];
+  $('#stats').innerHTML = tiles.map((t) => `<div class="tile${t.level ? ' sev-' + t.level : ''}">
+    <span class="num">${num(t.n)}</span><span class="lbl">${t.label}</span></div>`).join('');
+}
 
-document.getElementById('q').addEventListener('input', render);
-document.getElementById('clear').addEventListener('click', async function(){
+function renderSevFilters() {
+  const c = levelCounts();
+  const noneOff = state.levelsOff.size === 0;
+  $('#sevFilters').innerHTML =
+    `<button type="button" class="pill all${noneOff ? ' active' : ''}" data-level="" title="Show all severities">All <span class="n">${num(state.findings.length)}</span></button>` +
+    LEVELS.map((l) => `<button type="button" class="pill ${l}${state.levelsOff.has(l) ? ' off' : ''}" data-level="${l}" title="Toggle ${sevLabel(l)}">${sevLabel(l)} <span class="n">${num(c[l])}</span></button>`).join('');
+}
+
+function renderRuleSelect() {
+  const sel = $('#ruleSel');
+  sel.innerHTML = '<option value="">All rules</option>' +
+    ruleGroups().map((g) => `<option value="${esc(g.id)}">${esc(g.id)} (${num(g.count)})</option>`).join('');
+  sel.value = state.rule;
+}
+
+function renderRuleTable() {
+  const groups = ruleGroups();
+  const tb = $('#ruleTbl tbody');
+  tb.innerHTML = !groups.length ? '<tr><td colspan="4" class="no-rows">No findings.</td></tr>' :
+    groups.map((g) => `<tr data-rule="${esc(g.id)}" class="${state.rule === g.id ? 'active' : ''}" tabindex="0">
+      <td><code>${esc(g.id)}</code>${g.name ? `<div class="sub">${esc(g.name)}</div>` : ''}</td>
+      <td>${badge(g.level)}</td>
+      <td class="n">${num(g.count)}</td>
+      <td class="n">${num(g.files.size)}</td>
+    </tr>`).join('');
+}
+
+function renderFileTable() {
+  const groups = fileGroups();
+  const tb = $('#fileTbl tbody');
+  tb.innerHTML = !groups.length ? '<tr><td colspan="5" class="no-rows">No findings.</td></tr>' :
+    groups.map((g) => `<tr data-file="${esc(g.file)}" class="${state.file === g.file ? 'active' : ''}" tabindex="0">
+      <td class="path"><code>${esc(g.file)}</code></td>
+      <td class="n err">${g.error ? num(g.error) : ''}</td>
+      <td class="n warn">${g.warning ? num(g.warning) : ''}</td>
+      <td class="n note">${g.note ? num(g.note) : ''}</td>
+      <td class="n">${num(g.total)}</td>
+    </tr>`).join('');
+}
+
+function tagGroups() {
+  const groups = [
+    { name: 'Confidence', map: new Map() },
+    { name: 'OWASP', map: new Map() },
+    { name: 'CWE', map: new Map() },
+    { name: 'Other', map: new Map() },
+  ];
+  const byName = Object.fromEntries(groups.map((g) => [g.name, g.map]));
+  for (const f of state.findings) {
+    const seen = new Set();
+    for (const t of f.tags) {
+      if (!t || seen.has(t)) continue;
+      seen.add(t);
+      const g = /^(HIGH|MEDIUM|LOW) CONFIDENCE$/i.test(t) ? byName.Confidence
+        : /^OWASP-/i.test(t) ? byName.OWASP
+        : /^CWE-/i.test(t) ? byName.CWE
+        : byName.Other;
+      g.set(t, (g.get(t) || 0) + 1);
+    }
+  }
+  return groups.filter((g) => g.map.size);
+}
+
+function renderTags() {
+  const groups = tagGroups();
+  const el = $('#tags');
+  if (!groups.length) { el.innerHTML = '<div class="no-rows">No rule tags.</div>'; return; }
+  el.innerHTML = groups.map((g) => {
+    const tags = [...g.map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    return `<div class="tag-group"><h3>${g.name}</h3>` + tags.map(([t, n]) =>
+      `<button type="button" class="tag${state.tag === t ? ' active' : ''}" data-tag="${esc(t)}" title="${esc(t)}">${esc(tagLabel(t))} <span class="n">${num(n)}</span></button>`
+    ).join('') + '</div>';
+  }).join('');
+}
+
+function renderFilterNote() {
+  const chips = [];
+  if (state.rule) chips.push(`<button type="button" class="fchip" data-clear="rule">rule: <code>${esc(state.rule)}</code> ×</button>`);
+  if (state.file) chips.push(`<button type="button" class="fchip" data-clear="file">file: <code>${esc(state.file)}</code> ×</button>`);
+  if (state.tag) chips.push(`<button type="button" class="fchip" data-clear="tag">tag: <code>${esc(state.tag)}</code> ×</button>`);
+  if (state.q.trim()) chips.push(`<button type="button" class="fchip" data-clear="q">search: "${esc(state.q.trim())}" ×</button>`);
+  const hidden = LEVELS.filter((l) => state.levelsOff.has(l));
+  if (hidden.length) chips.push(`<button type="button" class="fchip" data-clear="levels">hidden: ${esc(hidden.join(', '))} ×</button>`);
+  const el = $('#filterNote');
+  el.innerHTML = chips.join('');
+  el.hidden = chips.length === 0;
+}
+
+function filteredFindings() {
+  const q = state.q.trim().toLowerCase();
+  const list = state.findings.filter((f) => {
+    if (state.levelsOff.has(f.level)) return false;
+    if (state.rule && f.ruleId !== state.rule) return false;
+    if (state.file && f.file !== state.file) return false;
+    if (state.tag && !f.tags.includes(state.tag)) return false;
+    if (q) {
+      const hay = (f.ruleId + ' ' + f.ruleName + ' ' + f.file + ' ' + f.msg + ' ' + f.tags.join(' ')).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const cmp = (a, b) => String(a).localeCompare(String(b));
+  list.sort((a, b) => {
+    if (state.sort === 'file') return cmp(a.file, b.file) || a.line - b.line || LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level];
+    if (state.sort === 'rule') return cmp(a.ruleId, b.ruleId) || cmp(a.file, b.file) || a.line - b.line;
+    return (LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level]) || cmp(a.file, b.file) || a.line - b.line;
+  });
+  return list;
+}
+
+function detailRow(f) {
+  const loc = esc(f.file) + (f.line ? ':' + f.line : '') + (f.col ? ':' + f.col : '');
+  const fp = f.fingerprint && typeof f.fingerprint === 'object'
+    ? Object.entries(f.fingerprint).map(([k, v]) => k + ': ' + v).join(' · ') : '';
+  const tags = f.tags.length
+    ? `<div class="chips">${f.tags.map((t) => `<span class="chip" title="${esc(t)}">${esc(tagLabel(t))}</span>`).join('')}</div>` : '';
+  const help = /^https?:\/\//i.test(f.helpUri || '')
+    ? `<p><a href="${esc(f.helpUri)}" target="_blank" rel="noopener">Rule documentation ↗</a></p>` : '';
+  const meta = [`<dt>Severity</dt><dd>${badge(f.level)}</dd>`];
+  if (f.endLine && f.endLine !== f.line) meta.push(`<dt>Lines</dt><dd>${num(f.line)}–${num(f.endLine)}</dd>`);
+  if (fp) meta.push(`<dt>Fingerprint</dt><dd><code>${esc(fp)}</code></dd>`);
+  return `<tr class="detail"><td colspan="5"><div class="detail-grid">
+    <div>
+      <h3>Finding</h3>
+      <p class="message">${esc(f.msg || '(no message)')}</p>
+      <h3>Rule</h3>
+      <p><code>${esc(f.ruleId)}</code></p>
+      ${f.ruleName ? `<p class="desc">${esc(f.ruleName)}</p>` : ''}
+      ${f.ruleDesc ? `<p class="desc">${esc(f.ruleDesc)}</p>` : ''}
+      ${help}
+      ${tags}
+    </div>
+    <div>
+      <h3>Location</h3>
+      <p><code>${loc}</code></p>
+      ${f.snippet ? `<pre class="snippet"><code>${esc(f.snippet)}</code></pre>` : ''}
+      <h3>Metadata</h3>
+      <dl class="meta-list">${meta.join('')}</dl>
+    </div>
+  </div></td></tr>`;
+}
+
+function renderFindings() {
+  const list = filteredFindings();
+  const total = state.findings.length;
+  const pages = state.printMode ? 1 : Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  if (state.page > pages) state.page = pages;
+  const start = state.printMode ? 0 : (state.page - 1) * PAGE_SIZE;
+  const end = state.printMode ? list.length : Math.min(list.length, start + PAGE_SIZE);
+  const slice = list.slice(start, end);
+  const tb = $('#tbl tbody');
+  if (!total) {
+    tb.innerHTML = '<tr><td colspan="5" class="no-rows">No findings — clean scan.</td></tr>';
+  } else if (!slice.length) {
+    tb.innerHTML = '<tr><td colspan="5" class="no-rows">No findings match the current filters.</td></tr>';
+  } else {
+    tb.innerHTML = slice.map((f) => {
+      const open = state.expanded.has(f.key);
+      const locText = f.file + (f.line ? ':' + f.line : '');
+      return `<tr class="finding${open ? ' open' : ''}" data-key="${esc(f.key)}" tabindex="0" aria-expanded="${open ? 'true' : 'false'}">
+        <td class="caret">${open ? '▾' : '▸'}</td>
+        <td class="sev">${badge(f.level)}</td>
+        <td class="rule"><code>${esc(f.ruleId)}</code>${f.ruleName ? `<div class="sub">${esc(f.ruleName)}</div>` : ''}</td>
+        <td class="loc" title="${esc(locText)}"><code>${esc(f.file)}</code>${f.line ? ':' + f.line : ''}</td>
+        <td class="msg">${esc(f.msg)}</td>
+      </tr>` + (open ? detailRow(f) : '');
+    }).join('');
+  }
+  const shown = $('#shown');
+  if (!list.length) shown.textContent = total ? 'no matches' : 'none';
+  else if (state.printMode) shown.textContent = num(list.length) + ' findings';
+  else shown.textContent = `${num(start + 1)}–${num(end)} of ${num(list.length)}` + (list.length !== total ? ' (filtered from ' + num(total) + ')' : '');
+  renderPager(list.length, pages);
+}
+
+function renderPager(total, pages) {
+  const p = $('#pager');
+  if (state.printMode || pages <= 1) {
+    p.innerHTML = total ? `<span>${num(total)} finding${total === 1 ? '' : 's'}</span>` : '';
+    return;
+  }
+  p.innerHTML = `<button type="button" data-page="${state.page - 1}"${state.page <= 1 ? ' disabled' : ''}>← Prev</button>
+    <span>Page ${num(state.page)} of ${num(pages)}</span>
+    <button type="button" data-page="${state.page + 1}"${state.page >= pages ? ' disabled' : ''}>Next →</button>`;
+}
+
+function applyFilters() {
+  state.page = 1;
+  renderSevFilters();
+  renderRuleTable();
+  renderFileTable();
+  renderTags();
+  renderFindings();
+  renderFilterNote();
+}
+function toggleKey(key) {
+  if (state.expanded.has(key)) state.expanded.delete(key); else state.expanded.add(key);
+  renderFindings();
+}
+
+function resetFilters() {
+  state.rule = ''; state.file = ''; state.tag = ''; state.q = '';
+  state.levelsOff.clear(); state.sort = 'severity'; state.page = 1;
+  $('#ruleSel').value = ''; $('#q').value = ''; $('#sortSel').value = 'severity';
+  applyFilters();
+}
+
+function showEmpty(kind, msg) {
+  state.findings = [];
+  $('#app').hidden = true;
+  $('#print').disabled = true;
+  const el = $('#empty');
+  el.hidden = false;
+  if (kind === 'error') {
+    el.innerHTML = `<h2>Could not read report.sarif</h2><p>${esc(msg || 'Unknown error')}</p><p>Run <code>lds tools semgrep [path]</code> to generate a fresh report, then reload.</p>`;
+  } else {
+    el.innerHTML = `<h2>No Semgrep report yet</h2><p>Run <code>lds tools semgrep [path]</code> to scan a folder — the SARIF is written to <code>data/semgrep/reports/report.sarif</code>.</p><p>The viewer must be running: <code>lds up semgrep</code>.</p>`;
+  }
+  $('#meta').textContent = metaLine();
+  document.title = 'Semgrep — no report';
+}
+
+async function boot() {
+  state.meta = await fetchMeta();
+  state.findings = [];
+  state.tool = null;
+  state.rulesLoaded = 0;
+  state.expanded.clear();
+  let data;
+  try {
+    data = await fetchReport();
+  } catch (e) {
+    showEmpty('error', e && e.message);
+    return;
+  }
+  if (!data) { showEmpty('none'); return; }
+  let parsed;
+  try {
+    parsed = parseReport(data);
+  } catch (e) {
+    showEmpty('error', e && e.message);
+    return;
+  }
+  state.findings = parsed.findings;
+  state.tool = parsed.tool;
+  state.rulesLoaded = parsed.rulesLoaded;
+  const ruleIds = new Set(state.findings.map((f) => f.ruleId));
+  const files = new Set(state.findings.map((f) => f.file));
+  const tags = new Set(state.findings.flatMap((f) => f.tags));
+  if (state.rule && !ruleIds.has(state.rule)) state.rule = '';
+  if (state.file && !files.has(state.file)) state.file = '';
+  if (state.tag && !tags.has(state.tag)) state.tag = '';
+  state.page = 1;
+  $('#empty').hidden = true;
+  $('#app').hidden = false;
+  $('#print').disabled = false;
+  $('#meta').textContent = metaLine();
+  document.title = 'Semgrep — ' + (state.findings.length ? num(state.findings.length) + ' findings' : 'clean scan');
+  renderStats();
+  renderRuleSelect();
+  applyFilters();
+}
+
+function bindTable(sel, attr, apply) {
+  const table = $(sel);
+  const pick = (e) => e.target.closest('tr[' + attr + ']');
+  table.addEventListener('click', (e) => {
+    const tr = pick(e);
+    if (tr) apply(tr.getAttribute(attr));
+  });
+  table.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const tr = pick(e);
+    if (!tr) return;
+    e.preventDefault();
+    apply(tr.getAttribute(attr));
+  });
+}
+
+bindTable('#ruleTbl', 'data-rule', (id) => {
+  state.rule = state.rule === id ? '' : id;
+  $('#ruleSel').value = state.rule;
+  applyFilters();
+});
+
+bindTable('#fileTbl', 'data-file', (file) => {
+  state.file = state.file === file ? '' : file;
+  applyFilters();
+});
+
+$('#sevFilters').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-level]');
+  if (!b) return;
+  const lvl = b.getAttribute('data-level');
+  if (!lvl) state.levelsOff.clear();
+  else if (state.levelsOff.has(lvl)) state.levelsOff.delete(lvl);
+  else state.levelsOff.add(lvl);
+  applyFilters();
+});
+
+$('#tags').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-tag]');
+  if (!b) return;
+  const tag = b.getAttribute('data-tag');
+  state.tag = state.tag === tag ? '' : tag;
+  applyFilters();
+});
+
+$('#filterNote').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-clear]');
+  if (!b) return;
+  const k = b.getAttribute('data-clear');
+  if (k === 'rule') { state.rule = ''; $('#ruleSel').value = ''; }
+  else if (k === 'file') state.file = '';
+  else if (k === 'tag') state.tag = '';
+  else if (k === 'q') { state.q = ''; $('#q').value = ''; }
+  else if (k === 'levels') state.levelsOff.clear();
+  applyFilters();
+});
+
+$('#tbl tbody').addEventListener('click', (e) => {
+  if (e.target.closest('a')) return;
+  const tr = e.target.closest('tr.finding');
+  if (!tr) return;
+  toggleKey(tr.getAttribute('data-key'));
+});
+
+$('#tbl tbody').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const tr = e.target.closest('tr.finding');
+  if (!tr) return;
+  e.preventDefault();
+  toggleKey(tr.getAttribute('data-key'));
+});
+
+$('#pager').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-page]');
+  if (!b || b.disabled) return;
+  const p = Number(b.getAttribute('data-page'));
+  if (!Number.isFinite(p)) return;
+  state.page = Math.max(1, p);
+  renderFindings();
+});
+
+$('#ruleSel').addEventListener('change', (e) => {
+  state.rule = e.target.value;
+  applyFilters();
+});
+
+$('#sortSel').addEventListener('change', (e) => {
+  state.sort = e.target.value;
+  state.page = 1;
+  renderFindings();
+});
+
+let qTimer;
+$('#q').addEventListener('input', (e) => {
+  clearTimeout(qTimer);
+  const v = e.target.value;
+  qTimer = setTimeout(() => { state.q = v; applyFilters(); }, 150);
+});
+
+$('#reset').addEventListener('click', resetFilters);
+
+$('#reload').addEventListener('click', () => { boot(); });
+
+$('#print').addEventListener('click', () => {
+  const filters = describeFilters();
+  $('#printMeta').textContent = metaLine();
+  $('#printFilters').textContent = 'Filters: ' + (filters || 'none (full report)');
+  $('#printDate').textContent = 'Printed: ' + new Date().toLocaleString();
+  state.printMode = true;
+  renderFindings();
+  try { window.print(); } finally {
+    state.printMode = false;
+    renderFindings();
+  }
+});
+
+$('#clear').addEventListener('click', async () => {
+  if (!confirm('Delete the current report and scan metadata?')) return;
   await Promise.all([
     fetch('report.sarif', { method: 'DELETE' }).catch(() => null),
     fetch('scan-meta.json', { method: 'DELETE' }).catch(() => null),
   ]);
-  await loadMeta();
-  await load();
+  state.rule = ''; state.file = ''; state.tag = ''; state.q = '';
+  state.levelsOff.clear(); state.sort = 'severity'; state.page = 1;
+  $('#ruleSel').value = ''; $('#q').value = ''; $('#sortSel').value = 'severity';
+  await boot();
 });
 
-(async function init(){
-  await loadMeta();
-  await load();
-})();
+document.addEventListener('keydown', (e) => {
+  if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  e.preventDefault();
+  $('#q').focus();
+});
+
+boot();
 </script>
 </body>
 </html>
