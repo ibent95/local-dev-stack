@@ -23,7 +23,9 @@ if not defined READY ( echo postgres not reachable - is the postgres profile up?
 call :ensure_postgres_db_user "%POSTGRES_DB%" "%POSTGRES_USER%" "%POSTGRES_PASSWORD%"
 
 if defined POSTGRES_INIT_SPECS (
-  for %%s in (!POSTGRES_INIT_SPECS:,= !) do call :ensure_postgres_spec "%%~s"
+  REM FOR natively splits its list on commas - keep !POSTGRES_INIT_SPECS! as-is
+  REM (the `:,= ` substring form gets mangled by cmd inside a FOR list).
+  for %%s in (!POSTGRES_INIT_SPECS!) do call :ensure_postgres_spec "%%~s"
 )
 
 echo Postgres ready.

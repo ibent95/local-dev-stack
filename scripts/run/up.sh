@@ -35,7 +35,7 @@ if [ $# -gt 0 ]; then
 else
   profiles=()
   # Canonical profile order; each maps to LDS_ENABLE_<UPPER>=true in .env.
-  for p in proxy php mysql mariadb mssql oracle postgres mongo redis valkey memcached rabbitmq kafka phpcacheadmin dbx soketi centrifugo mqtt drawdb hop superset metabase hoppscotch plane semgrep zap trivy crg vaultwarden mail penpot instatic analytics tasks wiki openwa headlessx playwright erpnext rustfs duckdb trino snapotter imgcompress drawio lldap openldap monitoring; do
+  for p in proxy php mysql mariadb mssql oracle postgres mongo redis valkey memcached rabbitmq kafka phpcacheadmin dbx soketi centrifugo mqtt drawdb hop superset metabase hoppscotch plane semgrep zap trivy sonarqube crg vaultwarden mail penpot instatic analytics tasks wiki openwa headlessx playwright erpnext rustfs duckdb trino snapotter imgcompress drawio lldap openldap monitoring; do
     var="LDS_ENABLE_$(printf '%s' "$p" | tr '[:lower:]' '[:upper:]')"
     val="$(grep -E "^[[:space:]]*${var}=" .env 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/#.*//' | tr -d '[:space:]\r')"
     case "$val" in
@@ -214,6 +214,13 @@ case " ${profiles[*]} " in
   *" trino "*|*" all "*) sub "hive-metastore-init"; "$ROOT/scripts/run/hive-metastore-init.sh" || true; subdone ;;
 esac
 
+# Ensure the SonarQube DB/user exists (SonarQube migrates its own schema on
+# first boot; this only provisions the empty DB + owner role, so it works even
+# when the shared postgres volume predates the lds_sonarqube spec).
+case " ${profiles[*]} " in
+  *" sonarqube "*|*" all "*) sub "sonarqube-init"; "$ROOT/scripts/run/sonarqube-init.sh" || true; subdone ;;
+esac
+
 # Initiate the Mongo replica set + users (single-node RS for CDC).
 case " ${profiles[*]} " in
   *" mongo "*|*" all "*) sub "mongo-init"; "$ROOT/scripts/run/mongo-init.sh" || true; subdone ;;
@@ -240,6 +247,14 @@ case " ${profiles[*]} " in
   *" trivy "*|*" all "*)
     sub "trivy-scan: pre-pull scanner image"
     docker compose "${compose_files[@]}" --profile trivy-scan pull trivy-scan || true
+    subdone ;;
+esac
+
+# Pre-pull the SonarQube scanner (same rationale as semgrep-scan above).
+case " ${profiles[*]} " in
+  *" sonarqube "*|*" all "*)
+    sub "sonar-scanner: pre-pull scanner image"
+    docker compose "${compose_files[@]}" --profile sonar-scanner pull sonar-scanner || true
     subdone ;;
 esac
 

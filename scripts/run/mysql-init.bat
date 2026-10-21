@@ -24,7 +24,9 @@ if not defined READY ( echo mysql not reachable - is the mysql profile up? & pop
 call :ensure_mysql_db_user "%MYSQL_DATABASE%" "%MYSQL_USER%" "%MYSQL_PASSWORD%"
 
 if defined MYSQL_INIT_SPECS (
-  for %%s in (!MYSQL_INIT_SPECS:,= !) do call :ensure_mysql_spec "%%~s"
+  REM FOR natively splits its list on commas - keep !MYSQL_INIT_SPECS! as-is
+  REM (the `:,= ` substring form gets mangled by cmd inside a FOR list).
+  for %%s in (!MYSQL_INIT_SPECS!) do call :ensure_mysql_spec "%%~s"
 )
 
 REM Apply seed/schema SQL into the default db only. DHI mysql ignores

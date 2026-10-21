@@ -31,7 +31,7 @@ REM "all". Canonical profile order; each maps to LDS_ENABLE_<NAME> (matched
 REM case-insensitively).
 if "%PROFILES%"=="" (
   set "PROFILES="
-  for %%p in (proxy php mysql mariadb mssql oracle postgres mongo redis valkey memcached rabbitmq kafka phpcacheadmin dbx soketi centrifugo mqtt drawdb hop superset metabase hoppscotch plane semgrep zap trivy crg vaultwarden mail penpot instatic analytics tasks wiki openwa headlessx playwright erpnext rustfs duckdb trino snapotter imgcompress drawio lldap openldap monitoring) do (
+  for %%p in (proxy php mysql mariadb mssql oracle postgres mongo redis valkey memcached rabbitmq kafka phpcacheadmin dbx soketi centrifugo mqtt drawdb hop superset metabase hoppscotch plane semgrep zap trivy sonarqube crg vaultwarden mail penpot instatic analytics tasks wiki openwa headlessx playwright erpnext rustfs duckdb trino snapotter imgcompress drawio lldap openldap monitoring) do (
     set "VAL="
     if exist .env for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do if /I "%%a"=="LDS_ENABLE_%%p" set "VAL=%%b"
     set "VAL=!VAL: =!"
@@ -228,6 +228,16 @@ if not errorlevel 1 (
   call :subdone
 )
 
+REM Ensure the SonarQube DB/user exists (SonarQube migrates its own schema on
+REM first boot; this only provisions the empty DB + owner role, so it works even
+REM when the shared postgres volume predates the lds_sonarqube spec).
+echo %PROFILES% | findstr /I /C:"sonarqube" /C:"all" >nul
+if not errorlevel 1 (
+  call :sub "sonarqube-init"
+  call "%~dp0sonarqube-init.bat"
+  call :subdone
+)
+
 REM Initiate the Mongo replica set + users (single-node RS for CDC).
 echo %PROFILES% | findstr /I /C:"mongo" /C:"all" >nul
 if not errorlevel 1 (
@@ -260,6 +270,14 @@ echo %PROFILES% | findstr /I /C:"trivy" /C:"all" >nul
 if not errorlevel 1 (
   call :sub "trivy-scan: pre-pull scanner image"
   docker compose !CFILES! --profile trivy-scan pull trivy-scan
+  call :subdone
+)
+
+REM Pre-pull the SonarQube scanner (same rationale as semgrep-scan above).
+echo %PROFILES% | findstr /I /C:"sonarqube" /C:"all" >nul
+if not errorlevel 1 (
+  call :sub "sonar-scanner: pre-pull scanner image"
+  docker compose !CFILES! --profile sonar-scanner pull sonar-scanner
   call :subdone
 )
 
