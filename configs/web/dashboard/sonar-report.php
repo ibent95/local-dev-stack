@@ -604,6 +604,7 @@ function metric_name(string $mk, array $defs): string {
 <body>
 <h1>SonarQube report
   <span class="muted">· <a href="/">control panel</a> · <a href="//sonarqube.test">sonarqube.test</a></span>
+  <span class="muted" style="margin-left:12px">· <a class=\"btn\" href=\"//semgrep.test\" style=\"color:inherit;text-decoration:inherit">Semgrep report</a></span>
 </h1>
 
 <?php if ($key !== '' && $keyOk && $dataOk && !$download): ?>
