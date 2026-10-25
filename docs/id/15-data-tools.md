@@ -385,7 +385,13 @@ lds tools sonar reset                  # pemulihan lockout: kembalikan login adm
   effort/status/tag/flow), semua security hotspot, metrik per file plus total,
   grup duplikasi, nama rule, dan riwayat analisis, dengan tombol **Print / Save
   as PDF** dan **Download HTML**. Halaman ini membaca Web API secara anonim,
-  jadi tak perlu token/login selama menjelajah tidak butuh login.
+  jadi tak perlu token/login selama menjelajah tidak butuh login. Tampilannya
+  mengikuti laporan Semgrep: tile statistik, panel bergaris, panel kategori yang
+  chip tag/rule-nya bisa memfilter, dan tabel isu berhalaman yang barisnya bisa
+  dibuka untuk detail lengkap (rule, dampak, flow, lokasi, metadata). Filternya
+  mencakup pil severity, pilihan tipe/rule, pencarian teks, dan klik pada baris
+  rule/file; pengurutan berdasarkan severity, file, atau rule, dan filter aktif
+  ikut tertulis di halaman cetak.
 - **Password admin:** pada setiap `lds up sonarqube`, langkah `sonarqube-init`
   merekonsiliasi password admin server dengan `SONAR_ADMIN_PASSWORD`: selama DB
   masih memakai `admin` awal, nilai dari `.env` diterapkan via API (kebijakan
@@ -864,11 +870,19 @@ skrip `ldapmodify`. Tanpa web UI sama sekali; kelola via DBX atau CLI LDAP.
 Satu issuer OIDC/OAuth2 untuk semua project, bukan login buatan sendiri di
 setiap aplikasi.
 
-- Konsol admin: `auth.test` / `localhost:4546` — `admin` /
-  `KEYCLOAK_ADMIN_PASSWORD` (default `admin`)
-- Issuer: `http://auth.test/realms/lds`, dikunci oleh `KC_HOSTNAME` sehingga
-  nilainya sama lewat proxy, di `localhost:4546`, dan di dalam `lds-network`
-  (`http://keycloak:8080` untuk panggilan antar-service)
+- Konsol admin: `auth.test` — `admin` / `KEYCLOAK_ADMIN_PASSWORD` (default
+  `admin`). Buka tepat di origin yang dikunci `KEYCLOAK_PUBLIC_URL`
+  (`https://auth.test` saat HTTPS aktif, `http://auth.test` selain itu): iframe
+  cek third-party-cookie konsol dibangun dari URL itu dan CSP halamannya
+  `frame-src 'self'`, jadi membuka dari origin lain (termasuk port
+  `localhost:4546` langsung) memblokir frame-nya dan keycloak.js melempar
+  *"Timeout when waiting for 3rd party check iframe message."* Saat HTTPS
+  aktif, `http://auth.test` di-301 ke `https://auth.test`, sehingga link dashboard
+  dan URL yang diketik keduanya mendarat di origin yang dikunci itu.
+- Issuer: `KEYCLOAK_PUBLIC_URL` + `/realms/lds` (mis.
+  `https://auth.test/realms/lds` saat HTTPS aktif), dikunci oleh `KC_HOSTNAME`
+  sehingga nilainya sama lewat proxy, di `localhost:4546`, dan di dalam
+  `lds-network` (`http://keycloak:8080` untuk panggilan antar-service)
 - Client dari realm yang di-import: **`lds-web`** (SPA publik, PKCE S256,
   redirect `*.test` / `localhost`) dan **`lds-api`** (confidential, secret
   `KEYCLOAK_API_CLIENT_SECRET`, service account aktif)
@@ -878,6 +892,15 @@ setiap aplikasi.
   login pertama), jadi password diverifikasi ke direktori — Keycloak tidak
   memiliki datanya. Buat user di LLDAP, lalu login dengan user itu di client mana
   pun.
+
+- **Sync:** `importEnabled=true` menyalin user direktori ke Keycloak pada login
+  pertama mereka, dan `fullSyncPeriod=300` (detik, di
+  `configs/keycloak/import/lds-realm.json`) menjalankan full sync setiap 5 menit —
+  jadi user yang Anda buat di LLDAP atau OpenLDAP muncul di konsol admin tanpa
+  menunggu login. *Sync all users* (User federation → `lldap`) menarik mereka
+  segera. Realm hanya di-import pada boot pertama: setelah mengubahnya, jalankan
+  `lds rm keycloak && lds up keycloak` (dan hapus database `lds_keycloak` jika
+  realm sudah ada — `--import-realm` melewati realm yang sudah ada).
 - Sumber realm: `configs/keycloak/import/lds-realm.json`, hanya di-import pada
   boot pertama. Setelah mengubahnya: `lds rm keycloak && lds up keycloak`.
 - Metadata: Postgres bersama (`lds_keycloak` via `POSTGRES_INIT_SPECS`), jadi
@@ -907,19 +930,87 @@ seluruh loop: metrik, log, dan trace. **Mati secara default.**
 - **node-exporter** — metrik CPU, memori, disk, dan load host/VM
   (`node-exporter:9100`, internal saja).
 - **Loki** (`grafana/loki`) — penyimpanan log di `loki.test` / `localhost:4547`,
-  retensi 7 hari di volume `loki-data`.
+  retensi 7 hari di volume `loki-data`. Loki **tanpa UI web**, jadi `loki.test/`
+  dialihkan ke Grafana Explore dengan datasource Loki sudah terpilih (path API
+  — `/ready`, `/metrics`, `/loki/api/v1/*` — tetap langsung ke Loki).
 - **Alloy** (`grafana/alloy`) — membaca stdout/stderr setiap container lewat
   Docker socket lalu mendorongnya ke Loki. Ini penerus Promtail (EOL Maret 2026)
   dan tanpa konfigurasi per-project: `docker compose up` apa pun muncul di
   Grafana beberapa detik kemudian, dengan label `container`, `stream`, dan
   `compose_project`.
 - **Tempo** (`grafana/tempo`) — penyimpanan trace di `tempo.test` /
-  `localhost:4548`, retensi 24 jam, OTLP masuk di `4317`/`4318`.
+  `localhost:4548`, retensi 24 jam, OTLP masuk di `4317`/`4318`. Tempo juga
+  tanpa UI web: `tempo.test/` dialihkan ke Grafana Explore dengan datasource
+  Tempo terpilih, dan path API (`/ready`, `/api/*`) tetap ke Tempo.
 - **Collector OpenTelemetry** — SATU endpoint yang dituju aplikasi:
   `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` dari host, atau
   `http://otel-collector:4318` dari container. Collector meneruskan trace ke
   Tempo, log ke Loki, dan metrik ke Prometheus remote-write — instrumentasi
   cukup satu env var per aplikasi.
+
+### SonarQube MCP
+
+**Profile:** `sonarqube` (datang bersama server SonarQube — `lds up sonarqube` atau
+`LDS_ENABLE_SONARQUBE=true`). **Mati secara default.**
+
+Server MCP resmi SonarSource adalah container kedua yang berdampingan dengan
+server SonarQube dan memungkinkan alat AI — **Zed** (lihat di bawah), Claude Code,
+Cursor, Codex, Windsurf, dll. — menelusuri SonarQube stack ini tanpa keluar dari
+editor.
+
+- **Image:** `sonarsource/sonarqube-mcp` (Sonar Source-Available License 1.0 — BUKAN
+  lisensi open-source OSI; didokumentasikan di <a href="18-credits.md">§ Kredit</a>).
+- **Transport:** Streamable HTTP, hanya loopback.
+- **URL:** `http://127.0.0.1:${SONARQUBE_MCP_HOST_PORT:-4549}/mcp`
+  (loopback langsung untuk alat editor — lihat penyiapan Zed di bawah).
+- **Nama host:** `sonarqube-mcp.test` juga disajikan melalui proxy (`CERT_NAME`),
+  jadi URL MCP juga berlaku dari dalam jaringan.
+- **Auth:** token Bearer via `SONARQUBE_TOKEN` (diatur dari `${SONAR_TOKEN}` di
+  `.env`). Server otomatis menemukan **analyzer** SonarQube Anda dan plugin bahasa
+  yang tersedia di server, jadi alat mengekspos masalah/aturan/metrik yang
+  sesuai.
+- **Hanya baca:** container berjalan dengan `SONARQUBE_READ_ONLY=true` — agen editor
+  dapat memeriksa masalah tetapi tidak mengubah status masalah.
+- **Health:** `http://127.0.0.1:4549/health` (satu-satunya endpoint tanpa
+  autentikasi).
+
+Penyiapan Zed (sekali jadi, di `%APPDATA%/Zed/settings.json` di Windows, atau
+`~/.config/zed/settings.json` di platform lain):
+
+```json
+{
+  "context_servers": {
+    "sonarqube": {
+      "url": "http://127.0.0.1:4549/mcp",
+      "env": {
+        "SONAR_TOKEN": "<tempel nilai SONAR_TOKEN dari .env di sini>"
+      }
+    }
+  }
+}
+```
+
+`SONAR_TOKEN` adalah token pengguna yang sama yang digunakan `/sonar-report.php`
+(My Account → Security, atau `lds tools sonar token` membuat salah satu). Zed
+membacanya dari konfigurasi saat startup; server MCP memvalidasinya terhadap
+server SonarQube. Biarkannya kosong dan koneksi mengembalikan `401 SonarQube
+token required`.
+
+Contoh pengaturan Zed untuk host Windows sudah ada di konfigurasi Zed yang sedang
+berjalan di `C:\Users\Lenovo\AppData\Roaming\Zed\settings.json` — nilai
+`SONAR_TOKEN` yang aktif di sana adalah token `lds-scanner` dari `.env` (atau
+update ke token `lds-zed-mcp` yang baru jika Anda lebih suka token terpisah untuk
+pemindaian dan editor).
+
+Jalankan: `lds up sonarqube` (container MCP berada dalam profile yang sama).
+Verifikasi: `curl -sS -m 15 -X POST http://127.0.0.1:4549/mcp`
+`-H 'Content-Type: application/json'` `-H 'Accept: application/json,text/event-stream'`
+`-d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"verify","version":"1.0"}}}'`
+seharusnya mengembalikan `200` + `{"result":{"capabilities":…` — bukan `401`.
+
+Tips: server MCP membutuhkan server SonarQube yang sehat terlebih dahulu
+(`depends_on`), jadi pada startup dingin beri waktu ~30 s. Jika assistan Zed tidak
+mencapainya, konfirmasi `lds ps` menunjukkan `lds-sonarqube-mcp` **healthy**.
 
 Coba: `lds up monitoring`, lalu Grafana → Explore → Loki →
 `{container="lds-postgres"}`, dan Explore → Tempo untuk trace.

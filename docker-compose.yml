@@ -136,6 +136,13 @@ services:
       VIRTUAL_PORT: "80"
       ENABLE_PHP: "true"
       ENABLE_NGINX: "true"
+      # Optional SonarQube user token (My Account -> Security, or `lds tools
+      # sonar token`): /sonar-report.php sends it as `Authorization: Bearer` so
+      # the Web API returns rule descriptions — the "why this issue" + "how to
+      # fix" sections. Empty (default) = the report still works, but without
+      # those sections (anonymous API responses omit them). Never committed:
+      # .env is git-ignored.
+      SONAR_TOKEN: ${SONAR_TOKEN:-}
     # Bound DNS retries: the __dashboard control panel probes every service, and a
     # DOWN service's name resolution (Docker embedded DNS forwarding upstream) can
     # otherwise take ~4s. timeout:1/attempts:1 caps that to ~1s so probes stay
@@ -202,6 +209,10 @@ services:
       # Proxy-wide nginx overrides (client_max_body_size — nginx defaults to
       # 1m, which 413's uploads to SnapOtter & friends).
       - ./configs/proxy/proxy-wide.conf:/etc/nginx/conf.d/proxy-wide.conf:ro
+      # Per-vhost snippets, included by nginx-proxy inside each server block.
+      # Only used for hosts that ship no UI of their own (loki.test /
+      # tempo.test redirect their root to Grafana Explore).
+      - ./configs/proxy/vhost.d:/etc/nginx/vhost.d:ro
     # Aggressive DNS timeouts — the nginx-proxy resolver looks up upstream
     # container hostnames via Docker DNS. timeout:1 / attempts:1 ensures a DNS
     # hiccup doesn't stall the request for more than ~1s.
@@ -667,7 +678,7 @@ services:
   # or sharing. Seeded with the stack DBs by scripts/run/dbx-seed.* (post-up
   # hook) through DBX's Web API, so it works without touching the SQLite file.
   dbx:
-    image: t8y2/dbx:${DBX_VERSION:-0.6.31}
+    image: t8y2/dbx:${DBX_VERSION:-0.6.54}
     container_name: lds-dbx
     profiles: [dbx, all]
     restart: *restart
@@ -1276,6 +1287,62 @@ services:
     profiles: [sonar-scanner]
     environment:
       SONAR_HOST_URL: http://sonarqube:9000
+    networks: [lds-network]
+
+  # ===========================================================================
+  # SonarQube MCP server  (profile: sonarqube, all) — the official SonarSource
+  #   image so AI tools (Zed, Claude Code, Cursor…) can query this stack's
+  #   SonarQube: projects, issues, quality gate, measures, rules, duplications…
+  #   Streamable HTTP, bound to LOOPBACK ONLY. A client connects to
+  #     http://127.0.0.1:${SONARQUBE_MCP_HOST_PORT}/mcp
+  #   (see .zed/settings.json → context_servers.sonarqube). Read-only: editor
+  #   agents can inspect the project but not change issue status.
+  #   NOTE: Sonar Source-Available Licence (SSAL-1.0) — not an OSI licence;
+  #   documented in docs/*/18-credits.md.
+  # ===========================================================================
+  sonarqube-mcp:
+    image: ${SONARQUBE_MCP_IMAGE:-sonarsource/sonarqube-mcp}:${SONARQUBE_MCP_VERSION:-2026.5.1}
+    container_name: lds-sonarqube-mcp
+    profiles: [sonarqube, all]
+    restart: *restart
+    <<: *dns
+    environment:
+      TZ: ${TZ:-Asia/Jakarta}
+      SONARQUBE_URL: http://sonarqube:9000
+      SONARQUBE_TRANSPORT: http
+      SONARQUBE_HTTP_HOST: 0.0.0.0
+      SONARQUBE_HTTP_PORT: "8080"
+      # Inspect, don't mutate — every write tool is disabled server-side.
+      SONARQUBE_READ_ONLY: "true"
+      # Startup token: HTTP mode still requires *a* token on every request,
+      # and clients that don't send their own Bearer header fall back to this
+      # one (read-only). It comes from SONAR_TOKEN in the git-ignored .env —
+      # the same value /sonar-report.php uses.
+      SONARQUBE_TOKEN: ${SONAR_TOKEN:-}
+      # Optional: if you want the MCP server reachable through the proxy at
+      # sonarqube-mcp.test (instead of loopback only), set this host. The
+      # MCP URL in Zed stays http://127.0.0.1:4549/mcp — the proxy host is
+      # only for in-network callers (other containers, ZAP scans, etc.).
+      # Leave it unset to keep the endpoint loopback-only (the default).
+      VIRTUAL_HOST: ${SONARQUBE_MCP_HOST:-}
+      VIRTUAL_PORT: "8080"
+      CERT_NAME: ${SONARQUBE_MCP_CERT_NAME:-_.test}
+    depends_on:
+      sonarqube:
+        condition: service_healthy
+    expose:
+      - "8080"
+    ports:
+      - "127.0.0.1:${SONARQUBE_MCP_HOST_PORT:-4549}:8080"
+    healthcheck:
+      # /health is the only unauthenticated endpoint (MCP itself answers 401
+      # without a Bearer token); busybox wget ships in the image.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    mem_limit: ${SONARQUBE_MCP_MEM_LIMIT:-512m}
     networks: [lds-network]
 
   # ===========================================================================
@@ -1890,8 +1957,11 @@ services:
 
   # Keycloak - one OIDC/OAuth2 issuer for every project in the stack, so apps
   # stop inventing their own login.
-  #   Admin console:  http://auth.test  /  http://127.0.0.1:4546  (admin/admin)
-  #   Issuer:         http://auth.test/realms/lds
+  #   Admin console:  https://auth.test  (http://auth.test when HTTPS is off)
+  #                   admin / admin. MUST be browsed at exactly the origin in
+  #                   KEYCLOAK_PUBLIC_URL — see KC_HOSTNAME below.
+  #   Issuer:         KEYCLOAK_PUBLIC_URL + /realms/lds (https://auth.test when
+  #                   HTTPS is on, http://auth.test otherwise)
   #   Clients:        lds-web (public SPA, PKCE) + lds-api (confidential)
   #   Federation:     the LLDAP directory (profile `lldap`) is mounted as a
   #                   READ_ONLY user store, so directory users sign in without
@@ -1922,6 +1992,12 @@ services:
       # Hostname v2: a full URL pins the issuer exactly, so tokens are the same
       # whether the caller used auth.test (proxy) or localhost:4546 (mapped
       # port). v1 options like KC_HOSTNAME_PORT are deprecated in 26.x.
+      # The pinned URL must ALSO equal the origin you browse the admin console
+      # from: the console's 3rd-party-cookie iframe is built from it and the
+      # page CSP is frame-src 'self' — a scheme/host mismatch blocks the frame
+      # ("Timeout when waiting for 3rd party check iframe message.").
+      # up.sh/up.bat keep the scheme in sync with LDS_ENABLE_HTTPS, and the
+      # HTTPS overlay forces http://auth.test -> https:// to converge entries.
       KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:-http://auth.test}
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"

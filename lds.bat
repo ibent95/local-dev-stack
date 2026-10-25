@@ -131,7 +131,7 @@ echo   restore [^<folder^>] [--only a,b] [--yes]
 echo                                 replay such a folder into the running stack
 echo                                 ^(overwrites data; folder defaults to newest^)
 echo   certs [--force]               mint the wildcard *.test dev TLS cert (for LDS_ENABLE_HTTPS)
-echo   hosts-sync                    write www/ projects into the hosts file
+echo   hosts-sync                    write *.test names into the hosts file (UAC)
 echo   env-sync [--dry-run]          sync .env to .env.example (keeps your values; adds missing vars)
 echo   build-php [--push]            rebuild just the PHP service image
 echo   help                          show this message

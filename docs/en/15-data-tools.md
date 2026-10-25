@@ -389,6 +389,12 @@ lds tools sonar reset                  # lockout recovery: restore the admin/adm
   totals, duplication groups, rule names and the analysis history, with
   **Print / Save as PDF** and **Download HTML**. It reads the Web API
   anonymously, so it needs no token/login as long as browsing needs no login.
+  The layout mirrors the Semgrep report: stat tiles, bordered panels, a
+  categories panel whose tag/rule chips filter, and a paged issues table whose
+  rows expand into full detail (rule, impacts, flows, location, metadata).
+  Filtering covers severity pills, type/rule selects, text search and clicks on
+  any rule/file row; sorting is by severity, file or rule, and the active
+  filters are written into the printed page.
 - **Admin password:** on every `lds up sonarqube`, the `sonarqube-init` step
   reconciles the server's admin password with `SONAR_ADMIN_PASSWORD`: while the
   DB still has the initial `admin`, the value from `.env` is applied via the API
@@ -865,11 +871,19 @@ the LDAP CLI.
 
 One OIDC/OAuth2 issuer for every project instead of a bespoke login per app.
 
-- Admin console: `auth.test` / `localhost:4546` — `admin` /
-  `KEYCLOAK_ADMIN_PASSWORD` (default `admin`)
-- Issuer: `http://auth.test/realms/lds`, pinned by `KC_HOSTNAME` so the same
-  value works through the proxy, on `localhost:4546`, and inside `lds-network`
-  (`http://keycloak:8080` for server-to-server calls)
+- Admin console: `auth.test` — `admin` / `KEYCLOAK_ADMIN_PASSWORD` (default
+  `admin`). Open it at exactly the origin pinned in `KEYCLOAK_PUBLIC_URL`
+  (`https://auth.test` with HTTPS on, `http://auth.test` otherwise): the
+  console's third-party-cookie check iframe is built from that URL and its CSP
+  is `frame-src 'self'`, so browsing from any other origin (including the raw
+  `localhost:4546` port) blocks the frame and keycloak.js throws
+  *"Timeout when waiting for 3rd party check iframe message."* With HTTPS on,
+  `http://auth.test` is 301-redirected to `https://auth.test`, so the dashboard
+  link and a typed URL both land on the pinned origin.
+- Issuer: `KEYCLOAK_PUBLIC_URL` + `/realms/lds` (e.g.
+  `https://auth.test/realms/lds` with HTTPS on), pinned by `KC_HOSTNAME` so the
+  same value works through the proxy, on `localhost:4546`, and inside
+  `lds-network` (`http://keycloak:8080` for server-to-server calls)
 - Clients from the imported realm: **`lds-web`** (public SPA, PKCE S256, any
   `*.test` / `localhost` redirect) and **`lds-api`** (confidential, secret
   `KEYCLOAK_API_CLIENT_SECRET`, service accounts enabled)
@@ -878,6 +892,15 @@ One OIDC/OAuth2 issuer for every project instead of a bespoke login per app.
   (`ou=people,<base DN>`, `uid` as username and UUID, READ_ONLY, import on first
   login), so a password is checked against the directory — Keycloak never owns
   the users. Create one in LLDAP, then sign in with it at any client.
+
+- **Sync:** `importEnabled=true` copies a directory user into Keycloak on their
+  first login, and `fullSyncPeriod=300` (seconds, in
+  `configs/keycloak/import/lds-realm.json`) runs a full sync every 5 minutes — so
+  users you create in LLDAP or OpenLDAP show up in the admin console without
+  waiting for a login. *Sync all users* (User federation → `lldap`) pulls them in
+  immediately. The realm is imported on first boot only: after editing it, run
+  `lds rm keycloak && lds up keycloak` (and wipe the `lds_keycloak` database if
+  the realm already exists — `--import-realm` skips existing realms).
 - Realm source: `configs/keycloak/import/lds-realm.json`, imported on the first
   boot only. After editing it: `lds rm keycloak && lds up keycloak`.
 - Metadata: the shared Postgres (`lds_keycloak` via `POSTGRES_INIT_SPECS`), so
@@ -907,22 +930,83 @@ loop: metrics, logs and traces. **Off by default.**
 - **node-exporter** — host/VM CPU, memory, disk and load
   (`node-exporter:9100`, internal only).
 - **Loki** (`grafana/loki`) — log store at `loki.test` / `localhost:4547`,
-  7-day retention in the `loki-data` volume.
+  7-day retention in the `loki-data` volume. Loki is **headless: it has no web
+  UI**, so `loki.test/` redirects to Grafana Explore with the Loki datasource
+  already selected (its API paths — `/ready`, `/metrics`, `/loki/api/v1/*` —
+  still hit Loki directly).
 - **Alloy** (`grafana/alloy`) — tails every container's stdout/stderr through the
   Docker socket and pushes to Loki. It is Promtail's successor (Promtail reached
   EOL in March 2026) and needs no per-project config: any `docker compose up`
   shows up in Grafana seconds later, labelled with `container`, `stream` and
   `compose_project`.
 - **Tempo** (`grafana/tempo`) — trace store at `tempo.test` / `localhost:4548`,
-  24h retention, OTLP in on `4317`/`4318`.
+  24h retention, OTLP in on `4317`/`4318`. Tempo is headless too: `tempo.test/`
+  redirects to Grafana Explore with the Tempo datasource selected, and its API
+  paths (`/ready`, `/api/*`) reach Tempo unchanged.
 - **OpenTelemetry collector** — the ONE endpoint an app should send to:
   `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` from the host, or
   `http://otel-collector:4318` from a container. It fans traces to Tempo, logs
   to Loki and metrics to Prometheus remote-write, so instrumentation is one env
   var per app.
 
-Try it: `lds up monitoring`, then Grafana → Explore → Loki →
-`{container="lds-postgres"}`, and Explore → Tempo for traces.
+### SonarQube MCP
+
+**Profile:** `sonarqube` (comes with the SonarQube server — `lds up sonarqube` or
+`LDS_ENABLE_SONARQUBE=true`). **Off by default.**
+
+The official SonarSource MCP server is a second container that sits alongside the
+SonarQube server and lets AI tools — **Zed** (see below), Claude Code, Cursor,
+Codex, Windsurf etc. — query this stack's SonarQube without leaving the editor.
+
+- **Image:** `sonarsource/sonarqube-mcp` (Sonar Source-Available License 1.0 — NOT
+  an OSI open-source licence; documented in <a href="18-credits.md">§ Credits</a>).
+- **Transport:** Streamable HTTP, loopback only.
+- **URL:** `http://127.0.0.1:${SONARQUBE_MCP_HOST_PORT:-4549}/mcp`
+  (direct loopback for the editor tool — see the Zed setup below).
+- **Host name:** `sonarqube-mcp.test` is also served through the proxy (`CERT_NAME`),
+  so the MCP URL works from inside the network too.
+- **Auth:** Bearer token via `SONARQUBE_TOKEN` (set from `${SONAR_TOKEN}` in `.env`).
+  The server auto-discovers your SonarQube **analyzers** and the language plugins
+  available on the server, so the tool exposes the matching issue/rules/measures.
+- **Read-only:** the container runs with `SONARQUBE_READ_ONLY=true` — editor agents
+  can inspect issues but not change issue status.
+- **Health:** `http://127.0.0.1:4549/health` (the only unauthenticated endpoint).
+
+Zed setup (one-time, in `%APPDATA%/Zed/settings.json` on Windows, or `~/.config/zed/settings.json` on other platforms):
+
+```json
+{
+  "context_servers": {
+    "sonarqube": {
+      "url": "http://127.0.0.1:4549/mcp",
+      "env": {
+        "SONAR_TOKEN": "<paste the value of SONAR_TOKEN from .env here>"
+      }
+    }
+  }
+}
+```
+
+`SONAR_TOKEN` is the same user token `/sonar-report.php` uses (My Account →
+Security, or `lds tools sonar token` creates one). Zed reads it from the config
+at startup; the MCP server validates it against the SonarQube server. Leave it
+empty and the connection returns `401 SonarQube token required`.
+
+An example Zed setting for a Windows host is already in the runtime Zed config
+at `C:\Users\Lenovo\AppData\Roaming\Zed\settings.json` — the live value of
+`SONAR_TOKEN` there is the `lds-scanner` token from `.env` (or update it to a
+fresh `lds-zed-mcp` token if you prefer separate tokens for scanning and the
+editor).
+
+Start it: `lds up sonarqube` (the MCP container is in the same profile).
+Verify: `curl -sS -m 15 -X POST http://127.0.0.1:4549/mcp`
+`-H 'Content-Type: application/json'` `-H 'Accept: application/json,text/event-stream'`
+`-d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"verify","version":"1.0"}}}'`
+should return `200` + `{"result":{"capabilities":…` — not a `401`.
+
+Tips: the MCP server needs the SonarQube server healthy first (`depends_on`),
+so on a cold start give it ~30 s. If Zed's assistant can't reach it, confirm
+`lds ps` shows `lds-sonarqube-mcp` **healthy**.
 
 Every service is mem-capped and its version is pinned in `.env`
 (`LOKI_VERSION`, `TEMPO_VERSION`, `ALLOY_VERSION`, `CADVISOR_VERSION`,

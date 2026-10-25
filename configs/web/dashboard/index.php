@@ -132,7 +132,11 @@ $uiGroups = [
     ],
     'Search & identity' => [
         ['label' => 'Meilisearch',   'desc' => 'instant search API · no UI · bearer key', 'url' => '//meili.test/health', 'alt' => 'localhost:4545', 'health' => ['meilisearch', 7700]],
-        ['label' => 'Keycloak',      'desc' => 'OIDC/OAuth2 · issuer /realms/lds · admin/admin', 'url' => '//auth.test/admin/', 'alt' => 'localhost:4546', 'health' => ['keycloak', 9000]],
+        // Keycloak has NO direct-port alt link: the console pins its origin in
+        // KEYCLOAK_PUBLIC_URL, and opening it via localhost:4546 makes its
+        // 3rd-party-cookie iframe cross-origin (CSP frame-src 'self') — the
+        // "Timeout when waiting for 3rd party check iframe message." error.
+        ['label' => 'Keycloak',      'desc' => 'OIDC/OAuth2 · issuer /realms/lds · admin/admin', 'url' => '//auth.test/admin/', 'alt' => null, 'health' => ['keycloak', 9000]],
     ],
     'Code & security quality scanner' => [
         ['label' => 'Semgrep',       'desc' => 'SAST · findings dashboard', 'url' => '//semgrep.test',    'alt' => 'localhost:4505', 'health' => ['semgrep', 8080]],

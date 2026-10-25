@@ -90,6 +90,38 @@ if defined PENPOT_SEL (
   echo Penpot public URI resolved to !PENPOT_PUBLIC_URI! ^(scheme: !SCHEME!^).
 )
 
+REM Keycloak pins its public URL (KC_HOSTNAME = KEYCLOAK_PUBLIC_URL) and the
+REM admin console builds its third-party-cookie check iframe from that exact
+REM URL. The console page serves CSP frame-src 'self', so any scheme/host
+REM mismatch between the page origin and KEYCLOAK_PUBLIC_URL blocks the iframe
+REM and keycloak.js dies with "Timeout when waiting for 3rd party check iframe
+REM message." Keep the pinned URL on the active edge scheme; the HTTPS overlay
+REM 301s http://auth.test -> https://auth.test so every entry converges on it.
+set "KC_SEL="
+echo %PROFILES% | findstr /I /C:"keycloak" /C:"all" >nul && set "KC_SEL=1"
+if defined KC_SEL (
+  set "SCHEME=http"
+  if "!HTTPS_ACTIVE!"=="1" set "SCHEME=https"
+  set "KC_HOST_VAL="
+  set "KC_URL_VAL="
+  if exist .env for /f "usebackq eol=# tokens=1,* delims==" %%a in (".env") do (
+    if /I "%%a"=="KEYCLOAK_HOST" set "KC_HOST_VAL=%%b"
+    if /I "%%a"=="KEYCLOAK_PUBLIC_URL" set "KC_URL_VAL=%%b"
+  )
+  set "KC_HOST_VAL=!KC_HOST_VAL: =!"
+  if "!KC_HOST_VAL!"=="" set "KC_HOST_VAL=auth.test"
+  if "!KC_URL_VAL!"=="" set "KC_URL_VAL=http://!KC_HOST_VAL!"
+  if /I "!KC_URL_VAL:~0,8!"=="https://" (
+    if /I "!SCHEME!"=="http" set "KC_URL_VAL=http://!KC_URL_VAL:~8!"
+  ) else if /I "!KC_URL_VAL:~0,7!"=="http://" (
+    if /I "!SCHEME!"=="https" set "KC_URL_VAL=https://!KC_URL_VAL:~7!"
+  ) else (
+    set "KC_URL_VAL=!SCHEME!://!KC_HOST_VAL!"
+  )
+  set "KEYCLOAK_PUBLIC_URL=!KC_URL_VAL!"
+  echo Keycloak public URL resolved to !KEYCLOAK_PUBLIC_URL! ^(scheme: !SCHEME!^).
+)
+
 REM The php/all profile needs the lds/php base image - build it once if missing.
 if "%PHP_VERSION%"=="" set "PHP_VERSION=8.4"
 echo %PROFILES% | findstr /I /C:"php" /C:"all" >nul

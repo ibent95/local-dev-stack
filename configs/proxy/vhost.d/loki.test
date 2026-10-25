@@ -1,0 +1,13 @@
+# Loki has NO web UI. Its HTTP API only answers /ready, /metrics and
+# /loki/api/v1/*, so opening the bare hostname used to show nginx's own
+# "404 page not found". Send only the root to Grafana Explore with the
+# provisioned Loki datasource pre-selected (uid `loki`, see
+# configs/grafana/provisioning/datasources/loki.yml); every other path still
+# proxies straight through to loki:3100, so API and OTLP clients are untouched.
+#
+# Included per vhost by nginx-proxy (mounted at /etc/nginx/vhost.d by the
+# `proxy` service in docker-compose.yml). Assumes the default
+# GRAFANA_HOST=grafana.test; $scheme keeps http/https consistent.
+location = / {
+    return 302 $scheme://grafana.test/explore?left=%7B%22datasource%22%3A%7B%22type%22%3A%22loki%22%2C%22uid%22%3A%22loki%22%7D%7D;
+}

@@ -1,0 +1,14 @@
+# Tempo has NO web UI. Its HTTP API only answers /ready, /metrics and /api/*,
+# so opening the bare hostname used to show nginx's own "404 page not found".
+# Send only the root to Grafana Explore with the provisioned Tempo datasource
+# pre-selected (uid `tempo`, see
+# configs/grafana/provisioning/datasources/tempo.yml); every other path still
+# proxies straight through to tempo:3200, so the TraceQL/API clients are
+# untouched. Grafana's Traces Drilldown / Explore is the UI for traces.
+#
+# Included per vhost by nginx-proxy (mounted at /etc/nginx/vhost.d by the
+# `proxy` service in docker-compose.yml). Assumes the default
+# GRAFANA_HOST=grafana.test; $scheme keeps http/https consistent.
+location = / {
+    return 302 $scheme://grafana.test/explore?left=%7B%22datasource%22%3A%7B%22type%22%3A%22tempo%22%2C%22uid%22%3A%22tempo%22%7D%7D;
+}

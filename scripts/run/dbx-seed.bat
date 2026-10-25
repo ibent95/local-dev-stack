@@ -63,7 +63,7 @@ if errorlevel 1 (
     echo DBX connection seed FAILED - add them manually at !URL!
     popd & endlocal & exit /b 1
   )
-  echo Seeded DBX with MySQL + MariaDB + Postgres + Mongo + SQL Server + Oracle connections.
+  echo Seeded DBX with MySQL + MariaDB + Postgres + Mongo + SQL Server + Oracle + Valkey connections.
 ) else (
   echo DBX already has connections - skipping DB seed.
 )
@@ -77,6 +77,8 @@ if errorlevel 1 set "SEED_FAILED=1"
 call :seed_conn "Kafka (LDS)" "configs\dbx\connections.kafka.seed.json"
 if errorlevel 1 set "SEED_FAILED=1"
 call :seed_conn "RabbitMQ (LDS)" "configs\dbx\connections.rabbitmq.seed.json"
+if errorlevel 1 set "SEED_FAILED=1"
+call :seed_conn "Valkey (LDS)" "configs\dbx\connections.valkey.seed.json"
 if errorlevel 1 set "SEED_FAILED=1"
 
 popd

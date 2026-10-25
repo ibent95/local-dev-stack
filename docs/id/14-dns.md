@@ -98,19 +98,31 @@ apa pun yang memakai 53.
 
 ## Opsi B — `lds hosts-sync` (fallback berkas hosts)
 
-Tanpa ubah DNS; menulis baris `127.0.0.1 <nama>.test` ke berkas hosts. Perlu
-shell **Administrator** (mengedit `C:\Windows\System32\drivers\etc\hosts`).
+Tanpa ubah DNS; menulis baris `127.0.0.1 <nama>.test` ke berkas hosts yang
+benar-benar dibaca resolver OS. Di Windows itu
+`C:\Windows\System32\drivers\etc\hosts`, yang hanya boleh ditulis
+**Administrator**:
+
+- `scripts\run\hosts-sync.bat` **menjalankan ulang dirinya lewat UAC** bila belum
+  elevated, lalu mem-flush cache DNS setelah selesai.
+- `./lds.sh hosts-sync` dari Git Bash menyasar berkas Windows yang sama (bukan
+  `/etc/hosts` bawaan Git yang tidak dibaca program Windows lain). Git Bash
+  tanpa elevasi akan menampilkan satu perintah yang harus dijalankan, bukan
+  gagal diam-diam. Linux/macOS tetap menulis `/etc/hosts` via `sudo`.
 
 ```
 lds hosts-sync
 ```
 
 Ia menulis satu entri per folder proyek PHP di bawah `PHP_PROJECTS_PATH`, plus
-UI web / dashboard broker stack: `cache.test`, `db.test`, `centrifugo.test`,
-`mqtt.test`, `ws.test`. **Jalankan ulang setiap kali menambah proyek** — berkas
-hosts tak punya wildcard, jadi nama baru tidak tercakup sampai sync lagi. Entri
-untuk service yang profilnya mati tidak masalah (proxy hanya belum punya tujuan
-ke sana).
+UI web / dashboard broker stack, dikelompokkan per kategori: `cache.test`,
+`db.test`, `vaultwarden.test`, `auth.test` (Keycloak), `meili.test`
+(Meilisearch), `prometheus.test`, `grafana.test`, `loki.test`, `tempo.test`,
+`centrifugo.test`, `mqtt.test`, `ws.test`, dan UI tool lainnya. **Jalankan ulang
+setiap kali menambah proyek atau mengaktifkan profil baru** — berkas hosts tak
+punya wildcard, jadi nama baru tidak tercakup sampai sync lagi. Entri untuk
+service yang profilnya mati tidak masalah (proxy hanya belum punya tujuan ke
+sana).
 
 ---
 

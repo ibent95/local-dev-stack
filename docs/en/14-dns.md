@@ -97,19 +97,30 @@ works if you point a tool at it explicitly. Easiest fix is to stop whatever hold
 
 ## Option B — `lds hosts-sync` (hosts-file fallback)
 
-No DNS changes; writes `127.0.0.1 <name>.test` lines into the hosts file. Needs
-an **Administrator** shell (it edits `C:\Windows\System32\drivers\etc\hosts`).
+No DNS changes; writes `127.0.0.1 <name>.test` lines into the hosts file the OS
+resolver actually reads. On Windows that is
+`C:\Windows\System32\drivers\etc\hosts`, which only **Administrators** may
+write:
+
+- `scripts\run\hosts-sync.bat` **re-launches itself through UAC** when it isn't
+  already elevated, and flushes the DNS cache when done.
+- `./lds.sh hosts-sync` from Git Bash targets that same Windows file (not Git's
+  bundled `/etc/hosts`, which no other Windows program consults). A
+  non-elevated Git Bash prints the one command to run instead of failing
+  silently. Linux/macOS still writes `/etc/hosts` via `sudo`.
 
 ```
 lds hosts-sync
 ```
 
 It writes one entry per PHP project folder under `PHP_PROJECTS_PATH`, plus the
-stack web UIs / broker dashboards: `cache.test`, `db.test`, `centrifugo.test`,
-`mqtt.test`, `ws.test`. **Re-run it whenever you add a project** — the hosts file
-has no wildcard, so new names aren't covered until you sync again. Entries for a
-service whose profile is off are harmless (the proxy just has nothing to route
-there yet).
+stack web UIs / broker dashboards, grouped by category: `cache.test`, `db.test`,
+`vaultwarden.test`, `auth.test` (Keycloak), `meili.test` (Meilisearch),
+`prometheus.test`, `grafana.test`, `loki.test`, `tempo.test`, `centrifugo.test`,
+`mqtt.test`, `ws.test` and the remaining tool UIs. **Re-run it whenever you add
+a project or enable a new profile** — the hosts file has no wildcard, so new
+names aren't covered until you sync again. Entries for a service whose profile
+is off are harmless (the proxy just has nothing to route there yet).
 
 ---
 

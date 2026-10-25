@@ -37,3 +37,23 @@ services:
   php:
     environment:
       CERT_NAME: _.test
+
+  # (Optional) sonarqube-mcp host through the proxy: when SONARQUBE_MCP_HOST is
+  # set in .env, this overlay gives sonarqube-mcp.test a vhost + wildcard cert so
+  # it's reachable inside the network. The Zed URL is still loopback 127.0.0.1:4549.
+  sonarqube-mcp:
+    environment:
+      CERT_NAME: _.test
+
+  # Keycloak must be browsed at EXACTLY the origin pinned in KC_HOSTNAME
+  # (KEYCLOAK_PUBLIC_URL): the admin console's third-party-cookie check iframe
+  # is built from that URL and the console page's CSP is `frame-src 'self'`, so
+  # a scheme mismatch (page https vs iframe http) blocks the frame and
+  # keycloak.js throws "Timeout when waiting for 3rd party check iframe
+  # message." The global method stays noredirect, but auth.test alone forces
+  # http -> https so http://auth.test, the dashboard link and https://auth.test
+  # all converge on the pinned https:// origin. Per-container HTTPS_METHOD
+  # overrides the proxy-wide default (nginx-proxy docs).
+  keycloak:
+    environment:
+      HTTPS_METHOD: redirect

@@ -84,6 +84,30 @@ case " ${profiles[*]} " in
     ;;
 esac
 
+# Keycloak pins its public URL (KC_HOSTNAME = KEYCLOAK_PUBLIC_URL), and the
+# admin console builds its third-party-cookie check iframe from that exact URL.
+# The console page serves CSP `frame-src 'self'`, so any scheme/host mismatch
+# between the page origin and KEYCLOAK_PUBLIC_URL blocks the iframe and
+# keycloak.js dies with "Timeout when waiting for 3rd party check iframe
+# message." Keep the pinned URL on the active edge scheme; the HTTPS overlay
+# 301s http://auth.test -> https://auth.test so every entry converges on it.
+case " ${profiles[*]} " in
+  *" keycloak "*|*" all "*)
+    kc_host="$(grep -E '^[[:space:]]*KEYCLOAK_HOST=' .env 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/#.*//' | tr -d '[:space:]\r')"
+    [ -n "$kc_host" ] || kc_host="auth.test"
+    kc_url="$(grep -E '^[[:space:]]*KEYCLOAK_PUBLIC_URL=' .env 2>/dev/null | tail -1 | cut -d= -f2- | sed 's/#.*//' | tr -d '\r')"
+    [ -n "$kc_url" ] || kc_url="http://${kc_host}"
+    scheme="http"; [ "$HTTPS_ACTIVE" -eq 1 ] && scheme="https"
+    if printf '%s' "$kc_url" | grep -Eq '^https?://'; then
+      kc_url="$(printf '%s' "$kc_url" | sed -E "s#^https?://#${scheme}://#")"
+    else
+      kc_url="${scheme}://${kc_host}"
+    fi
+    export KEYCLOAK_PUBLIC_URL="$kc_url"
+    echo "Keycloak public URL resolved to ${KEYCLOAK_PUBLIC_URL} (scheme: ${scheme})."
+    ;;
+esac
+
 # --- sub-step banners (subordinate to start's [n/5] banners) ---------------
 SUB=""
 sub()     { SUB="$1"; printf '\n-------- up: %s --------\n' "$1"; }

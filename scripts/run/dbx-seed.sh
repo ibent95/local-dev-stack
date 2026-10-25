@@ -112,7 +112,7 @@ fi
 if [ "$list" = "[]" ]; then
   if curl -sf -X POST -H 'Content-Type: application/json' --data @"$SEED" \
        "$URL/api/connection/save" >/dev/null; then
-    echo "Seeded DBX with MySQL + MariaDB + Postgres + Mongo + SQL Server + Oracle connections."
+    echo "Seeded DBX with MySQL + MariaDB + Postgres + Mongo + SQL Server + Oracle + Valkey connections."
     list="$(curl -sf --max-time 15 "$URL/api/connection/list" 2>/dev/null | tr -d '\r' || true)"
   else
     echo "DBX connection seed FAILED — add them manually at $URL"
@@ -150,4 +150,5 @@ seed_conn "LLDAP (LDS)" "configs/dbx/connections.ldap-lldap.seed.json" || seed_f
 seed_conn "OpenLDAP (LDS)" "configs/dbx/connections.ldap-openldap.seed.json" || seed_failed=1
 seed_conn "Kafka (LDS)" "configs/dbx/connections.kafka.seed.json" || seed_failed=1
 seed_conn "RabbitMQ (LDS)" "configs/dbx/connections.rabbitmq.seed.json" || seed_failed=1
+seed_conn "Valkey (LDS)" "configs/dbx/connections.valkey.seed.json" || seed_failed=1
 [ "$seed_failed" = "0" ] || exit 1

@@ -90,7 +90,7 @@
           "searchScope": ["2"],
           "pagination": ["true"],
           "batchSizeForSync": ["1000"],
-          "fullSyncPeriod": ["-1"],
+          "fullSyncPeriod": ["300"],
           "changedSyncPeriod": ["-1"],
           "cachePolicy": ["DEFAULT"],
           "connectionPooling": ["true"],

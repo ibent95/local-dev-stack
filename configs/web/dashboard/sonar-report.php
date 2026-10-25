@@ -17,6 +17,26 @@ const SONAR_API = 'http://sonarqube:9000';   // in-network service name + port
 const PAGE_SIZE = 500;                       // API max page size
 const MAX_PAGES = 40;                        // safety cap (20k rows per collection)
 
+// Optional SonarQube user token (SONAR_TOKEN — passed into this container by
+// compose, read from the git-ignored .env). The Web API omits rule
+// descriptions for anonymous callers, and those descriptions are exactly the
+// "why this issue was raised" / "how to fix" text this report renders, so we
+// authenticate when we can. Validated once per request: a stale token is
+// dropped instead of turning every API call into a 401.
+$SONAR_TOKEN = trim((string) getenv('SONAR_TOKEN'));
+if ($SONAR_TOKEN !== '') {
+    $vr = sonar_request(SONAR_API . '/api/authentication/validate');
+    if (!$vr['ok'] || ($vr['data']['valid'] ?? false) !== true) $SONAR_TOKEN = '';
+}
+
+/** Accept header + `Authorization: Bearer` when a token is in play. */
+function sonar_headers(): array {
+    global $SONAR_TOKEN;
+    $h = ['Accept: application/json'];
+    if ($SONAR_TOKEN !== '') $h[] = 'Authorization: Bearer ' . $SONAR_TOKEN;
+    return $h;
+}
+
 // Fallback labels for keys that are missing from a rolling server's metric
 // registry (the registry name is preferred at render time).
 const METRIC_LABELS = [
@@ -85,7 +105,7 @@ function sonar_request(string $url): array {
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CONNECTTIMEOUT => 3,
         CURLOPT_TIMEOUT        => 20,
-        CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+        CURLOPT_HTTPHEADER     => sonar_headers(),
     ]);
     $resp = curl_exec($ch);
     $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -112,7 +132,7 @@ function sonar_get_many(array $requests): array {
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_CONNECTTIMEOUT => 3,
                 CURLOPT_TIMEOUT        => 20,
-                CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+                CURLOPT_HTTPHEADER     => sonar_headers(),
             ]);
             curl_multi_add_handle($mh, $ch);
             $handles[$i] = $ch;
@@ -236,6 +256,16 @@ function gate_badge(?string $s): array {
         'ERROR' => ['Failed', 'failed'],
         'WARN'  => ['Warning', 'warn'],
         default => ['Not computed', 'none'],
+    };
+}
+
+/** Issue severity → badge/pill css class (the Semgrep palette). */
+function sev_class(?string $s): string {
+    return match (strtoupper((string) $s)) {
+        'BLOCKER', 'CRITICAL' => 'error',
+        'MAJOR'                => 'warning',
+        'MINOR'                => 'note',
+        default                => 'none',
     };
 }
 
@@ -493,6 +523,33 @@ arsort($langs);
 $hotspotReview = 0;
 foreach ($hotspots as $hs) if (($hs['status'] ?? '') === 'TO_REVIEW') $hotspotReview++;
 
+// Aggregates for the stat tiles and the "by severity / rule / file" panels.
+$sevCounts = [];
+$typeCounts = [];
+$ruleAgg = [];
+$fileAgg = [];
+foreach ($issuesAll as $it) {
+    $sev  = strtoupper((string) ($it['severity'] ?? ''));
+    $type = strtoupper((string) ($it['type'] ?? ''));
+    $rul  = (string) ($it['rule'] ?? '');
+    $path = comp_path($key, (string) ($it['component'] ?? ''));
+    if ($sev !== '')  $sevCounts[$sev]   = ($sevCounts[$sev] ?? 0) + 1;
+    if ($type !== '') $typeCounts[$type] = ($typeCounts[$type] ?? 0) + 1;
+    $fileAgg[$path]['total'] = ($fileAgg[$path]['total'] ?? 0) + 1;
+    if ($type !== '') $fileAgg[$path][$type] = ($fileAgg[$path][$type] ?? 0) + 1;
+    if ($rul !== '') {
+        if (!isset($ruleAgg[$rul])) $ruleAgg[$rul] = ['count' => 0, 'files' => [], 'sev' => ''];
+        $ruleAgg[$rul]['count']++;
+        $ruleAgg[$rul]['files'][$path] = true;
+        if ($sev !== '' && ($ruleAgg[$rul]['sev'] === ''
+            || (SEVERITY_ORDER[$sev] ?? 9) < (SEVERITY_ORDER[$ruleAgg[$rul]['sev']] ?? 9))) {
+            $ruleAgg[$rul]['sev'] = $sev;
+        }
+    }
+}
+uasort($ruleAgg, fn($a, $b) => $b['count'] <=> $a['count']);
+uasort($fileAgg, fn($a, $b) => ($b['total'] ?? 0) <=> ($a['total'] ?? 0));
+
 // Measures grouped by registry domain.
 $byDomain = [];
 foreach ($vals as $mk => $mv) {
@@ -533,8 +590,8 @@ function metric_name(string $mk, array $defs): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SonarQube report · local-dev-stack</title>
 <style>
-  :root { color-scheme: light dark; --line:#8884; --line2:#8882; --muted:#7d8590; --card:rgba(127,127,127,.04); --accent:#6366f1; --err:#e5484d; --warn:#c47f00; --note:#3b82f5; }
-  @media (prefers-color-scheme: dark) { :root { --card:rgba(255,255,255,.035); --warn:#f5a623; } }
+  :root { color-scheme: light dark; --line:#8884; --line2:#8882; --muted:#7d8590; --card:rgba(127,127,127,.04); --accent:#6366f1; --err:#e5484d; --warn:#c47f00; --note:#3b82f5; --ok:#2f9e44; }
+  @media (prefers-color-scheme: dark) { :root { --card:rgba(255,255,255,.035); --warn:#f5a623; --ok:#3fb950; } }
   * { box-sizing:border-box; }
   body { margin:0; font:14px/1.5 system-ui,'Segoe UI',Roboto,sans-serif; background:Canvas; color:CanvasText; }
   .top { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; justify-content:space-between; padding:18px 22px 14px; border-bottom:1px solid var(--line); }
@@ -545,15 +602,19 @@ function metric_name(string $mk, array $defs): string {
   button, a.btn { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border:1px solid var(--line); border-radius:6px; background:transparent; color:inherit; font:inherit; text-decoration:none; cursor:pointer; }
   button:hover, a.btn:hover { background:var(--card); border-color:var(--muted); }
   button:disabled { opacity:.45; cursor:not-allowed; }
-  button.danger:hover { color:var(--err); border-color:var(--err); }
   main { max-width:1500px; margin:0 auto; padding:18px 22px 60px; }
-  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:16px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:16px; }
   .tile { display:flex; flex-direction:column; gap:2px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--card); }
   .tile .num { font-size:24px; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; }
   .tile .lbl { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
   .tile.sev-error .num { color:var(--err); } .tile.sev-warning .num { color:var(--warn); } .tile.sev-note .num { color:var(--note); }
+  .tile.gate-ok .num { color:var(--ok); font-size:19px; }
+  .tile.gate-fail .num { color:var(--err); font-size:19px; }
+  .tile.gate-warn .num { color:var(--warn); font-size:19px; }
+  .tile.gate-none .num { color:var(--muted); font-size:17px; }
   .panels { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); gap:14px; }
-  @media (max-width:900px) { .panels { grid-template-columns:1fr; } }
+  .panels.even { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+  @media (max-width:900px) { .panels, .panels.even { grid-template-columns:1fr; } }
   .panel { margin-bottom:14px; border:1px solid var(--line); border-radius:10px; background:var(--card); overflow:hidden; }
   .panel h2 { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin:0; padding:12px 16px; border-bottom:1px solid var(--line); font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
   .panel h2 .hint { font-size:11px; font-weight:400; letter-spacing:0; text-transform:none; color:var(--muted); }
@@ -563,6 +624,7 @@ function metric_name(string $mk, array $defs): string {
   th { position:sticky; top:0; z-index:1; background:Canvas; font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
   .mini th, .mini td { padding:7px 14px; }
   tbody tr:last-child td { border-bottom:0; }
+  tfoot th { position:static; border-top:1px solid var(--line); }
   tr[data-rule], tr[data-file] { cursor:pointer; }
   tr[data-rule]:hover, tr[data-file]:hover { background:var(--card); }
   tr.active { background:rgba(99,102,241,.1); }
@@ -570,11 +632,17 @@ function metric_name(string $mk, array $defs): string {
   .n.err { color:var(--err); } .n.warn { color:var(--warn); } .n.note { color:var(--note); }
   code { padding:1px 5px; border-radius:4px; background:#8881; font:12px/1.45 ui-monospace,Consolas,'Cascadia Code',monospace; word-break:break-word; }
   .sub { margin-top:2px; font-size:11px; color:var(--muted); }
+  .muted { color:var(--muted); }
+  .small { font-size:11px; }
   .path { min-width:180px; word-break:break-all; } .path code { padding:0; background:none; }
   .badge { display:inline-block; padding:2px 9px; border:1px solid transparent; border-radius:999px; font-size:10px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; white-space:nowrap; }
-  .badge.error { background:rgba(229,72,77,.13); border-color:rgba(229,72,77,.27); color:var(--err); }
-  .badge.warning { background:rgba(245,166,35,.13); border-color:rgba(245,166,35,.33); color:var(--warn); }
+  .badge.error, .badge.failed { background:rgba(229,72,77,.13); border-color:rgba(229,72,77,.27); color:var(--err); }
+  .badge.warning, .badge.warn { background:rgba(245,166,35,.13); border-color:rgba(245,166,35,.33); color:var(--warn); }
   .badge.note { background:rgba(59,130,246,.13); border-color:rgba(59,130,246,.33); color:var(--note); }
+  .badge.passed { background:rgba(47,158,68,.13); border-color:rgba(47,158,68,.3); color:var(--ok); }
+  .badge.none { background:transparent; border-color:var(--line); color:var(--muted); }
+  .rt { display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:26px; padding:0 6px; border-radius:6px; font-size:13px; font-weight:700; color:#fff; }
+  .rt.ra { background:#2f9e44; } .rt.rb { background:#82c91e; color:#14210a; } .rt.rc { background:#f0b400; color:#2a1f00; } .rt.rd { background:#f76707; } .rt.re { background:#e5484d; }
   .tags { display:flex; flex-direction:column; gap:12px; padding:14px 16px; }
   .tag-group { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
   .tag-group h3 { width:100%; margin:0 0 2px; font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
@@ -582,10 +650,13 @@ function metric_name(string $mk, array $defs): string {
   .tag:hover { border-color:var(--muted); }
   .tag.active { border-color:var(--accent); background:var(--accent); color:#fff; }
   .tag .n { font-size:11px; opacity:.75; }
+  .chip { display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border:1px solid var(--line); border-radius:999px; font-size:11px; color:var(--muted); }
+  .chip b { color:inherit; font-variant-numeric:tabular-nums; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
   .toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line); }
   .toolbar input, .toolbar select { padding:6px 10px; border:1px solid var(--line); border-radius:6px; background:transparent; color:inherit; font:inherit; }
-  .toolbar input { flex:1; min-width:220px; }
-  .toolbar select { max-width:380px; }
+  .toolbar input { flex:1; min-width:200px; }
+  .toolbar select { max-width:320px; }
   .sev-filters { display:flex; flex-wrap:wrap; gap:6px; }
   .pill { padding:3px 10px; border:1px solid var(--line); border-radius:999px; background:transparent; color:inherit; font:inherit; font-size:12px; font-weight:600; cursor:pointer; }
   .pill:hover { background:var(--card); }
@@ -602,6 +673,7 @@ function metric_name(string $mk, array $defs): string {
   .finding.open .caret { transform:rotate(90deg); }
   .finding .msg { max-width:78ch; }
   .finding .loc code { background:none; padding:0; }
+  .finding .rule code { background:none; padding:0; }
   .sev { white-space:nowrap; }
   tr.detail > td { padding:16px 20px; background:var(--card); }
   .detail-grid { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:22px; }
@@ -611,27 +683,41 @@ function metric_name(string $mk, array $defs): string {
   .detail p { margin:0 0 6px; }
   .detail .message { max-width:95ch; white-space:pre-wrap; }
   .detail .desc { max-width:95ch; color:var(--muted); }
-  .detail .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-  .chip { padding:2px 8px; border:1px solid var(--line); border-radius:999px; font-size:11px; color:var(--muted); }
+  .detail .chips { margin-top:8px; }
+  /* SonarQube rule-description HTML (why / how to fix, with code examples). */
+  .detail .doc { max-width:95ch; }
+  .detail .doc p { margin:0 0 6px; }
+  .detail .doc h4 { margin:14px 0 4px; font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
+  .detail .doc ul, .detail .doc ol { margin:0 0 6px; padding-left:20px; }
+  .detail .doc li { margin-bottom:2px; }
+  .detail .doc pre { max-height:300px; margin:6px 0 8px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:Canvas; overflow:auto; font-size:12px; white-space:pre-wrap; }
+  .detail .doc code { font-size:12px; }
+  .detail .doc a { color:var(--accent); }
+  .detail .doc img { max-width:100%; }
+  .detail .doc h4:first-child, .detail .doc p:first-child { margin-top:0; }
   pre.snippet { max-height:220px; margin:6px 0 0; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:Canvas; overflow:auto; }
   pre.snippet code { padding:0; background:none; font-size:12px; white-space:pre; }
   .meta-list { display:grid; grid-template-columns:auto 1fr; gap:4px 12px; margin:0; font-size:12px; }
   .meta-list dt { color:var(--muted); } .meta-list dd { margin:0; }
   .pager { display:flex; align-items:center; justify-content:flex-end; gap:10px; padding:10px 16px; border-top:1px solid var(--line); font-size:12px; color:var(--muted); }
+  .rating-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; padding:14px 16px; }
+  .rating { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:Canvas; }
+  .rating .rl { font-size:12px; color:var(--muted); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:12px; padding:14px 16px; }
+  .mini-panel { border:1px solid var(--line); border-radius:10px; background:Canvas; overflow:hidden; }
+  .mini-panel h3 { margin:0; padding:10px 14px; border-bottom:1px solid var(--line); font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
   .no-rows { padding:22px 16px; text-align:center; color:var(--muted); }
-  .empty { max-width:720px; margin:60px auto; padding:0 22px; }
-  .empty h2 { margin:0 0 8px; font-size:18px; }
-  .empty p { color:var(--muted); }
+  .section-note { margin:0; padding:10px 16px; color:var(--muted); font-size:12px; border-top:1px solid var(--line2); }
   .print-head { display:none; }
+  .foot { padding:16px 22px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; }
   @media print {
     @page { margin:14mm; }
     body { background:#fff; color:#000; }
     .top { padding:0 0 10px; border-bottom:2px solid #000; }
-    .top .meta, .actions, .toolbar, .pager, .filter-note, .hint, #empty { display:none !important; }
+    .top .meta, .actions, .toolbar, .pager, .filter-note, .hint, .foot { display:none !important; }
     main { max-width:none; padding:10px 0 0; }
     .stats { gap:6px; }
-    .tile { border-color:#bbb; background:#fff; }
-    .panel { background:#fff; border-color:#bbb; }
+    .tile, .panel, .mini-panel, .rating { border-color:#bbb; background:#fff; }
     .scroll { max-height:none; overflow:visible; }
     a { color:#000; text-decoration:none; }
     .print-head { display:block; margin:10px 0 0; font-size:12px; }
@@ -640,432 +726,975 @@ function metric_name(string $mk, array $defs): string {
     thead { display:table-header-group; }
     tr { break-inside:avoid; }
     .badge { border:1px solid #999 !important; background:#fff !important; color:#000 !important; }
-    .tile.sev-error .num, .tile.sev-warning .num, .tile.sev-note .num, .n.err, .n.warn, .n.note { color:#000; }
-    .tag { border-color:#bbb; } .tag.active { background:#eee; color:#000; }
+    .rt { border:1px solid #999; background:#fff !important; color:#000 !important; }
+    .tile.sev-error .num, .tile.sev-warning .num, .tile.sev-note .num, .n.err, .n.warn, .n.note,
+    .tile.gate-ok .num, .tile.gate-fail .num, .tile.gate-warn .num, .tile.gate-none .num { color:#000; }
+    .tag, .chip, .fchip { border-color:#bbb; }
+    .tag.active { background:#eee; color:#000; }
     .detail { break-inside:avoid; }
   }
 </style>
 </head>
 <body>
-<h1>SonarQube report
-  <span class="muted">· <a href="/">control panel</a> · <a href="//sonarqube.test">sonarqube.test</a></span>
-  <span class="muted" style="margin-left:12px">· <a class=\"btn\" href=\"//semgrep.test\" style=\"color:inherit;text-decoration:inherit">Semgrep report</a></span>
-</h1>
+<?php
+  $isReport = $key !== '' && $keyOk && $dataOk;
+  $comp     = $isReport ? ($show['data']['component'] ?? []) : [];
+  $projName = $comp['name'] ?? $key;
+  $analysis = $comp['analysisDate'] ?? null;
+  $ts       = $analysis ? strtotime((string) $analysis) : false;
+  $revision = $isReport ? ($analyses[0]['revision'] ?? null) : null;
+  $version  = (string) ($comp['version'] ?? '');
+  if ($version === 'not provided') $version = '';
+  [$gLabel, $gCls] = gate_badge($gateStatus);
+  $gateCls = $gCls === 'passed' ? 'ok' : ($gCls === 'failed' ? 'fail' : ($gCls === 'warn' ? 'warn' : 'none'));
 
-<?php if ($key !== '' && $keyOk && $dataOk && !$download): ?>
-<div class="row toolbar no-print">
-  <button type="button" onclick="window.print()">Print / Save as PDF</button>
-  <a class="btn" href="?<?= h(http_build_query(['key' => $key, 'download' => 1])) ?>">Download HTML</a>
-  <a class="btn" href="//sonarqube.test/dashboard?id=<?= h(rawurlencode($key)) ?>">Open in SonarQube</a>
-</div>
-<?php endif; ?>
-
-<?php if ($key === ''): ?>
-  <p class="muted">Full printable project report: quality gate, every rating and measure,
-     every issue, security hotspots, per-file metrics, duplications, rules and the analysis
-     history. Community Build has no built-in export — print to PDF or download the HTML.</p>
-  <?php if ($projects !== null && $projects !== []): ?>
-    <form method="get" class="row">
-      <select name="key" style="min-width:320px">
-        <?php foreach ($projects as $p): ?>
-          <option value="<?= h($p['key']) ?>"><?= h($p['name']) ?> (<?= h($p['key']) ?>)</option>
-        <?php endforeach; ?>
-      </select>
-      <button class="primary">Open report</button>
-    </form>
-  <?php elseif ($projects !== null): ?>
-    <p class="muted">No projects on this server yet — run a scan first: <code>lds tools sonar &lt;path&gt;</code>.</p>
-    <form method="get" class="row">
-      <input name="key" placeholder="project key">
-      <button>Open report</button>
-    </form>
-  <?php else: ?>
-    <p class="muted">
-      Could not list projects (HTTP <?= h((string) $listStatus) ?>).
-      <?php if ($listStatus === 0): ?>SonarQube looks unreachable — start it with <code>lds up sonarqube</code>.
-      <?php elseif ($listStatus === 401 || $listStatus === 403): ?>Anonymous browsing may be disabled (<code>SONARQUBE_FORCE_AUTH</code>).
-      <?php endif; ?>
-      You can still open a report by key:
-    </p>
-    <form method="get" class="row">
-      <input name="key" placeholder="project key">
-      <button>Open report</button>
-    </form>
-  <?php endif; ?>
-
-<?php elseif (!$keyOk): ?>
-  <p><span class="badge failed">Invalid</span> project key <code><?= h($key) ?></code>.</p>
-  <p><a class="btn" href="/sonar-report.php">Back to the picker</a></p>
-
-<?php elseif (!$dataOk): ?>
-  <?php $st = $show['status'] ?? 0; ?>
-  <?php if ($st === 0): ?>
-    <p><span class="badge failed">Unreachable</span> SonarQube is not answering at <code><?= h(SONAR_API) ?></code>.
-       Start it with <code>lds up sonarqube</code>.</p>
-  <?php elseif ($st === 404): ?>
-    <p><span class="badge none">Not found</span> no project with key <code><?= h($key) ?></code> on this server.</p>
-  <?php elseif ($st === 401 || $st === 403): ?>
-    <p><span class="badge failed">HTTP <?= h((string) $st) ?></span> anonymous browsing is disabled
-       (check <code>SONARQUBE_FORCE_AUTH</code>), or the project is not public.</p>
-  <?php else: ?>
-    <p><span class="badge failed">HTTP <?= h((string) $st) ?></span> could not load the project.</p>
-  <?php endif; ?>
-  <p><a class="btn" href="/sonar-report.php">Back to the picker</a></p>
-
-<?php else: ?>
-  <?php
-    $comp     = $show['data']['component'] ?? [];
-    $name     = $comp['name'] ?? $key;
-    $analysis = $comp['analysisDate'] ?? null;
-    $ts       = $analysis ? strtotime((string) $analysis) : false;
-    [$gLabel, $gCls] = gate_badge($gateStatus);
-    $revision = $analyses[0]['revision'] ?? null;
-    $version  = $comp['version'] ?? '';
-    if ($version === 'not provided') $version = '';
-  ?>
-  <p class="row" style="gap:.6rem">
-    <b style="font-size:1.05rem"><?= h($name) ?></b>
-  </p>
-  <p class="muted small" style="margin-top:-.3rem">
-    key <code><?= h($key) ?></code>
-    <?php if (!empty($comp['qualifier'])): ?> · <?= h($comp['qualifier']) ?><?php endif; ?>
-    <?php if (!empty($comp['visibility'])): ?> · <?= h($comp['visibility']) ?><?php endif; ?>
-    <?php if ($version !== ''): ?> · version <?= h($version) ?><?php endif; ?>
-    <?php if ($ts): ?> · analysed <?= h(date('Y-m-d H:i', $ts)) ?><?php endif; ?>
-    <?php if ($revision): ?> · revision <code title="<?= h($revision) ?>"><?= h(substr($revision, 0, 12)) ?></code><?php endif; ?>
-  </p>
-  <?php if (!empty($comp['tags'])): ?>
-    <div class="chips" style="margin:.4rem 0 0">
-      <?php foreach ($comp['tags'] as $tg): ?><span class="chip"><?= h((string) $tg) ?></span><?php endforeach; ?>
-    </div>
-  <?php endif; ?>
-
-  <div class="summary">
-    <span class="item"><span class="badge <?= $gCls ?>">Quality gate: <?= h($gLabel) ?></span></span>
-    <?php if ($caycStatus !== null): ?>
-      <span class="item"><span class="badge none">Clean as You Code: <?= h(humanize($caycStatus)) ?></span></span>
-    <?php endif; ?>
-    <?php if ($issueTotal !== null): ?>
-      <span class="item"><b><?= h(number_format($issueTotal)) ?></b> <span class="muted">issues</span></span>
-      <span class="item"><b><?= h(fmt_min((string) $issueDebt)) ?></b> <span class="muted">debt</span></span>
-    <?php endif; ?>
-    <?php if ($hotspots): ?>
-      <span class="item"><b><?= h(number_format($hotspotReview)) ?></b> <span class="muted">hotspots to review</span></span>
-    <?php endif; ?>
-    <?php foreach (['coverage' => 'coverage', 'duplicated_lines_density' => 'duplicated lines', 'ncloc' => 'lines of code', 'files' => 'files', 'complexity' => 'complexity'] as $mk => $label): ?>
-      <?php if (isset($vals[$mk])): ?>
-        <span class="item"><b><?= measure_display($metricDefs[$mk]['type'] ?? 'STRING', $vals[$mk]) ?></b> <span class="muted"><?= h($label) ?></span></span>
-      <?php endif; ?>
-    <?php endforeach; ?>
-  </div>
-
-  <h2>Quality gate conditions</h2>
-  <?php if ($gateConds): ?>
-    <table>
-      <thead><tr><th>Metric</th><th>Condition</th><th>Threshold</th><th>Actual</th><th>Status</th></tr></thead>
-      <tbody>
-      <?php foreach ($gateConds as $c): ?>
-        <?php
-          $cst = $c['status'] ?? 'OK';
-          $cmk = (string) ($c['metricKey'] ?? '');
-          $ctype = $metricDefs[$cmk]['type'] ?? 'STRING';
-        ?>
-        <tr>
-          <td><?= h(metric_name($cmk, $metricDefs)) ?><div class="muted small"><code><?= h($cmk) ?></code></div></td>
-          <td><?= ($c['comparator'] ?? '') === 'GT' ? 'greater than' : 'less than' ?></td>
-          <td class="metricval"><?= h(measure_display($ctype, (string) ($c['errorThreshold'] ?? ''))) ?></td>
-          <td class="metricval"><?= isset($c['actualValue']) ? measure_display($ctype, (string) $c['actualValue']) : '—' ?></td>
-          <td><span class="badge <?= $cst === 'ERROR' ? 'failed' : ($cst === 'WARN' ? 'warn' : 'passed') ?>"><?= h($cst) ?></span></td>
-        </tr>
-      <?php endforeach; ?>
-      </tbody>
-    </table>
-    <?php if (!empty($gate['data']['projectStatus']['ignoredConditions'])): ?>
-      <p class="section-note">Some conditions are ignored for this project.</p>
-    <?php endif; ?>
-  <?php else: ?>
-    <p class="section-note">No conditions evaluated for this analysis.</p>
-  <?php endif; ?>
-
-  <?php $ratingTiles = array_values(array_filter(RATING_METRICS, fn($mk) => isset($vals[$mk]))); ?>
-  <?php if ($ratingTiles): ?>
-    <h2>Quality ratings</h2>
-    <div class="cards">
-      <?php foreach ($ratingTiles as $mk): ?>
-        <div class="tile">
-          <div class="tv"><?= measure_display('RATING', $vals[$mk]) ?></div>
-          <div class="tl"><?= h(metric_name($mk, $metricDefs)) ?></div>
-        </div>
-      <?php endforeach; ?>
-    </div>
-  <?php endif; ?>
-
-  <h2>Issues (<?= h(number_format(count($issuesAll))) ?>)</h2>
-  <?php if ($issueTotal !== null && $issueTotal !== count($issuesAll)): ?>
-    <p class="section-note">Issue API reported <?= h(number_format($issueTotal)) ?> total; <?= h(number_format(count($issuesAll))) ?> rows fetched (page cap).</p>
-  <?php endif; ?>
-  <?php if ($facets): ?>
-    <?php foreach ($facets as $f): ?>
-      <?php
-        $prop   = (string) ($f['property'] ?? '');
-        $values = array_values(array_filter($f['values'] ?? [], fn($fv) => (int) ($fv['count'] ?? 0) > 0));
-        if (!$values) continue;
-      ?>
-      <h3 class="muted">By <?= h(FACET_LABELS[$prop] ?? humanize($prop)) ?></h3>
-      <div class="chips">
-        <?php foreach ($values as $fv): ?>
-          <?php
-            $val = (string) ($fv['val'] ?? '');
-            if ($prop === 'types') $disp = TYPE_LABELS[$val] ?? humanize($val);
-            elseif ($prop === 'rules') $disp = $ruleInfo[$val]['name'] ?? $val;
-            elseif ($prop === 'languages') $disp = LANGUAGE_LABELS[$val] ?? $val;
-            else $disp = humanize($val);
-          ?>
-          <span class="chip" title="<?= h($val) ?>"><?= h($disp) ?> <b><?= h(number_format((int) $fv['count'])) ?></b></span>
-        <?php endforeach; ?>
-      </div>
-    <?php endforeach; ?>
-  <?php else: ?>
-    <p class="section-note">No issue facets returned.</p>
-  <?php endif; ?>
-
-  <?php if ($issuesAll): ?>
-    <h3 class="muted" style="margin-top:1.2rem">All issues</h3>
-    <table>
-      <thead><tr>
-        <th>#</th><th>Severity</th><th>Type</th><th>Rule</th><th>Message</th>
-        <th>File / line</th><th>Effort</th><th>Status</th><th>Tags</th><th>Created</th>
-      </tr></thead>
-      <tbody>
-      <?php foreach ($issuesAll as $i => $it): ?>
-        <?php
-          $sev = (string) ($it['severity'] ?? '');
-          $rul = (string) ($it['rule'] ?? '');
-          $rn  = $ruleInfo[$rul]['name'] ?? '';
-          $line = $it['line'] ?? ($it['textRange']['startLine'] ?? null);
+  // Findings payload for the Semgrep-style client-side report (rendering,
+  // filtering, sorting, paging and expandable detail rows all happen in JS).
+  $issueRows = [];
+  if ($isReport) {
+      foreach ($issuesAll as $it) {
+          $sev  = (string) ($it['severity'] ?? '');
+          $rul  = (string) ($it['rule'] ?? '');
+          $line = $it['line'] ?? ($it['textRange']['startLine'] ?? 0);
           $path = comp_path($key, (string) ($it['component'] ?? ''));
           $impacts = [];
           foreach ($it['impacts'] ?? [] as $im) {
               $impacts[] = humanize($im['softwareQuality'] ?? '') . ': ' . humanize($im['severity'] ?? '');
           }
-          $status = (string) ($it['status'] ?? ($it['issueStatus'] ?? ''));
-          $res    = (string) ($it['resolution'] ?? '');
-        ?>
-        <tr>
-          <td class="muted"><?= $i + 1 ?></td>
-          <td><span class="sev sev-<?= h(strtolower($sev)) ?>"><?= h($sev) ?></span></td>
-          <td><?= h(TYPE_LABELS[$it['type'] ?? ''] ?? humanize($it['type'] ?? '')) ?></td>
-          <td>
-            <?= $rn !== '' ? h($rn) : h($rul) ?>
-            <div class="muted small"><code><?= h($rul) ?></code></div>
-          </td>
-          <td>
-            <?= h((string) ($it['message'] ?? '')) ?>
-            <?php if ($impacts): ?><div class="muted small"><?= h(implode(' · ', $impacts)) ?></div><?php endif; ?>
-            <?php foreach ($it['flows'] ?? [] as $fi => $flow): ?>
-              <?php if (empty($flow['locations'])) continue; ?>
-              <div class="small muted">flow <?= $fi + 1 ?>:
-                <?php
-                  $locParts = [];
-                  foreach ($flow['locations'] as $loc) {
-                      $lp  = comp_path($key, (string) ($loc['component'] ?? ''));
-                      $ll  = $loc['textRange']['startLine'] ?? null;
-                      $lm  = trim((string) ($loc['msg'] ?? ''));
-                      $locParts[] = $lp . ($ll ? ':' . $ll : '') . ($lm !== '' ? ' (' . $lm . ')' : '');
-                  }
-                  echo h(implode(' → ', $locParts));
-                ?>
-              </div>
-            <?php endforeach; ?>
-          </td>
-          <td class="path"><?= h($path ?: '—') ?><?= $line ? '<div class="muted small">line ' . h((string) $line) . '</div>' : '' ?></td>
-          <td class="metricval"><?= h((string) ($it['debt'] ?? $it['effort'] ?? '—')) ?></td>
-          <td class="small"><?= h($status) ?><?= $res !== '' ? '<div class="muted">' . h($res) . '</div>' : '' ?></td>
-          <td class="small"><?= h(implode(', ', $it['tags'] ?? [])) ?></td>
-          <td class="small muted"><?= h(fmt_date($it['creationDate'] ?? null)) ?></td>
-        </tr>
-      <?php endforeach; ?>
-      </tbody>
-    </table>
-  <?php endif; ?>
-
-  <h2>Security hotspots (<?= h(number_format(count($hotspots))) ?>)</h2>
-  <?php if ($hotspots): ?>
-    <table>
-      <thead><tr>
-        <th>#</th><th>Probability</th><th>Status</th><th>Category</th><th>Rule</th>
-        <th>Message</th><th>File / line</th><th>Comments</th><th>Created</th>
-      </tr></thead>
-      <tbody>
-      <?php foreach ($hotspots as $i => $hs): ?>
-        <?php
-          $rk   = (string) ($hs['ruleKey'] ?? $hs['rule'] ?? '');
-          $rn   = $ruleInfo[$rk]['name'] ?? '';
-          $line = $hs['line'] ?? ($hs['textRange']['startLine'] ?? null);
-          $path = comp_path($key, (string) ($hs['component'] ?? ''));
-        ?>
-        <tr>
-          <td class="muted"><?= $i + 1 ?></td>
-          <td><?= h(humanize($hs['vulnerabilityProbability'] ?? '')) ?></td>
-          <td><?= h(humanize($hs['status'] ?? '')) ?></td>
-          <td><?= h(humanize($hs['securityCategory'] ?? '')) ?></td>
-          <td><?= $rn !== '' ? h($rn) : h($rk) ?><div class="muted small"><code><?= h($rk) ?></code></div></td>
-          <td><?= h((string) ($hs['message'] ?? '')) ?></td>
-          <td class="path"><?= h($path ?: '—') ?><?= $line ? '<div class="muted small">line ' . h((string) $line) . '</div>' : '' ?></td>
-          <td class="small"><?= h((string) count($hs['comments'] ?? [])) ?></td>
-          <td class="small muted"><?= h(fmt_date($hs['creationDate'] ?? null)) ?></td>
-        </tr>
-      <?php endforeach; ?>
-      </tbody>
-    </table>
-  <?php else: ?>
-    <p class="section-note">No security hotspots in this project.</p>
-  <?php endif; ?>
-
-  <h2>Files (<?= h(number_format(count($files))) ?>)</h2>
-  <?php if ($langs): ?>
-    <div class="chips" style="margin-bottom:.6rem">
-      <?php foreach ($langs as $l => $count): ?>
-        <span class="chip"><?= h(LANGUAGE_LABELS[$l] ?? ucfirst($l)) ?> <b><?= h(number_format($count)) ?></b></span>
-      <?php endforeach; ?>
-    </div>
-  <?php endif; ?>
-  <?php if ($files): ?>
-    <?php $sum = ['ncloc' => 0, 'complexity' => 0, 'cognitive_complexity' => 0, 'bugs' => 0, 'vulnerabilities' => 0, 'code_smells' => 0, 'issues' => 0, 'debt' => 0]; ?>
-    <table>
-      <thead><tr>
-        <th>File</th><th>Lang</th><th>NCLOC</th><th>Complexity</th><th>Cognitive</th>
-        <th>Bugs</th><th>Vulns</th><th>Smells</th><th>Issues</th><th>Debt</th>
-        <th>Coverage</th><th>Dup</th>
-      </tr></thead>
-      <tbody>
-      <?php foreach ($files as $f): ?>
-        <?php
-          $mm  = $fileMeasures[$f['key']] ?? [];
-          $cnt = $issueComponents[$f['key']] ?? 0;
-          $dbt = $fileDebt[$f['key']] ?? 0;
-          $sum['ncloc']              += (int) ($mm['ncloc'] ?? 0);
-          $sum['complexity']         += (int) ($mm['complexity'] ?? 0);
-          $sum['cognitive_complexity'] += (int) ($mm['cognitive_complexity'] ?? 0);
-          $sum['bugs']               += (int) ($mm['bugs'] ?? 0);
-          $sum['vulnerabilities']    += (int) ($mm['vulnerabilities'] ?? 0);
-          $sum['code_smells']        += (int) ($mm['code_smells'] ?? 0);
-          $sum['issues']             += $cnt;
-          $sum['debt']               += $dbt;
-        ?>
-        <tr>
-          <td class="path"><?= h($f['path']) ?></td>
-          <td><?= h($f['language'] !== '' ? (LANGUAGE_LABELS[$f['language']] ?? $f['language']) : '—') ?></td>
-          <td class="metricval"><?= isset($mm['ncloc']) ? h(fmt_int($mm['ncloc'])) : '—' ?></td>
-          <td class="metricval"><?= isset($mm['complexity']) ? h(fmt_int($mm['complexity'])) : '—' ?></td>
-          <td class="metricval"><?= isset($mm['cognitive_complexity']) ? h(fmt_int($mm['cognitive_complexity'])) : '—' ?></td>
-          <td class="metricval"><?= isset($mm['bugs']) ? h(fmt_int($mm['bugs'])) : '—' ?></td>
-          <td class="metricval"><?= isset($mm['vulnerabilities']) ? h(fmt_int($mm['vulnerabilities'])) : '—' ?></td>
-          <td class="metricval"><?= isset($mm['code_smells']) ? h(fmt_int($mm['code_smells'])) : '—' ?></td>
-          <td class="metricval"><?= $cnt ? h(fmt_int((string) $cnt)) : '—' ?></td>
-          <td class="metricval"><?= $dbt ? h(fmt_min((string) $dbt)) : '—' ?></td>
-          <td class="metricval"><?= isset($mm['coverage']) ? h(fmt_pct($mm['coverage'])) : '—' ?></td>
-          <td class="metricval"><?= isset($mm['duplicated_lines_density']) ? h(fmt_pct($mm['duplicated_lines_density'])) : '—' ?></td>
-        </tr>
-      <?php endforeach; ?>
-      </tbody>
-      <tfoot>
-        <tr>
-          <th>Total (<?= h(number_format(count($files))) ?> files)</th>
-          <th></th>
-          <th><?= h(fmt_int((string) $sum['ncloc'])) ?></th>
-          <th><?= h(fmt_int((string) $sum['complexity'])) ?></th>
-          <th><?= h(fmt_int((string) $sum['cognitive_complexity'])) ?></th>
-          <th><?= h(fmt_int((string) $sum['bugs'])) ?></th>
-          <th><?= h(fmt_int((string) $sum['vulnerabilities'])) ?></th>
-          <th><?= h(fmt_int((string) $sum['code_smells'])) ?></th>
-          <th><?= h(fmt_int((string) $sum['issues'])) ?></th>
-          <th><?= h(fmt_min((string) $sum['debt'])) ?></th>
-          <th></th><th></th>
-        </tr>
-      </tfoot>
-    </table>
-  <?php else: ?>
-    <p class="section-note">No files indexed.</p>
-  <?php endif; ?>
-
-  <h2>Duplications (<?= h(number_format(count($dupGroups))) ?> groups)</h2>
-  <?php if ($dupGroups): ?>
-    <table>
-      <thead><tr><th>#</th><th>Lines</th><th>Duplicated blocks</th></tr></thead>
-      <tbody>
-      <?php $dn = 0; foreach ($dupGroups as $blocks): $dn++; ?>
-        <tr>
-          <td class="muted"><?= $dn ?></td>
-          <td class="metricval"><?= h(fmt_int((string) ($blocks[0]['size'] ?? 0))) ?></td>
-          <td class="path">
-            <?php
-              $parts = [];
-              foreach ($blocks as $b) {
-                  $end = $b['from'] + max(0, $b['size'] - 1);
-                  $parts[] = h($b['path']) . ' <span class="muted small">:' . h((string) $b['from']) . '–' . h((string) $end) . '</span>';
+          $flows = [];
+          foreach ($it['flows'] ?? [] as $flow) {
+              if (empty($flow['locations'])) continue;
+              $locParts = [];
+              foreach ($flow['locations'] as $loc) {
+                  $lp = comp_path($key, (string) ($loc['component'] ?? ''));
+                  $ll = $loc['textRange']['startLine'] ?? null;
+                  $lm = trim((string) ($loc['msg'] ?? ''));
+                  $locParts[] = $lp . ($ll ? ':' . $ll : '') . ($lm !== '' ? ' (' . $lm . ')' : '');
               }
-              echo implode('<br>↔ ', $parts);
-            ?>
-          </td>
-        </tr>
-      <?php endforeach; ?>
-      </tbody>
-    </table>
-  <?php else: ?>
-    <p class="section-note">No duplicated blocks in this project.</p>
-  <?php endif; ?>
-
-  <h2>All measures (<?= h(number_format(count($vals))) ?>)</h2>
-  <?php if ($byDomain): ?>
-    <?php foreach ($byDomain as $domain => $items): ?>
-      <h3 class="muted"><?= h($domain !== '' ? $domain : 'Other') ?></h3>
-      <table>
-        <thead><tr><th>Metric</th><th>Key</th><th>Value</th></tr></thead>
-        <tbody>
-        <?php foreach ($items as $mk => $mv): ?>
-          <?php $mtype = $metricDefs[$mk]['type'] ?? 'STRING'; ?>
-          <tr>
-            <td><?= h(metric_name($mk, $metricDefs)) ?></td>
-            <td class="muted small"><code><?= h($mk) ?></code></td>
-            <td class="metricval"><?= measure_display($mtype, $mv) ?></td>
-          </tr>
-        <?php endforeach; ?>
-        </tbody>
-      </table>
-    <?php endforeach; ?>
-  <?php else: ?>
-    <p class="section-note">No measures returned.</p>
-  <?php endif; ?>
-
-  <h2>Analysis history (<?= h(number_format(count($analyses))) ?>)</h2>
-  <?php if ($analyses): ?>
-    <table>
-      <thead><tr><th>Date</th><th>Version</th><th>Revision</th><th>Events</th></tr></thead>
-      <tbody>
-      <?php foreach ($analyses as $a): ?>
-        <?php
-          $events = [];
-          foreach ($a['events'] ?? [] as $ev) {
-              $events[] = humanize($ev['category'] ?? '') . ': ' . (string) ($ev['name'] ?? '');
+              $flows[] = implode(' → ', $locParts);
           }
-        ?>
-        <tr>
-          <td><?= h(fmt_date($a['date'] ?? null)) ?></td>
-          <td><?= h((string) ($a['projectVersion'] ?? '')) ?></td>
-          <td class="small"><code><?= h((string) ($a['revision'] ?? '—')) ?></code></td>
-          <td class="small"><?= h(implode(' · ', $events)) ?></td>
-        </tr>
-      <?php endforeach; ?>
-      </tbody>
-    </table>
-  <?php else: ?>
-    <p class="section-note">No analysis history available.</p>
-  <?php endif; ?>
-<?php endif; ?>
+          $issueUrl = '//sonarqube.test/project/issues?' . http_build_query([
+              'id' => $key, 'open' => (string) ($it['key'] ?? ''), 'resolved' => 'false',
+          ]);
+          $issueRows[] = [
+              'k'         => (string) ($it['key'] ?? ($rul . '|' . $path . '|' . $line)),
+              'sev'       => $sev,
+              'type'      => (string) ($it['type'] ?? ''),
+              'typeLabel' => TYPE_LABELS[$it['type'] ?? ''] ?? humanize($it['type'] ?? ''),
+              'rule'      => $rul,
+              'file'      => $path,
+              'line'      => (int) $line,
+              'msg'       => (string) ($it['message'] ?? ''),
+              'impacts'   => $impacts,
+              'flows'     => $flows,
+              'status'    => humanize($it['status'] ?? ($it['issueStatus'] ?? '')),
+              'resolution'=> humanize($it['resolution'] ?? ''),
+              'effort'    => (string) ($it['debt'] ?? $it['effort'] ?? ''),
+              'created'   => fmt_date($it['creationDate'] ?? null),
+              'tags'      => array_values($it['tags'] ?? []),
+              'url'       => $issueUrl,
+          ];
+      }
+  }
 
-<footer>
+  // Rule metadata: name, a short plain-text summary, and — when the caller is
+  // authenticated (SONAR_TOKEN) — the full rule description sections. Those
+  // sections are SonarQube's "why this issue was raised" + "how to fix"
+  // (including its noncompliant/compliant code examples): the Web API only
+  // returns them to authenticated callers, never anonymously.
+  $ruleMeta = [];
+  if ($isReport) {
+      foreach ($ruleInfo as $rk => $r) {
+          $desc = (string) ($r['htmlDesc'] ?? $r['mdDesc'] ?? '');
+          $secs = [];
+          foreach ($r['descriptionSections'] ?? [] as $sec) {
+              $k = (string) ($sec['key'] ?? '');
+              $c = (string) ($sec['content'] ?? '');
+              if ($k === '' || $c === '') continue;
+              // Rule docs are SonarSource's own HTML; drop executable bits only.
+              $c = preg_replace('#<\s*(script|iframe|object|embed)\b[^>]*>.*?<\s*/\s*\1\s*>#is', '', $c);
+              $c = preg_replace('#<\s*(script|iframe|object|embed)\b[^>]*/?>#is', '', $c);
+              $secs[$k] = $c;
+          }
+          if ($desc === '') {
+              $plain = trim(preg_replace('/\s+/', ' ', strip_tags($secs['root_cause'] ?? ($secs['introduction'] ?? ''))));
+              $desc  = $plain;
+          }
+          $desc = trim(preg_replace('/\s+/', ' ', strip_tags($desc)));
+          if (strlen($desc) > 700) $desc = substr($desc, 0, 697) . '…';
+          $entry = ['n' => (string) ($r['name'] ?? ''), 'd' => $desc];
+          if ($secs) $entry['s'] = $secs;
+          $ruleMeta[$rk] = $entry;
+      }
+  }
+  // Is there anything to show under "How to fix"? (anonymous -> no sections)
+  $ruleDocs = false;
+  foreach ($ruleMeta as $entry) if (!empty($entry['s'])) { $ruleDocs = true; break; }
+  $jsonFlags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+?>
+<header class="top">
+  <div class="brand">
+    <h1>SonarQube <span>code quality</span></h1>
+    <div class="meta">
+      <?php if ($isReport): ?>
+        <b><?= h($projName) ?></b> · key <code><?= h($key) ?></code>
+        <?php if (!empty($comp['visibility'])): ?> · <?= h(strtolower((string) $comp['visibility'])) ?><?php endif; ?>
+        <?php if ($version !== ''): ?> · v<?= h($version) ?><?php endif; ?>
+        <?php if ($ts): ?> · analysed <?= h(date('Y-m-d H:i', $ts)) ?><?php endif; ?>
+        <?php if ($revision): ?> · rev <?= h(substr((string) $revision, 0, 12)) ?><?php endif; ?>
+      <?php elseif ($key === ''): ?>
+        Printable full project report — quality gate, ratings, every measure, every issue,
+        security hotspots, per-file metrics, duplications and the analysis history.
+      <?php else: ?>
+        Report request for <code><?= h($key) ?></code>.
+      <?php endif; ?>
+    </div>
+  </div>
+  <div class="actions">
+    <?php if ($isReport): ?>
+      <button type="button" id="printBtn">Print report</button>
+      <a class="btn" href="?<?= h(http_build_query(['key' => $key, 'download' => 1])) ?>">Download HTML</a>
+      <a class="btn" href="//sonarqube.test/dashboard?id=<?= h(rawurlencode($key)) ?>" target="_blank" rel="noopener">Open in SonarQube</a>
+    <?php endif; ?>
+    <a class="btn" href="/sonar-report.php">All projects</a>
+    <a class="btn" href="/">Control panel</a>
+    <a class="btn" href="//semgrep.test" target="_blank" rel="noopener">Semgrep report</a>
+  </div>
+</header>
+
+<?php if ($key === ''): ?>
+<main>
+  <?php if ($projects !== null && $projects !== []): ?>
+    <section class="panel">
+      <h2>Projects <span class="hint"><?= h(number_format(count($projects))) ?> found — pick one to build the report</span></h2>
+      <div class="scroll">
+        <table class="mini">
+          <thead><tr><th>Project</th><th>Key</th><th class="n"></th></tr></thead>
+          <tbody>
+          <?php foreach ($projects as $p): ?>
+            <tr>
+              <td><b><?= h((string) ($p['name'] ?? $p['key'])) ?></b></td>
+              <td><code><?= h((string) ($p['key'] ?? '')) ?></code></td>
+              <td class="n"><a class="btn" href="?key=<?= h(rawurlencode((string) ($p['key'] ?? ''))) ?>">Open report</a></td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+      <div class="toolbar">
+        <form method="get" style="display:flex;flex-wrap:wrap;gap:8px;flex:1">
+          <input name="key" placeholder="…or type a project key" aria-label="Project key">
+          <button type="submit">Open report</button>
+        </form>
+      </div>
+    </section>
+  <?php elseif ($projects !== null): ?>
+    <section class="panel">
+      <h2>Projects <span class="hint">none yet</span></h2>
+      <p class="no-rows">No projects on this server yet — run a scan first: <code>lds tools sonar &lt;path&gt;</code>.</p>
+      <div class="toolbar">
+        <form method="get" style="display:flex;flex-wrap:wrap;gap:8px;flex:1">
+          <input name="key" placeholder="project key" aria-label="Project key">
+          <button type="submit">Open report</button>
+        </form>
+      </div>
+    </section>
+  <?php else: ?>
+    <section class="panel">
+      <h2>Projects <span class="hint">listing failed</span></h2>
+      <p class="no-rows">
+        Could not list projects (HTTP <?= h((string) $listStatus) ?>).
+        <?php if ($listStatus === 0): ?>SonarQube looks unreachable — start it with <code>lds up sonarqube</code>.
+        <?php elseif ($listStatus === 401 || $listStatus === 403): ?>Anonymous browsing may be disabled (<code>SONARQUBE_FORCE_AUTH</code>).
+        <?php endif; ?>
+      </p>
+      <div class="toolbar">
+        <form method="get" style="display:flex;flex-wrap:wrap;gap:8px;flex:1">
+          <input name="key" placeholder="project key" aria-label="Project key">
+          <button type="submit">Open report</button>
+        </form>
+      </div>
+    </section>
+  <?php endif; ?>
+</main>
+
+<?php elseif (!$keyOk): ?>
+<main>
+  <section class="panel">
+    <h2>Invalid project key</h2>
+    <p class="no-rows"><span class="badge failed">Invalid</span> <code><?= h($key) ?></code> is not a valid SonarQube key.</p>
+  </section>
+</main>
+
+<?php elseif (!$dataOk): ?>
+<main>
+  <section class="panel">
+    <h2>Project unavailable</h2>
+    <p class="no-rows">
+      <?php $st = $show['status'] ?? 0; ?>
+      <?php if ($st === 0): ?>
+        <span class="badge failed">Unreachable</span> SonarQube is not answering at <code><?= h(SONAR_API) ?></code>.
+        Start it with <code>lds up sonarqube</code>.
+      <?php elseif ($st === 404): ?>
+        <span class="badge none">Not found</span> no project with key <code><?= h($key) ?></code> on this server.
+      <?php elseif ($st === 401 || $st === 403): ?>
+        <span class="badge failed">HTTP <?= h((string) $st) ?></span> anonymous browsing is disabled
+        (check <code>SONARQUBE_FORCE_AUTH</code>), or the project is not public.
+      <?php else: ?>
+        <span class="badge failed">HTTP <?= h((string) $st) ?></span> could not load the project.
+      <?php endif; ?>
+    </p>
+  </section>
+</main>
+
+<?php else: ?>
+<main id="app">
+  <div class="print-head">
+    <p id="printMeta"></p>
+    <p id="printFilters"></p>
+    <p id="printDate"></p>
+  </div>
+
+  <section class="stats">
+    <div class="tile gate-<?= $gateCls ?>">
+      <span class="num"><?= h($gLabel) ?></span><span class="lbl">Quality gate</span>
+    </div>
+    <?php foreach (['BLOCKER' => ['Blocker', 'sev-error'], 'CRITICAL' => ['Critical', 'sev-error'], 'MAJOR' => ['Major', 'sev-warning'], 'MINOR' => ['Minor', 'sev-note'], 'INFO' => ['Info', '']] as $sv => [$lbl, $cls]): ?>
+      <?php if (!empty($sevCounts[$sv])): ?>
+        <div class="tile <?= $cls ?>"><span class="num"><?= h(number_format($sevCounts[$sv])) ?></span><span class="lbl"><?= h($lbl) ?></span></div>
+      <?php endif; ?>
+    <?php endforeach; ?>
+    <div class="tile"><span class="num"><?= h(number_format($issueTotal ?? count($issuesAll))) ?></span><span class="lbl">Issues</span></div>
+    <div class="tile"><span class="num"><?= h(number_format(count($ruleAgg))) ?></span><span class="lbl">Rules hit</span></div>
+    <div class="tile"><span class="num"><?= h(number_format(count($fileAgg))) ?></span><span class="lbl">Files affected</span></div>
+    <?php if (isset($vals['coverage'])): ?>
+      <div class="tile"><span class="num"><?= measure_display('PERCENT', $vals['coverage']) ?></span><span class="lbl">Coverage</span></div>
+    <?php endif; ?>
+    <?php if (isset($vals['duplicated_lines_density'])): ?>
+      <div class="tile"><span class="num"><?= measure_display('PERCENT', $vals['duplicated_lines_density']) ?></span><span class="lbl">Duplicated lines</span></div>
+    <?php endif; ?>
+  </section>
+
+  <div class="panels">
+    <section class="panel">
+      <h2>Quality gate <span class="hint"><?= h($gLabel) ?><?= $caycStatus !== null ? ' · Clean as You Code: ' . h(humanize($caycStatus)) : '' ?></span></h2>
+      <?php if ($gateConds): ?>
+        <div class="scroll">
+          <table class="mini">
+            <thead><tr><th>Condition</th><th class="n">Threshold</th><th class="n">Actual</th><th>Status</th></tr></thead>
+            <tbody>
+            <?php foreach ($gateConds as $c): ?>
+              <?php
+                $cst   = (string) ($c['status'] ?? 'OK');
+                $cmk   = (string) ($c['metricKey'] ?? '');
+                $ctype = $metricDefs[$cmk]['type'] ?? 'STRING';
+              ?>
+              <tr>
+                <td>
+                  <?= h(metric_name($cmk, $metricDefs)) ?>
+                  <div class="sub"><?= ($c['comparator'] ?? '') === 'GT' ? 'greater than' : 'less than' ?> · <code><?= h($cmk) ?></code></div>
+                </td>
+                <td class="n"><?= measure_display($ctype, (string) ($c['errorThreshold'] ?? '')) ?></td>
+                <td class="n"><?= isset($c['actualValue']) ? measure_display($ctype, (string) $c['actualValue']) : '—' ?></td>
+                <td><span class="badge <?= $cst === 'ERROR' ? 'failed' : ($cst === 'WARN' ? 'warn' : 'passed') ?>"><?= h($cst) ?></span></td>
+              </tr>
+            <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+        <?php if (!empty($gate['data']['projectStatus']['ignoredConditions'])): ?>
+          <p class="section-note">Some conditions are ignored for this project.</p>
+        <?php endif; ?>
+      <?php else: ?>
+        <p class="no-rows">No conditions evaluated for this analysis.</p>
+      <?php endif; ?>
+    </section>
+
+    <section class="panel">
+      <h2>Ratings <span class="hint">A best → E worst</span></h2>
+      <div class="rating-row">
+        <?php foreach (RATING_METRICS as $mk): ?>
+          <?php if (!isset($vals[$mk])) continue; ?>
+          <div class="rating">
+            <?= measure_display('RATING', $vals[$mk]) ?>
+            <span class="rl"><?= h(metric_name($mk, $metricDefs)) ?></span>
+          </div>
+        <?php endforeach; ?>
+        <?php if (isset($vals['security_review_rating'])): ?>
+          <div class="rating">
+            <?= measure_display('RATING', $vals['security_review_rating']) ?>
+            <span class="rl">Security review</span>
+          </div>
+        <?php endif; ?>
+      </div>
+      <?php if (!empty($comp['tags'])): ?>
+        <div class="chips" style="padding:0 16px 14px">
+          <?php foreach ($comp['tags'] as $tg): ?><span class="chip"><?= h((string) $tg) ?></span><?php endforeach; ?>
+        </div>
+      <?php endif; ?>
+    </section>
+  </div>
+
+  <div class="panels even">
+    <section class="panel">
+      <h2>Issues by rule <span class="hint">click a row to filter</span></h2>
+      <div class="scroll">
+        <table class="mini" id="ruleTbl">
+          <thead><tr><th>Rule</th><th>Severity</th><th class="n">Issues</th><th class="n">Files</th></tr></thead>
+          <tbody>
+          <?php if (!$ruleAgg): ?>
+            <tr><td colspan="4" class="no-rows">No issues.</td></tr>
+          <?php endif; ?>
+          <?php foreach (array_slice($ruleAgg, 0, 12, true) as $rk => $ra): ?>
+            <?php $rn = $ruleInfo[$rk]['name'] ?? ''; ?>
+            <tr data-rule="<?= h((string) $rk) ?>" tabindex="0">
+              <td><code><?= h((string) $rk) ?></code><?php if ($rn !== ''): ?><div class="sub"><?= h($rn) ?></div><?php endif; ?></td>
+              <td><?php if ($ra['sev'] !== ''): ?><span class="badge <?= sev_class($ra['sev']) ?>"><?= h(humanize($ra['sev'])) ?></span><?php endif; ?></td>
+              <td class="n"><?= h(number_format($ra['count'])) ?></td>
+              <td class="n"><?= h(number_format(count($ra['files']))) ?></td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+      <?php if (count($ruleAgg) > 12): ?>
+        <p class="section-note">Top 12 of <?= h(number_format(count($ruleAgg))) ?> rules — pick any rule from the issues toolbar.</p>
+      <?php endif; ?>
+    </section>
+
+    <section class="panel">
+      <h2>Issues by file <span class="hint">click a row to filter</span></h2>
+      <div class="scroll">
+        <table class="mini" id="fileTbl">
+          <thead><tr><th>File</th><th class="n">Bugs</th><th class="n">Vulns</th><th class="n">Smells</th><th class="n">Total</th></tr></thead>
+          <tbody>
+          <?php if (!$fileAgg): ?>
+            <tr><td colspan="5" class="no-rows">No issues.</td></tr>
+          <?php endif; ?>
+          <?php foreach (array_slice($fileAgg, 0, 12, true) as $fp => $fa): ?>
+            <tr data-file="<?= h((string) $fp) ?>" tabindex="0">
+              <td class="path"><code><?= h((string) $fp) ?></code></td>
+              <td class="n err"><?= !empty($fa['BUG']) ? h(number_format($fa['BUG'])) : '' ?></td>
+              <td class="n err"><?= !empty($fa['VULNERABILITY']) ? h(number_format($fa['VULNERABILITY'])) : '' ?></td>
+              <td class="n warn"><?= !empty($fa['CODE_SMELL']) ? h(number_format($fa['CODE_SMELL'])) : '' ?></td>
+              <td class="n"><?= h(number_format($fa['total'] ?? 0)) ?></td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+      <?php if (count($fileAgg) > 12): ?>
+        <p class="section-note">Top 12 of <?= h(number_format(count($fileAgg))) ?> files — the full list is in the files panel below.</p>
+      <?php endif; ?>
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>Categories <span class="hint">click a tag or rule to filter</span></h2>
+    <div id="tags" class="tags">
+    <?php if ($facets): ?>
+      <?php foreach ($facets as $f): ?>
+        <?php
+          $prop   = (string) ($f['property'] ?? '');
+          $values = array_values(array_filter($f['values'] ?? [], fn($fv) => (int) ($fv['count'] ?? 0) > 0));
+          if (!$values) continue;
+          usort($values, fn($a, $b) => (int) ($b['count'] ?? 0) <=> (int) ($a['count'] ?? 0));
+          $shownVals = array_slice($values, 0, 14);
+          $moreVals  = count($values) - count($shownVals);
+        ?>
+        <div class="tag-group">
+          <h3>By <?= h(FACET_LABELS[$prop] ?? humanize($prop)) ?></h3>
+          <?php foreach ($shownVals as $fv): ?>
+            <?php
+              $val = (string) ($fv['val'] ?? '');
+              $cnt = (int) ($fv['count'] ?? 0);
+              if ($prop === 'types') $disp = TYPE_LABELS[$val] ?? humanize($val);
+              elseif ($prop === 'rules') $disp = $ruleInfo[$val]['name'] ?? $val;
+              elseif ($prop === 'languages') $disp = LANGUAGE_LABELS[$val] ?? $val;
+              else $disp = humanize($val);
+            ?>
+            <?php if ($prop === 'tags'): ?>
+              <button type="button" class="tag" data-tag="<?= h($val) ?>" title="Filter by tag: <?= h($val) ?>"><?= h($disp) ?> <span class="n"><?= h(number_format($cnt)) ?></span></button>
+            <?php elseif ($prop === 'rules'): ?>
+              <button type="button" class="tag" data-rule-filter="<?= h($val) ?>" title="Filter by rule: <?= h($val) ?>"><?= h($disp) ?> <span class="n"><?= h(number_format($cnt)) ?></span></button>
+            <?php else: ?>
+              <span class="chip" title="<?= h($val) ?>"><?= h($disp) ?> <b><?= h(number_format($cnt)) ?></b></span>
+            <?php endif; ?>
+          <?php endforeach; ?>
+          <?php if ($moreVals > 0): ?><span class="chip">+<?= h(number_format($moreVals)) ?> more</span><?php endif; ?>
+        </div>
+      <?php endforeach; ?>
+    <?php else: ?>
+      <p class="no-rows">No issue facets returned.</p>
+    <?php endif; ?>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Issues <span class="hint">click a row for the why + how to fix · <span id="shown"></span></span></h2>
+    <div class="toolbar">
+      <div id="sevFilters" class="sev-filters"></div>
+      <select id="ruleSel" aria-label="Filter by rule">
+        <option value="">All rules</option>
+        <?php foreach ($ruleAgg as $rk => $ra): ?>
+          <option value="<?= h((string) $rk) ?>"><?= h((string) $rk) ?> (<?= h(number_format($ra['count'])) ?>)</option>
+        <?php endforeach; ?>
+      </select>
+      <select id="typeSel" aria-label="Filter by type">
+        <option value="">All types</option>
+        <?php foreach (['BUG', 'VULNERABILITY', 'CODE_SMELL'] as $ty): ?>
+          <?php if (empty($typeCounts[$ty])) continue; ?>
+          <option value="<?= h($ty) ?>"><?= h(TYPE_LABELS[$ty] ?? humanize($ty)) ?> (<?= h(number_format($typeCounts[$ty])) ?>)</option>
+        <?php endforeach; ?>
+      </select>
+      <select id="sortSel" aria-label="Sort issues">
+        <option value="severity">Sort: severity</option>
+        <option value="file">Sort: file</option>
+        <option value="rule">Sort: rule</option>
+      </select>
+      <input id="q" type="search" placeholder="Search rule, file, message, tag… (press /)" aria-label="Search issues">
+      <button id="reset" type="button">Clear filters</button>
+    </div>
+    <div id="filterNote" class="filter-note" hidden></div>
+    <div class="scroll" style="max-height:none">
+      <table id="tbl">
+        <thead><tr><th class="caret-col"></th><th>Severity</th><th>Rule</th><th>Location</th><th>Message</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="pager" class="pager"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Security hotspots <span class="hint"><?= h(number_format(count($hotspots))) ?> total · <?= h(number_format($hotspotReview)) ?> to review</span></h2>
+    <?php if ($hotspots): ?>
+      <div class="scroll">
+        <table class="mini">
+          <thead><tr><th>Probability</th><th>Status</th><th>Category</th><th>Rule</th><th>Message</th><th>Location</th><th class="n">Comments</th><th>Created</th></tr></thead>
+          <tbody>
+          <?php foreach ($hotspots as $hs): ?>
+            <?php
+              $rk   = (string) ($hs['ruleKey'] ?? $hs['rule'] ?? '');
+              $rn   = $ruleInfo[$rk]['name'] ?? '';
+              $line = $hs['line'] ?? ($hs['textRange']['startLine'] ?? null);
+              $path = comp_path($key, (string) ($hs['component'] ?? ''));
+              $prob = strtoupper((string) ($hs['vulnerabilityProbability'] ?? ''));
+              $pcls = $prob === 'HIGH' ? 'error' : ($prob === 'MEDIUM' ? 'warning' : ($prob === 'LOW' ? 'note' : 'none'));
+            ?>
+            <tr>
+              <td><span class="badge <?= $pcls ?>"><?= h(humanize($prob)) ?></span></td>
+              <td class="small"><?= h(humanize($hs['status'] ?? '')) ?></td>
+              <td class="small"><?= h(humanize($hs['securityCategory'] ?? '')) ?></td>
+              <td><?= $rn !== '' ? h($rn) : h($rk) ?><div class="sub"><code><?= h($rk) ?></code></div></td>
+              <td class="msg"><?= h((string) ($hs['message'] ?? '')) ?></td>
+              <td class="path"><code><?= h($path ?: '—') ?></code><?php if ($line): ?><div class="sub">line <?= h((string) $line) ?></div><?php endif; ?></td>
+              <td class="n"><?= h((string) count($hs['comments'] ?? [])) ?></td>
+              <td class="small muted"><?= h(fmt_date($hs['creationDate'] ?? null)) ?></td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php else: ?>
+      <p class="no-rows">No security hotspots in this project.</p>
+    <?php endif; ?>
+  </section>
+
+  <section class="panel">
+    <h2>Files <span class="hint"><?= h(number_format(count($files))) ?> indexed · click a row to filter the issues</span></h2>
+    <?php if ($langs): ?>
+      <div class="chips" style="padding:12px 16px 0">
+        <?php foreach ($langs as $l => $count): ?>
+          <span class="chip"><?= h(LANGUAGE_LABELS[$l] ?? ucfirst((string) $l)) ?> <b><?= h(number_format($count)) ?></b></span>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+    <?php if ($files): ?>
+      <?php $sum = ['ncloc' => 0, 'complexity' => 0, 'cognitive_complexity' => 0, 'bugs' => 0, 'vulnerabilities' => 0, 'code_smells' => 0, 'issues' => 0, 'debt' => 0]; ?>
+      <div class="scroll" style="max-height:520px">
+        <table id="filesTbl">
+          <thead><tr>
+            <th>File</th><th>Lang</th><th class="n">NCLOC</th><th class="n">Complexity</th><th class="n">Cognitive</th>
+            <th class="n">Bugs</th><th class="n">Vulns</th><th class="n">Smells</th><th class="n">Issues</th><th class="n">Debt</th>
+            <th class="n">Coverage</th><th class="n">Dup</th>
+          </tr></thead>
+          <tbody>
+          <?php foreach ($files as $f): ?>
+            <?php
+              $mm  = $fileMeasures[$f['key']] ?? [];
+              $cnt = $issueComponents[$f['key']] ?? 0;
+              $dbt = $fileDebt[$f['key']] ?? 0;
+              $sum['ncloc']                += (int) ($mm['ncloc'] ?? 0);
+              $sum['complexity']           += (int) ($mm['complexity'] ?? 0);
+              $sum['cognitive_complexity'] += (int) ($mm['cognitive_complexity'] ?? 0);
+              $sum['bugs']                 += (int) ($mm['bugs'] ?? 0);
+              $sum['vulnerabilities']      += (int) ($mm['vulnerabilities'] ?? 0);
+              $sum['code_smells']          += (int) ($mm['code_smells'] ?? 0);
+              $sum['issues']               += $cnt;
+              $sum['debt']                 += $dbt;
+            ?>
+            <tr class="file-row" data-file="<?= h((string) $f['path']) ?>" tabindex="0">
+              <td class="path"><code><?= h($f['path']) ?></code></td>
+              <td class="small"><?= h($f['language'] !== '' ? (LANGUAGE_LABELS[$f['language']] ?? $f['language']) : '—') ?></td>
+              <td class="n"><?= isset($mm['ncloc']) ? h(fmt_int($mm['ncloc'])) : '—' ?></td>
+              <td class="n"><?= isset($mm['complexity']) ? h(fmt_int($mm['complexity'])) : '—' ?></td>
+              <td class="n"><?= isset($mm['cognitive_complexity']) ? h(fmt_int($mm['cognitive_complexity'])) : '—' ?></td>
+              <td class="n err"><?= isset($mm['bugs']) ? h(fmt_int($mm['bugs'])) : '—' ?></td>
+              <td class="n err"><?= isset($mm['vulnerabilities']) ? h(fmt_int($mm['vulnerabilities'])) : '—' ?></td>
+              <td class="n warn"><?= isset($mm['code_smells']) ? h(fmt_int($mm['code_smells'])) : '—' ?></td>
+              <td class="n"><?= $cnt ? h(fmt_int((string) $cnt)) : '—' ?></td>
+              <td class="n"><?= $dbt ? h(fmt_min((string) $dbt)) : '—' ?></td>
+              <td class="n"><?= isset($mm['coverage']) ? h(fmt_pct($mm['coverage'])) : '—' ?></td>
+              <td class="n"><?= isset($mm['duplicated_lines_density']) ? h(fmt_pct($mm['duplicated_lines_density'])) : '—' ?></td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th>Total (<?= h(number_format(count($files))) ?> files)</th>
+              <th></th>
+              <th class="n"><?= h(fmt_int((string) $sum['ncloc'])) ?></th>
+              <th class="n"><?= h(fmt_int((string) $sum['complexity'])) ?></th>
+              <th class="n"><?= h(fmt_int((string) $sum['cognitive_complexity'])) ?></th>
+              <th class="n"><?= h(fmt_int((string) $sum['bugs'])) ?></th>
+              <th class="n"><?= h(fmt_int((string) $sum['vulnerabilities'])) ?></th>
+              <th class="n"><?= h(fmt_int((string) $sum['code_smells'])) ?></th>
+              <th class="n"><?= h(fmt_int((string) $sum['issues'])) ?></th>
+              <th class="n"><?= h(fmt_min((string) $sum['debt'])) ?></th>
+              <th class="n"></th><th class="n"></th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    <?php else: ?>
+      <p class="no-rows">No files indexed.</p>
+    <?php endif; ?>
+  </section>
+
+  <section class="panel">
+    <h2>Duplications <span class="hint"><?= h(number_format(count($dupGroups))) ?> groups</span></h2>
+    <?php if ($dupGroups): ?>
+      <div class="scroll">
+        <table class="mini">
+          <thead><tr><th>#</th><th class="n">Lines</th><th>Duplicated blocks</th></tr></thead>
+          <tbody>
+          <?php $dn = 0; foreach ($dupGroups as $blocks): $dn++; ?>
+            <tr>
+              <td class="muted"><?= $dn ?></td>
+              <td class="n"><?= h(fmt_int((string) ($blocks[0]['size'] ?? 0))) ?></td>
+              <td class="path">
+                <?php
+                  $parts = [];
+                  foreach ($blocks as $b) {
+                      $end = $b['from'] + max(0, $b['size'] - 1);
+                      $parts[] = h($b['path']) . ' <span class="muted small">:' . h((string) $b['from']) . '–' . h((string) $end) . '</span>';
+                  }
+                  echo implode('<br>↔ ', $parts);
+                ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php else: ?>
+      <p class="no-rows">No duplicated blocks in this project.</p>
+    <?php endif; ?>
+  </section>
+
+  <section class="panel">
+    <h2>All measures <span class="hint"><?= h(number_format(count($vals))) ?> metrics · grouped by domain</span></h2>
+    <?php if ($byDomain): ?>
+      <div class="grid">
+        <?php foreach ($byDomain as $domain => $items): ?>
+          <div class="mini-panel">
+            <h3><?= h($domain !== '' ? $domain : 'Other') ?></h3>
+            <table class="mini">
+              <thead><tr><th>Metric</th><th class="n">Value</th></tr></thead>
+              <tbody>
+              <?php foreach ($items as $mk => $mv): ?>
+                <?php $mtype = $metricDefs[$mk]['type'] ?? 'STRING'; ?>
+                <tr>
+                  <td><?= h(metric_name($mk, $metricDefs)) ?><div class="sub"><code><?= h($mk) ?></code></div></td>
+                  <td class="n"><?= measure_display($mtype, $mv) ?></td>
+                </tr>
+              <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    <?php else: ?>
+      <p class="no-rows">No measures returned.</p>
+    <?php endif; ?>
+  </section>
+
+  <section class="panel">
+    <h2>Analysis history <span class="hint"><?= h(number_format(count($analyses))) ?> analyses</span></h2>
+    <?php if ($analyses): ?>
+      <div class="scroll">
+        <table class="mini">
+          <thead><tr><th>Date</th><th>Version</th><th>Revision</th><th>Events</th></tr></thead>
+          <tbody>
+          <?php foreach ($analyses as $a): ?>
+            <?php
+              $events = [];
+              foreach ($a['events'] ?? [] as $ev) {
+                  $events[] = humanize($ev['category'] ?? '') . ': ' . (string) ($ev['name'] ?? '');
+              }
+            ?>
+            <tr>
+              <td><?= h(fmt_date($a['date'] ?? null)) ?></td>
+              <td><?= h((string) ($a['projectVersion'] ?? '')) ?></td>
+              <td class="small"><code><?= h((string) ($a['revision'] ?? '—')) ?></code></td>
+              <td class="small"><?= h(implode(' · ', $events)) ?></td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php else: ?>
+      <p class="no-rows">No analysis history available.</p>
+    <?php endif; ?>
+  </section>
+</main>
+
+<script id="issueData" type="application/json"><?= json_encode($issueRows, $jsonFlags) ?></script>
+<script id="ruleData" type="application/json"><?= json_encode((object) $ruleMeta, $jsonFlags) ?></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const DATA = JSON.parse($('#issueData').textContent || '[]');
+  const RULES = JSON.parse($('#ruleData').textContent || '{}');
+  const LEVELS = ['BLOCKER', 'CRITICAL', 'MAJOR', 'MINOR', 'INFO'];
+  const LEVEL_LABEL = { BLOCKER: 'Blocker', CRITICAL: 'Critical', MAJOR: 'Major', MINOR: 'Minor', INFO: 'Info' };
+  const LEVEL_ORDER = { BLOCKER: 0, CRITICAL: 1, MAJOR: 2, MINOR: 3, INFO: 4 };
+  const TYPE_LABEL = { BUG: 'Bug', VULNERABILITY: 'Vulnerability', CODE_SMELL: 'Code smell' };
+  const PAGE_SIZE = 200;
+
+  const state = {
+    levelsOff: new Set(),
+    rule: '', file: '', tag: '', type: '', q: '',
+    sort: 'severity', page: 1, printMode: false,
+    expanded: new Set(),
+  };
+
+  const counts = { BLOCKER: 0, CRITICAL: 0, MAJOR: 0, MINOR: 0, INFO: 0 };
+  for (const f of DATA) counts[f.sev] = (counts[f.sev] || 0) + 1;
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const num = (n) => Number(n || 0).toLocaleString('en-US');
+  const sevClass = (l) => ['BLOCKER', 'CRITICAL'].includes(l) ? 'error' : (l === 'MAJOR' ? 'warning' : (l === 'MINOR' ? 'note' : 'none'));
+  const badge = (lvl) => `<span class="badge ${sevClass(lvl)}">${esc(LEVEL_LABEL[lvl] || lvl)}</span>`;
+
+  function filtered() {
+    const q = state.q.trim().toLowerCase();
+    const list = DATA.filter((f) => {
+      if (state.levelsOff.has(f.sev)) return false;
+      if (state.rule && f.rule !== state.rule) return false;
+      if (state.type && f.type !== state.type) return false;
+      if (state.file && f.file !== state.file) return false;
+      if (state.tag && !(f.tags || []).includes(state.tag)) return false;
+      if (q) {
+        const hay = (f.rule + ' ' + ((RULES[f.rule] || {}).n || '') + ' ' + f.file + ' ' + f.msg + ' ' + (f.tags || []).join(' ')).toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+    const cmp = (a, b) => String(a).localeCompare(String(b));
+    list.sort((a, b) => {
+      if (state.sort === 'file') return cmp(a.file, b.file) || a.line - b.line || LEVEL_ORDER[a.sev] - LEVEL_ORDER[b.sev];
+      if (state.sort === 'rule') return cmp(a.rule, b.rule) || cmp(a.file, b.file) || a.line - b.line;
+      return (LEVEL_ORDER[a.sev] - LEVEL_ORDER[b.sev]) || cmp(a.file, b.file) || a.line - b.line;
+    });
+    return list;
+  }
+
+  function renderSevFilters() {
+    const noneOff = state.levelsOff.size === 0;
+    $('#sevFilters').innerHTML =
+      `<button type="button" class="pill all${noneOff ? ' active' : ''}" data-level="" title="Show all severities">All <span class="n">${num(DATA.length)}</span></button>` +
+      LEVELS.filter((l) => counts[l]).map((l) =>
+        `<button type="button" class="pill ${sevClass(l)}${state.levelsOff.has(l) ? ' off' : ''}" data-level="${l}" title="Toggle ${LEVEL_LABEL[l]}">${LEVEL_LABEL[l]} <span class="n">${num(counts[l])}</span></button>`
+      ).join('');
+  }
+
+  function detailRow(f) {
+    const info = RULES[f.rule] || {};
+    const loc = f.file + (f.line ? ':' + f.line : '');
+    // Rule description sections (authenticated Web API only): the "why" is
+    // introduction + root_cause, the "how to fix" is its own section and
+    // carries SonarQube's noncompliant/compliant code examples as HTML.
+    const secs = info.s || {};
+    const why = [secs.introduction, secs.root_cause].filter(Boolean).join('\n');
+    const fix = secs.how_to_fix || '';
+    const res = secs.resources || '';
+    const noDocs = `Rule descriptions come back only for authenticated callers — set <code>SONAR_TOKEN</code> in <code>.env</code>, recreate the <code>php</code> container, and the "why" + "how to fix" (with code examples) will show here.`;
+    const whyHtml = why ? why
+      : (info.d ? `<p class="desc">${esc(info.d)}</p>` : `<p class="desc">${noDocs}</p>`);
+    const fixHtml = fix ? fix
+      : (info.s ? `<p class="desc">SonarQube publishes no step-by-step fix for this rule — apply the description above.</p>` : `<p class="desc">${noDocs}</p>`);
+    const resHtml = res ? `<h3>Resources</h3>${res}` : '';
+    const tags = (f.tags || []).length
+      ? `<div class="chips">${f.tags.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}</div>` : '';
+    const impacts = (f.impacts || []).length
+      ? `<p class="desc">Impacts: ${esc(f.impacts.join(' · '))}</p>` : '';
+    const flows = (f.flows || []).length
+      ? `<h3>Flows</h3>${f.flows.map((x) => `<p class="desc"><code>${esc(x)}</code></p>`).join('')}` : '';
+    const meta = [`<dt>Type</dt><dd>${esc(f.typeLabel || f.type || '—')}</dd>`];
+    if (f.status) meta.push(`<dt>Status</dt><dd>${esc(f.status)}${f.resolution ? ' · ' + esc(f.resolution) : ''}</dd>`);
+    if (f.effort) meta.push(`<dt>Effort</dt><dd>${esc(f.effort)}</dd>`);
+    if (f.created) meta.push(`<dt>Created</dt><dd>${esc(f.created)}</dd>`);
+    const docs = f.rule
+      ? `<p><a href="//sonarqube.test/coding_rules?open=${encodeURIComponent(f.rule)}&rule_key=${encodeURIComponent(f.rule)}" target="_blank" rel="noopener">Rule documentation ↗</a></p>` : '';
+    return `<tr class="detail"><td colspan="5"><div class="detail-grid">
+      <div>
+        <h3>Issue</h3>
+        <p class="message">${esc(f.msg || '(no message)')}</p>
+        ${impacts}
+        <h3>Why this is an issue</h3>
+        <div class="doc">${whyHtml}</div>
+        <h3>How to fix</h3>
+        <div class="doc">${fixHtml}</div>
+        <div class="doc">${resHtml}</div>
+        <h3>Rule</h3>
+        <p><code>${esc(f.rule)}</code></p>
+        ${info.n ? `<p class="desc">${esc(info.n)}</p>` : ''}
+        ${docs}
+        ${flows}
+        ${tags}
+      </div>
+      <div>
+        <h3>Location</h3>
+        <p><code>${esc(loc)}</code></p>
+        ${f.url ? `<p><a href="${esc(f.url)}" target="_blank" rel="noopener">Open issue in SonarQube ↗</a></p>` : ''}
+        <h3>Metadata</h3>
+        <dl class="meta-list">${meta.join('')}</dl>
+      </div>
+    </div></td></tr>`;
+  }
+
+  function renderFindings() {
+    const list = filtered();
+    const total = DATA.length;
+    const pages = state.printMode ? 1 : Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+    if (state.page > pages) state.page = pages;
+    const start = state.printMode ? 0 : (state.page - 1) * PAGE_SIZE;
+    const end = state.printMode ? list.length : Math.min(list.length, start + PAGE_SIZE);
+    const slice = list.slice(start, end);
+    const tb = $('#tbl tbody');
+
+    if (!total) {
+      tb.innerHTML = '<tr><td colspan="5" class="no-rows">No issues — clean project.</td></tr>';
+    } else if (!slice.length) {
+      tb.innerHTML = '<tr><td colspan="5" class="no-rows">No issues match the current filters.</td></tr>';
+    } else {
+      tb.innerHTML = slice.map((f) => {
+        const open = state.expanded.has(f.k);
+        const locText = f.file + (f.line ? ':' + f.line : '');
+        return `<tr class="finding${open ? ' open' : ''}" data-key="${esc(f.k)}" tabindex="0" aria-expanded="${open ? 'true' : 'false'}">
+          <td class="caret">${open ? '▾' : '▸'}</td>
+          <td class="sev">${badge(f.sev)}</td>
+          <td class="rule"><code>${esc(f.rule)}</code>${(RULES[f.rule] || {}).n ? `<div class="sub">${esc(RULES[f.rule].n)}</div>` : ''}</td>
+          <td class="loc" title="${esc(locText)}"><code>${esc(f.file)}</code>${f.line ? ':' + f.line : ''}</td>
+          <td class="msg">${esc(f.msg)}</td>
+        </tr>` + (open ? detailRow(f) : '');
+      }).join('');
+    }
+
+    const shown = $('#shown');
+    if (!list.length) shown.textContent = total ? 'no matches' : 'none';
+    else if (state.printMode) shown.textContent = num(list.length) + ' issues';
+    else shown.textContent = `${num(start + 1)}–${num(end)} of ${num(list.length)}` + (list.length !== total ? ' (filtered from ' + num(total) + ')' : '');
+
+    renderPager(list.length, pages);
+  }
+
+  function renderPager(total, pages) {
+    const p = $('#pager');
+    if (state.printMode || pages <= 1) {
+      p.innerHTML = total ? `<span>${num(total)} issue${total === 1 ? '' : 's'}</span>` : '';
+      return;
+    }
+    p.innerHTML = `<button type="button" data-page="${state.page - 1}"${state.page <= 1 ? ' disabled' : ''}>← Prev</button>
+      <span>Page ${num(state.page)} of ${num(pages)}</span>
+      <button type="button" data-page="${state.page + 1}"${state.page >= pages ? ' disabled' : ''}>Next →</button>`;
+  }
+
+  function chip(kind, label, value) {
+    return `<button type="button" class="fchip" data-clear="${kind}">${esc(label)}: <code>${esc(value)}</code> ×</button>`;
+  }
+
+  function renderFilterNote() {
+    const chips = [];
+    if (state.rule) chips.push(chip('rule', 'rule', state.rule));
+    if (state.file) chips.push(chip('file', 'file', state.file));
+    if (state.tag) chips.push(chip('tag', 'tag', state.tag));
+    if (state.type) chips.push(chip('type', 'type', TYPE_LABEL[state.type] || state.type));
+    if (state.q.trim()) chips.push(chip('q', 'search', '"' + state.q.trim() + '"'));
+    const hidden = LEVELS.filter((l) => state.levelsOff.has(l));
+    if (hidden.length) chips.push(chip('levels', 'hidden', hidden.map((l) => LEVEL_LABEL[l] || l).join(', ')));
+    const el = $('#filterNote');
+    el.innerHTML = chips.join('');
+    el.hidden = chips.length === 0;
+  }
+
+  function applyFilters() {
+    renderSevFilters();
+    renderFilterNote();
+    renderFindings();
+
+    const ruleSel = $('#ruleSel');
+    if (ruleSel && ruleSel.value !== state.rule) ruleSel.value = state.rule;
+    const typeSel = $('#typeSel');
+    if (typeSel && typeSel.value !== state.type) typeSel.value = state.type;
+
+    $$('#ruleTbl tr[data-rule]').forEach((tr) => tr.classList.toggle('active', tr.getAttribute('data-rule') === state.rule));
+    $$('#fileTbl tr[data-file], #filesTbl tr[data-file]').forEach((tr) => tr.classList.toggle('active', tr.getAttribute('data-file') === state.file));
+    $$('#tags [data-tag]').forEach((b) => b.classList.toggle('active', b.getAttribute('data-tag') === state.tag));
+    $$('#tags [data-rule-filter]').forEach((b) => b.classList.toggle('active', b.getAttribute('data-rule-filter') === state.rule));
+
+    const pf = $('#printFilters');
+    if (pf) {
+      const desc = [];
+      if (state.rule) desc.push('rule ' + state.rule);
+      if (state.file) desc.push('file ' + state.file);
+      if (state.tag) desc.push('tag ' + state.tag);
+      if (state.type) desc.push('type ' + (TYPE_LABEL[state.type] || state.type));
+      if (state.q.trim()) desc.push('search "' + state.q.trim() + '"');
+      if (state.levelsOff.size) desc.push('hidden severities: ' + Array.from(state.levelsOff).map((l) => LEVEL_LABEL[l] || l).join(', '));
+      pf.textContent = 'Filters: ' + (desc.length ? desc.join(' · ') : 'none (full report)');
+    }
+  }
+
+  function toggleKey(key) {
+    if (state.expanded.has(key)) state.expanded.delete(key);
+    else state.expanded.add(key);
+    renderFindings();
+  }
+
+  function bindTable(sel, attr, apply) {
+    const table = $(sel);
+    if (!table) return;
+    const pick = (e) => e.target.closest('tr[' + attr + ']');
+    table.addEventListener('click', (e) => { const tr = pick(e); if (tr) apply(tr.getAttribute(attr)); });
+    table.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const tr = pick(e);
+      if (!tr) return;
+      e.preventDefault();
+      apply(tr.getAttribute(attr));
+    });
+  }
+
+  bindTable('#ruleTbl', 'data-rule', (id) => { state.rule = state.rule === id ? '' : id; state.page = 1; applyFilters(); });
+  bindTable('#fileTbl', 'data-file', (file) => { state.file = state.file === file ? '' : file; state.page = 1; applyFilters(); });
+  bindTable('#filesTbl', 'data-file', (file) => { state.file = state.file === file ? '' : file; state.page = 1; applyFilters(); });
+
+  $('#tags').addEventListener('click', (e) => {
+    const tag = e.target.closest('[data-tag]');
+    if (tag) { const v = tag.getAttribute('data-tag'); state.tag = state.tag === v ? '' : v; state.page = 1; applyFilters(); return; }
+    const rule = e.target.closest('[data-rule-filter]');
+    if (rule) { const v = rule.getAttribute('data-rule-filter'); state.rule = state.rule === v ? '' : v; state.page = 1; applyFilters(); }
+  });
+
+  $('#sevFilters').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-level]');
+    if (!b) return;
+    const lvl = b.getAttribute('data-level');
+    if (!lvl) state.levelsOff.clear();
+    else if (state.levelsOff.has(lvl)) state.levelsOff.delete(lvl);
+    else state.levelsOff.add(lvl);
+    state.page = 1;
+    applyFilters();
+  });
+
+  $('#filterNote').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-clear]');
+    if (!b) return;
+    const k = b.getAttribute('data-clear');
+    if (k === 'rule') state.rule = '';
+    else if (k === 'file') state.file = '';
+    else if (k === 'tag') state.tag = '';
+    else if (k === 'type') state.type = '';
+    else if (k === 'q') { state.q = ''; $('#q').value = ''; }
+    else if (k === 'levels') state.levelsOff.clear();
+    state.page = 1;
+    applyFilters();
+  });
+
+  $('#tbl tbody').addEventListener('click', (e) => {
+    if (e.target.closest('a')) return;
+    const tr = e.target.closest('tr.finding');
+    if (!tr) return;
+    toggleKey(tr.getAttribute('data-key'));
+  });
+
+  $('#tbl tbody').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const tr = e.target.closest('tr.finding');
+    if (!tr) return;
+    e.preventDefault();
+    toggleKey(tr.getAttribute('data-key'));
+  });
+
+  $('#pager').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-page]');
+    if (!b || b.disabled) return;
+    const p = Number(b.getAttribute('data-page'));
+    if (!Number.isFinite(p)) return;
+    state.page = Math.max(1, p);
+    renderFindings();
+  });
+
+  $('#ruleSel').addEventListener('change', (e) => { state.rule = e.target.value; state.page = 1; applyFilters(); });
+  $('#typeSel').addEventListener('change', (e) => { state.type = e.target.value; state.page = 1; applyFilters(); });
+  $('#sortSel').addEventListener('change', (e) => { state.sort = e.target.value; state.page = 1; renderFindings(); });
+
+  let qTimer;
+  $('#q').addEventListener('input', (e) => {
+    clearTimeout(qTimer);
+    const v = e.target.value;
+    qTimer = setTimeout(() => { state.q = v; state.page = 1; applyFilters(); }, 150);
+  });
+
+  $('#reset').addEventListener('click', () => {
+    state.levelsOff.clear();
+    state.rule = ''; state.file = ''; state.tag = ''; state.type = ''; state.q = '';
+    state.page = 1;
+    $('#ruleSel').value = ''; $('#typeSel').value = ''; $('#q').value = ''; $('#sortSel').value = 'severity';
+    state.sort = 'severity';
+    applyFilters();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+    const tag = document.activeElement && document.activeElement.tagName;
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    e.preventDefault();
+    $('#q').focus();
+  });
+
+  $('#printBtn').addEventListener('click', () => {
+    $('#printMeta').textContent = document.querySelector('.meta').textContent.replace(/\s+/g, ' ').trim();
+    $('#printDate').textContent = 'Printed: ' + new Date().toLocaleString();
+    state.printMode = true;
+    renderFindings();
+    try { window.print(); } finally {
+      state.printMode = false;
+      renderFindings();
+    }
+  });
+
+  applyFilters();
+})();
+</script>
+
+<footer class="foot">
   generated <?= h(date('Y-m-d H:i')) ?> · data from the SonarQube Web API (anonymous read-only)
 </footer>
+<?php endif; ?>
 </body>
 </html>

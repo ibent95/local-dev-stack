@@ -131,7 +131,7 @@ local-dev-stack — usage: ./lds.sh <command> [args]
                                 replay such a folder into the running stack
                                 (overwrites data; folder defaults to newest)
   certs [--force]               mint the wildcard *.test dev TLS cert (for LDS_ENABLE_HTTPS)
-  hosts-sync                    write www/ projects into the hosts file (fallback)
+  hosts-sync                    write *.test names into the OS hosts file (root/admin)
   env-sync [--dry-run]          sync .env to .env.example (keeps your values; adds missing vars)
   build-php [--push]            (re)build just the PHP service image
   help                          show this message

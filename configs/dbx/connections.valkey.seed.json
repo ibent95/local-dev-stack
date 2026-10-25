@@ -1,0 +1,14 @@
+{
+  "configs": [
+    {
+      "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "name": "Valkey (LDS)",
+      "db_type": "redis",
+      "host": "valkey",
+      "port": 6379,
+      "username": "",
+      "password": "",
+      "database": "0"
+    }
+  ]
+}
