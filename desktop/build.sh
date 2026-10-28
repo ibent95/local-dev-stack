@@ -197,7 +197,14 @@ container_build() {
         npm install --no-audit --no-fund 2>&1 | tail -3
         npm run build 2>&1 | tail -5
         echo '---'
+        php -l app/Services/LdsCli.php
+        php -l app/Providers/NativeAppServiceProvider.php
+        php -l app/Providers/AppServiceProvider.php
+        php -l routes/web.php
+        echo '---'
         php artisan list >/dev/null 2>&1 && echo 'artisan list OK' || echo 'artisan list FAILED'
+        php artisan route:list --except-vendor >/dev/null 2>&1 && echo 'route:list OK' || echo 'route:list FAILED'
+        php artisan view:cache >/dev/null 2>&1 && echo 'blade OK' || echo 'blade FAILED'
       "
     echo "==> [nativephp] done (compile-check only — installers are built on the host / CI)"
   fi

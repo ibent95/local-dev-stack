@@ -1,23 +1,83 @@
 # LDS Desktop — NativePHP variant (learning only)
 
 The **PHP + NativePHP** implementation of the LDS desktop companion — the
-learning sibling of the [Tauri](../tauri/README.md) and
-[JavaFX](../javafx/README.md) variants. Same "thin shell over the `lds` CLI"
-design, expressed in the stack's own language (PHP/Laravel) instead of Rust or
-Java.
+learning sibling of the [Tauri](../tauri/README.md),
+[JavaFX](../javafx/README.md) and [Dioxus](../dioxus/README.md) variants. Same
+"thin shell over the `lds` CLI" design, expressed in the stack's own language
+(PHP/Laravel) instead of Rust or Java.
 
-> **Status: scaffolded, not yet implemented.** This folder is a stock
-> Laravel 13 + NativePHP v2 app (`composer create-project laravel/laravel` +
-> `nativephp/desktop ^2.3`, `php artisan native:install`). It boots and every
-> artisan command works, but there is **no LDS logic yet** — no `LdsCli`
-> bridge, no panel UI, no tray. `routes/web.php` is still the stock welcome
-> page. See `docs/developments/003/planning.md` §6 for the planned shape.
+> **Status: implemented — full parity with the other three variants.** The
+> app boots a Laravel 13 + NativePHP v2.3 window rendering a 6-tab panel
+> (Lifecycle / Profiles / Tools / Containers / Logs / Output), with a system
+> tray and the same 11 lifecycle commands, 51 profile chips, 41 tool cards,
+> live container status, one-shot + streaming logs and elevated `hosts-sync`.
 
 ## What's here
 
-Standard Laravel app + NativePHP v2 (`config/nativephp.php`,
-`app/Providers/NativeAppServiceProvider.php`). Requires PHP 8.3+ (8.4 works),
-Composer, and Node 20+.
+Standard Laravel app + NativePHP v2 (`config/nativephp.php`), plus the LDS
+layer:
+
+```
+app/Services/LdsCli.php                     lds CLI wrapper (root discovery,
+                                            run/detached/status/tail/stream,
+                                            hosts-sync, open-url)
+app/Providers/NativeAppServiceProvider.php  panel window + tray (MenuBar)
+app/Providers/AppServiceProvider.php        tray menu event listeners
+routes/web.php                              panel + 9 JSON API endpoints
+resources/views/panel.blade.php             the 6-tab panel UI (inline CSS/JS)
+public/images/tray.png                     tray icon (32×32 RGBA)
+```
+
+Requires PHP 8.3+ (8.4 works), Composer, and Node 20+.
+
+## Features (same set as the Tauri / JavaFX / Dioxus variants)
+
+- System tray — Open panel · Start all profiles · Stop all · Refresh status ·
+  Hide panel · Quit
+- Lifecycle buttons — `lds start` / `stop` / `down` / `ps` / `logs` /
+  `certs` / `db init all` / `sonar` / `openvas start` / `openvas stop` /
+  `backup`
+- Profile chips — all 51 long-running compose profiles (`lds up <profile>` /
+  `lds down <profile>`) + custom box; the one-shot `semgrep-scan` /
+  `trivy-scan` / `sonar-scanner` profiles stay behind the `lds tools` buttons
+- Admin tool cards — one-click open of all 41 tool UIs (mirrors
+  `docs/en/12-ports.md`)
+- Container status — live table from `docker compose --profile '*' ps`,
+  auto-refreshed every 5 s (toggleable, last-updated stamp)
+- Logs — one-shot `docker compose logs --tail N <service>` plus a live
+  `--follow` stream (Stop kills the child)
+- lds tools — path input + `semgrep` / `trivy` / `crg`
+- hosts-sync — Windows: elevated cmd (native UAC prompt); Unix: direct CLI
+
+### Close to tray — NativePHP caveat
+
+NativePHP 2.3 has **no close interception** (no `Window::onClose`, no
+`closing` event), so "X hides to tray" is not expressible. The equivalent
+behaviour here:
+
+- `Window::open('main')->closable(false)` removes the native close
+  affordance, so the app cannot be closed by accident;
+- a **Hide to tray** header button (`Window::hide('main')`) plus the tray's
+  *Hide panel* item send it to the tray;
+- the tray's *Open LDS Desktop* item and a left-click both re-show the panel;
+- *Quit* (a native menu role) is the only way to exit.
+
+The other three variants intercept the close event and hide instead.
+
+### Implementation notes
+
+- The PHP built-in server behind the window is single-threaded, so long
+  commands are serialised: the panel keeps a `busy` flag and disables the
+  buttons while an `lds` call is in flight.
+- Log streaming runs a detached `docker compose logs --follow` writing to
+  `storage/app/lds-stream.log`; the panel polls that file. Stop/Quit kill the
+  child (Windows: `Get-CimInstance Win32_Process` filter; Unix: `pkill -f`).
+- `NativeAppServiceProvider::boot()` can run more than once (macOS
+  `activate`), so tray creation is guarded by a static flag (not the cache
+  store — the default cache driver is the database and may not be migrated on
+  first run).
+- Tray menu clicks arrive as `Native\Desktop\Events\Menu\MenuItemClicked`
+  (`$event->item['id']`); roles such as *Quit* are handled by Electron.
 
 ## Laravel-13 command-name bug — fixed upstream (2.3.1)
 
