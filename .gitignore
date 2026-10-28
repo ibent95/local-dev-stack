@@ -31,3 +31,9 @@ configs/*/api/package-lock.json
 # AI CLI / inference local databases
 *.db
 *.db-*
+
+# Freebuff Desktop local state — tool-managed, per-machine (only the shared
+# skill preload list is committed; its own .gitignore says not to commit the
+# project id)
+/.freebuff/*
+!/.freebuff/settings.json
