@@ -288,8 +288,9 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Open LDS Desktop", true, None::<&str>)?;
     let start_all = MenuItem::with_id(app, "start_all", "Start all profiles", true, None::<&str>)?;
     let stop_all = MenuItem::with_id(app, "stop_all", "Stop all", true, None::<&str>)?;
+    let refresh = MenuItem::with_id(app, "refresh", "Refresh status", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &start_all, &stop_all, &quit])?;
+    let menu = Menu::with_items(app, &[&open, &start_all, &stop_all, &refresh, &quit])?;
 
     let mut builder = TrayIconBuilder::new()
         .menu(&menu)
@@ -306,6 +307,10 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
             }
             "stop_all" => {
                 let _ = tauri::async_runtime::spawn_blocking(|| run_lds(&["down"]));
+            }
+            "refresh" => {
+                // The panel polls every 5 s; this refreshes it now.
+                let _ = app.emit("lds://refresh", ());
             }
             "quit" => app.exit(0),
             _ => {}
@@ -329,6 +334,17 @@ pub fn run() {
         .manage(AppState::default())
         .setup(|app| {
             setup_tray(app)?;
+            // Close = hide to tray: the window is not destroyed (the tray
+            // "Open" item re-shows it); only tray Quit exits the process.
+            if let Some(win) = app.get_webview_window("main") {
+                let w = win.clone();
+                win.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = w.hide();
+                    }
+                });
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

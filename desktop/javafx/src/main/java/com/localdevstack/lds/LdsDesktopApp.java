@@ -66,6 +66,7 @@ public class LdsDesktopApp extends Application {
     private Button streamBtn;
     private Button stopBtn;
     private Stage stage;
+    private TrayIcon trayIcon;
 
     // Auto-refresh: a daemon scheduler pokes refreshStatus() every 5s; the
     // AtomicBoolean guard drops overlapping runs (slow docker responses).
@@ -77,10 +78,14 @@ public class LdsDesktopApp extends Application {
     private Process logStream;
 
     private static final String[] PROFILES = {
-            "proxy", "mysql", "postgres", "mongo", "redis",
-            "duckdb", "trino", "analytics", "tasks", "wiki",
-            "semgrep", "zap", "trivy", "crg", "vaultwarden", "mail",
-            "instatic", "erpnext", "playwright", "headlessx", "kafka"
+            "analytics", "centrifugo", "crg", "dbx", "drawdb", "drawio", "duckdb",
+            "erpnext", "headlessx", "hop", "hoppscotch", "imgcompress", "instatic",
+            "kafka", "keycloak", "lldap", "mail", "mariadb", "memcached", "metabase",
+            "mongo", "monitoring", "mqtt", "mssql", "mysql", "openldap", "openwa",
+            "oracle", "penpot", "php", "phpcacheadmin", "plane", "playwright",
+            "postgres", "proxy", "rabbitmq", "redis", "rustfs", "search", "semgrep",
+            "snapotter", "soketi", "sonarqube", "superset", "tasks", "trino", "trivy",
+            "valkey", "vaultwarden", "wiki", "zap"
     };
 
     /** label -> url (mirrors docs/en/12-ports.md) */
@@ -119,6 +124,12 @@ public class LdsDesktopApp extends Application {
             {"draw.io", "http://localhost:4535"},
             {"SnapOtter", "http://localhost:4538"},
             {"ImgCompress", "http://localhost:4539"},
+            {"SonarQube", "http://localhost:4544"},
+            {"Meilisearch", "http://localhost:4545"},
+            {"Keycloak", "http://localhost:4546"},
+            {"Loki", "http://localhost:4547"},
+            {"Tempo", "http://localhost:4548"},
+            {"OpenVAS", "http://localhost:9392"},
             {"Dashboard", "http://localhost"},
     };
 
@@ -141,11 +152,27 @@ public class LdsDesktopApp extends Application {
             addTrayIcon();
         }
 
+        // Close = hide to tray (the app keeps running; Quit exits it cleanly).
+        stage.setOnCloseRequest(e -> {
+            e.consume();
+            stage.hide();
+        });
+
         stage.show();
         refreshStatus();
         startAutoRefresh();
         Runtime.getRuntime().addShutdownHook(new Thread(this::killLogStream,
                 "lds-log-stream-cleanup"));
+    }
+
+    /** Clean exit: deregister the AWT tray icon (no ghost) + kill the log stream. */
+    @Override
+    public void stop() {
+        killLogStream();
+        if (trayIcon != null) {
+            SystemTray.getSystemTray().remove(trayIcon);
+            trayIcon = null;
+        }
     }
 
     /** Run a blocking CLI call off the UI thread, then land the result back on it. */
@@ -217,6 +244,10 @@ public class LdsDesktopApp extends Application {
         addButton(pane, "lds logs", () -> cli.lds("logs"));
         addButton(pane, "certs", () -> cli.lds("certs"));
         addButton(pane, "db init all", () -> cli.lds("db", "init", "all"));
+        addButton(pane, "sonar", () -> cli.lds("sonar"));
+        addButton(pane, "openvas start", () -> cli.lds("openvas", "start"));
+        addButton(pane, "openvas stop", () -> cli.lds("openvas", "stop"));
+        addButton(pane, "backup", () -> cli.lds("backup"));
         return pane;
     }
 
@@ -235,7 +266,29 @@ public class LdsDesktopApp extends Application {
     }
 
     private Parent toolsTab() {
-        FlowPane pane = new FlowPane(8, 8);
+        VBox box = new VBox(8);
+
+        HBox scanRow = new HBox(8);
+        scanRow.getChildren().add(new Label("lds tools:"));
+        TextField scanPath = new TextField();
+        scanPath.setPromptText("path to scan (project dir)");
+        HBox.setHgrow(scanPath, Priority.ALWAYS);
+        scanRow.getChildren().add(scanPath);
+        for (String tool : new String[] {"semgrep", "trivy", "crg"}) {
+            Button scanBtn = new Button(tool);
+            String t = tool;
+            scanBtn.setOnAction(e -> {
+                String p = scanPath.getText().trim();
+                if (p.isEmpty()) {
+                    appendOutput("$ lds tools " + t + " <path>\nERROR: enter a path to scan.");
+                    return;
+                }
+                runAsync("lds tools " + t + " " + p, () -> cli.lds("tools", t, p));
+            });
+            scanRow.getChildren().add(scanBtn);
+        }
+
+        FlowPane cards = new FlowPane(8, 8);
         for (String[] tool : TOOLS) {
             Button card = new Button(tool[0]);
             String url = tool[1];
@@ -247,9 +300,11 @@ public class LdsDesktopApp extends Application {
                 }
             });
             card.setTooltip(new javafx.scene.control.Tooltip(url));
-            pane.getChildren().add(card);
+            cards.getChildren().add(card);
         }
-        return pane;
+
+        box.getChildren().addAll(scanRow, cards);
+        return box;
     }
 
     private Parent statusTab() {
@@ -496,6 +551,8 @@ public class LdsDesktopApp extends Application {
         down.addActionListener(e -> CompletableFuture.runAsync(() -> {
             try { cli.lds("down"); } catch (Exception ignored) {}
         }));
+        MenuItem refresh = new MenuItem("Refresh status");
+        refresh.addActionListener(e -> Platform.runLater(this::refreshStatus));
         MenuItem quit = new MenuItem("Quit");
         quit.addActionListener(e -> Platform.exit());
         menu.add(open);
@@ -503,6 +560,7 @@ public class LdsDesktopApp extends Application {
         menu.add(up);
         menu.add(down);
         menu.addSeparator();
+        menu.add(refresh);
         menu.add(quit);
 
         TrayIcon icon = new TrayIcon(
@@ -513,6 +571,7 @@ public class LdsDesktopApp extends Application {
 
         try {
             SystemTray.getSystemTray().add(icon);
+            trayIcon = icon;
         } catch (AWTException e) {
             appendOutput("WARN: tray unavailable: " + e.getMessage());
         }

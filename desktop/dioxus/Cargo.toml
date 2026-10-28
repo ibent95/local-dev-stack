@@ -2,7 +2,7 @@
 name = "lds-desktop-dioxus"
 version = "0.1.0"
 edition = "2021"
-description = "LDS Desktop (Dioxus spike) — tray + panel companion for the local-dev-stack"
+description = "LDS Desktop (Dioxus) — tray + panel companion for the local-dev-stack"
 license = "MIT"
 
 [dependencies]

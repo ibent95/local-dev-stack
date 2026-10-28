@@ -6,10 +6,14 @@ const { listen } = window.__TAURI__.event;
 
 // --- profile chips ---------------------------------------------------------
 const PROFILES = [
-  "proxy", "mysql", "postgres", "mongo", "redis",
-  "duckdb", "trino", "analytics", "tasks", "wiki",
-  "semgrep", "zap", "trivy", "crg", "vaultwarden", "mail",
-  "instatic", "erpnext", "playwright", "headlessx", "kafka",
+  "analytics", "centrifugo", "crg", "dbx", "drawdb", "drawio", "duckdb",
+  "erpnext", "headlessx", "hop", "hoppscotch", "imgcompress", "instatic",
+  "kafka", "keycloak", "lldap", "mail", "mariadb", "memcached", "metabase",
+  "mongo", "monitoring", "mqtt", "mssql", "mysql", "openldap", "openwa",
+  "oracle", "penpot", "php", "phpcacheadmin", "plane", "playwright",
+  "postgres", "proxy", "rabbitmq", "redis", "rustfs", "search", "semgrep",
+  "snapotter", "soketi", "sonarqube", "superset", "tasks", "trino", "trivy",
+  "valkey", "vaultwarden", "wiki", "zap",
 ];
 
 // --- admin tool cards (label -> url) ---------------------------------------
@@ -48,6 +52,12 @@ const TOOLS = [
   ["draw.io", "http://localhost:4535"],
   ["SnapOtter", "http://localhost:4538"],
   ["ImgCompress", "http://localhost:4539"],
+  ["SonarQube", "http://localhost:4544"],
+  ["Meilisearch", "http://localhost:4545"],
+  ["Keycloak", "http://localhost:4546"],
+  ["Loki", "http://localhost:4547"],
+  ["Tempo", "http://localhost:4548"],
+  ["OpenVAS", "http://localhost:9392"],
   ["Dashboard", "http://localhost"],
 ];
 
@@ -288,6 +298,10 @@ function init() {
   $("#lc-logs").addEventListener("click", () => runLds(["logs"]));
   $("#lc-certs").addEventListener("click", () => runLds(["certs"]));
   $("#lc-db-init").addEventListener("click", () => runLds(["db", "init", "all"]));
+  $("#lc-sonar").addEventListener("click", () => runLds(["sonar"]));
+  $("#lc-openvas-up").addEventListener("click", () => runLds(["openvas", "start"]));
+  $("#lc-openvas-down").addEventListener("click", () => runLds(["openvas", "stop"]));
+  $("#lc-backup").addEventListener("click", () => runLds(["backup"]));
   $("#lc-hosts").addEventListener("click", async () => {
     const out = $("#run-output");
     out.textContent = "$ lds hosts-sync\n";
@@ -323,6 +337,9 @@ function init() {
   $("#log-stream").addEventListener("click", startLogStream);
   $("#log-stop").addEventListener("click", stopLogStream);
   $("#log-clear").addEventListener("click", () => ($("#log-output").textContent = ""));
+
+  // Tray "Refresh status" → Rust emits `lds://refresh`.
+  listen("lds://refresh", () => refreshStatus());
 
   startAutoRefresh();
 }

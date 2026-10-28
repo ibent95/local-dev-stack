@@ -1,13 +1,13 @@
-# LDS Desktop — Dioxus spike (variant D)
+# LDS Desktop — Dioxus (variant D)
 
-A minimal spike proving a **Dioxus 0.7** desktop app can fill the same role as
-the Tauri variant: a system-tray icon (via `muda`, Dioxus's tray re-export)
-plus a panel window that live-polls `docker compose ps` and shows container
-status every 3 seconds.
+The **pure-Rust** implementation of the LDS desktop companion: the full feature
+set of the Tauri / JavaFX / NativePHP variants, with a `rsx!` UI instead of
+HTML/JS. A system-tray icon (via `muda`, Dioxus's tray re-export) plus a 6-tab
+panel that drives the `lds` CLI.
 
-**Scope of the spike:** tray + panel + status poll. No log streaming, no
-`lds` command bridge, no installers — those are the next steps if the spike
-passes.
+**Scope:** full parity — tray (open / start all / stop all / refresh / quit),
+11 lifecycle commands, 51 profile chips, 41 tool cards, container status poll,
+one-shot + streaming logs, `lds tools` runners and elevated `hosts-sync`.
 
 ## Why Dioxus?
 
@@ -26,7 +26,7 @@ passes.
 ```
 Cargo.toml      dioxus 0.7 (desktop feature) + dioxus-desktop + serde + tokio
 Dioxus.toml     dx config (serve / bundle); cargo build doesn't need it
-src/main.rs     tray (muda) + panel with docker compose ps table
+src/main.rs     tray (muda) + 6 tabs + lds bridge + status poll + log stream
 ```
 
 ## Build (containerized compile-check)
@@ -49,10 +49,10 @@ cd desktop/dioxus && cargo run     # needs a webview (WebView2 / WebKitGTK)
 The panel closes to the tray (the process stays alive); left-click the tray
 icon to bring it back, use the tray menu to refresh or quit.
 
-## Gotchas (learned while building the spike)
+## Gotchas (learned while building it)
 
-- `shift`-free note: none here — but the Dioxus 0.7 API churn is real:
-  `launch` now takes `(root, contexts, platform_config)`; use
+- The Dioxus 0.7 API churn is real: `launch` now takes
+  `(root, contexts, platform_config)`; use
   `dioxus::LaunchBuilder::new().with_cfg(config).launch(App)` instead.
 - `TrayIconBuilder` is `!Send` — the built `TrayIcon` is leaked via
   `Box::leak` so it outlives the `use_effect` that created it (dropping it
@@ -62,3 +62,9 @@ icon to bring it back, use the tray menu to refresh or quit.
 - Close-to-tray = `Config::with_exits_when_last_window_closes(false)`;
   tray-left-click-to-show is the default
   (`with_tray_icon_show_window_on_click(true)`).
+- 0.7 dropped `spawn_blocking` from the prelude: blocking `lds`/`docker`
+  calls go through a small `run_blocking` helper (std thread + `tokio`
+  oneshot) so the UI thread never stalls.
+- The live log stream keeps the `Child` in a static `Mutex` and pushes lines
+  into a static buffer; a `use_future` drains it into the UI signal every
+  100 ms (the tray Quit / Stop button kill the child).
