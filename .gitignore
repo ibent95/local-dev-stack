@@ -32,6 +32,12 @@ configs/*/api/package-lock.json
 *.db
 *.db-*
 
+# Build output — never commit compiled artifacts (Cargo/target, Maven/target).
+# desktop/dioxus/target was tracked by accident (3,473 files, 1.85 GB).
+/desktop/*/target/
+/desktop/*/*/target/
+
+
 # Freebuff Desktop local state — tool-managed, per-machine (only the shared
 # skill preload list is committed; its own .gitignore says not to commit the
 # project id)
